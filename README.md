@@ -28,6 +28,9 @@ A professional and minimal attendance management system for **Archisys Innovatio
 - Reset employee passwords
 - Manage NFC cards (assign, deactivate, delete)
 - Write employee ID to blank NFC cards
+- Real-time NFC tap alerts via SSE (browser notifications)
+- Activity log with unified timeline (attendance, NFC taps, leaves)
+- Configurable office settings (hours, thresholds, working days)
 
 ### NFC Card Reader (Optional)
 - Tap-to-attend using ACR122U USB reader
@@ -50,10 +53,10 @@ npm run dev      # Starts on http://localhost:3001
 | Role     | Email                  | Password     |
 |----------|------------------------|--------------|
 | Admin    | admin@archisys.com     | admin123     |
+| Admin    | priya@archisys.com     | password123  |
 | Employee | rajesh@archisys.com    | password123  |
-| Employee | priya@archisys.com     | password123  |
-| Employee | amit@archisys.com      | password123  |
 | Employee | sita@archisys.com      | password123  |
+| Employee | bikash@archisys.com    | password123  |
 
 ### 2. Web Dashboard
 
@@ -124,9 +127,16 @@ See [HOSTING.md](HOSTING.md) for full NFC setup instructions including driver in
 | PUT    | `/api/employees/:id/reset-password` | Reset password    |
 
 ### Dashboard
-| Method | Endpoint              | Description     |
-|--------|-----------------------|-----------------|
-| GET    | `/api/dashboard/stats`| Get statistics  |
+| Method | Endpoint                     | Description              |
+|--------|------------------------------|--------------------------|
+| GET    | `/api/dashboard/stats`       | Get statistics           |
+| GET    | `/api/dashboard/activity-log`| Unified activity timeline|
+
+### Office Settings
+| Method | Endpoint           | Description                  |
+|--------|--------------------|------------------------------|
+| GET    | `/api/settings`    | Get office settings (any user)|
+| PUT    | `/api/settings`    | Update settings (admin)      |
 
 ### NFC
 | Method | Endpoint                          | Auth     | Description                    |
@@ -146,6 +156,7 @@ See [HOSTING.md](HOSTING.md) for full NFC setup instructions including driver in
 | PUT    | `/api/nfc/write-jobs/:id/cancel`  | Admin    | Cancel write job               |
 | GET    | `/api/nfc/write-jobs/pending`     | API Key  | Reader polls for write jobs    |
 | PUT    | `/api/nfc/write-jobs/:id/complete`| API Key  | Reader reports write result    |
+| GET    | `/api/nfc/events`                 | Admin    | SSE stream for real-time alerts|
 
 ## Tech Stack
 
@@ -157,7 +168,7 @@ See [HOSTING.md](HOSTING.md) for full NFC setup instructions including driver in
 ## Security
 
 - Helmet security headers
-- Rate limiting on auth routes (20 requests / 15 min)
+- Rate limiting on auth routes (100 requests / 15 min)
 - CORS origin restriction
 - API key authentication for NFC reader devices
 - Request body size limit (1MB)
