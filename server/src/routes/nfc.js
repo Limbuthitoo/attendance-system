@@ -2,8 +2,37 @@ const express = require('express');
 const { getDB } = require('../db');
 const { authenticateDevice } = require('../middleware/deviceAuth');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { eventBus } = require('../events');
+const { isLateCheckIn, getHalfDayHours, getMinCheckoutMinutes } = require('../settings');
 
 const router = express.Router();
+
+// ─── SSE: Real-time tap alerts for admin ────────────────────────────────────
+
+router.get('/events', authenticate, requireAdmin, (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  res.write(':\n\n'); // initial comment to establish connection
+
+  const onTap = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  eventBus.on('nfc:tap', onTap);
+
+  // Keep-alive every 30s
+  const keepAlive = setInterval(() => {
+    res.write(':\n\n');
+  }, 30000);
+
+  req.on('close', () => {
+    eventBus.off('nfc:tap', onTap);
+    clearInterval(keepAlive);
+  });
+});
 
 // ─── NFC Tap Ingestion (called by reader service) ──────────────────────────
 
@@ -32,16 +61,19 @@ router.post('/tap', authenticateDevice, (req, res) => {
 
   if (!card) {
     logTap(null, 'UNKNOWN_CARD', null);
+    eventBus.emit('nfc:tap', { status: 'UNKNOWN_CARD', cardUid, message: 'Unknown card tapped', time: tapTime, deviceId });
     return res.json({ status: 'UNKNOWN_CARD', message: 'Card not registered' });
   }
 
   if (!card.is_active) {
     logTap(card.emp_id, 'INACTIVE_CARD', null);
+    eventBus.emit('nfc:tap', { status: 'INACTIVE_CARD', cardUid, employee: card.name, empCode: card.emp_code, message: 'Inactive card tapped', time: tapTime, deviceId });
     return res.json({ status: 'INACTIVE_CARD', message: 'Card is deactivated', employee: card.name });
   }
 
   if (!card.emp_active) {
     logTap(card.emp_id, 'INACTIVE_CARD', null);
+    eventBus.emit('nfc:tap', { status: 'INACTIVE_CARD', cardUid, employee: card.name, empCode: card.emp_code, message: 'Inactive employee tapped', time: tapTime, deviceId });
     return res.json({ status: 'INACTIVE_CARD', message: 'Employee account is inactive', employee: card.name });
   }
 
@@ -57,9 +89,7 @@ router.post('/tap', authenticateDevice, (req, res) => {
 
   if (!existing || !existing.check_in) {
     // ── CHECK IN ──
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const isLate = hour > 9 || (hour === 9 && minute > 30);
+    const isLate = isLateCheckIn(now);
     const status = isLate ? 'late' : 'present';
 
     let attendanceId;
@@ -75,38 +105,59 @@ router.post('/tap', authenticateDevice, (req, res) => {
     }
 
     logTap(employeeId, 'CHECKED_IN', attendanceId);
-    return res.json({
+    const checkinPayload = {
       status: 'CHECKED_IN',
       message: `${card.name} checked in`,
       employee: card.name,
       empCode: card.emp_code,
       time: tapTime,
       late: isLate,
-    });
+      deviceId,
+    };
+    eventBus.emit('nfc:tap', checkinPayload);
+    return res.json(checkinPayload);
   }
 
   if (existing.check_in && !existing.check_out) {
     // ── CHECK OUT ──
     const checkInTime = new Date(existing.check_in);
-    const workHours = ((now - checkInTime) / (1000 * 60 * 60)).toFixed(2);
-    const attendanceStatus = parseFloat(workHours) < 4 ? 'half-day' : existing.status;
+    const minutesSinceCheckIn = (now - checkInTime) / (1000 * 60);
+
+    // Prevent accidental check-out within configured minimum minutes of check-in
+    if (minutesSinceCheckIn < getMinCheckoutMinutes()) {
+      logTap(employeeId, 'DUPLICATE_IGNORED', existing.id);
+      eventBus.emit('nfc:tap', { status: 'DUPLICATE_IGNORED', employee: card.name, empCode: card.emp_code, message: `${card.name} — too soon to check out`, time: tapTime, deviceId });
+      return res.json({
+        status: 'DUPLICATE_IGNORED',
+        message: `${card.name} already checked in — wait at least 2 min to check out`,
+        employee: card.name,
+        empCode: card.emp_code,
+      });
+    }
+
+    const workHours = (minutesSinceCheckIn / 60).toFixed(2);
+    const attendanceStatus = parseFloat(workHours) < getHalfDayHours() ? 'half-day' : existing.status;
 
     db.prepare('UPDATE attendance SET check_out = ?, work_hours = ?, status = ?, notes = COALESCE(notes, \'\') || ? WHERE id = ?')
       .run(tapTime, parseFloat(workHours), attendanceStatus, ' [NFC]', existing.id);
 
     logTap(employeeId, 'CHECKED_OUT', existing.id);
-    return res.json({
+    const checkoutPayload = {
       status: 'CHECKED_OUT',
       message: `${card.name} checked out`,
       employee: card.name,
       empCode: card.emp_code,
       time: tapTime,
       workHours: parseFloat(workHours),
-    });
+      deviceId,
+    };
+    eventBus.emit('nfc:tap', checkoutPayload);
+    return res.json(checkoutPayload);
   }
 
   // ── Already checked in and out ──
   logTap(employeeId, 'DUPLICATE_IGNORED', existing.id);
+  eventBus.emit('nfc:tap', { status: 'DUPLICATE_IGNORED', employee: card.name, empCode: card.emp_code, message: `${card.name} already completed today`, time: tapTime, deviceId });
   return res.json({
     status: 'DUPLICATE_IGNORED',
     message: `${card.name} already completed today`,

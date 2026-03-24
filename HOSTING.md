@@ -9,8 +9,8 @@
 
 | Folder | What It Is |
 |--------|-----------|
-| `server/` | Backend API (the brain — handles data, login, attendance) |
-| `web/` | Admin website (manage employees, view attendance, approve leaves) |
+| `server/` | Backend API (the brain — handles data, login, attendance, office settings) |
+| `web/` | Admin website (manage employees, office settings, activity log, NFC, leaves) |
 | `mobile/` | Phone app for employees (check in/out, apply leave) |
 | `nfc-reader/` | Optional — connects a USB card reader for tap-to-attend |
 
@@ -86,12 +86,21 @@ Example: Change `http://localhost:3001/api` to `http://192.168.1.5:3001/api`
 | Who | Email | Password |
 |-----|-------|----------|
 | **Admin** | admin@archisys.com | admin123 |
+| **Admin** | priya@archisys.com | password123 |
 | **Employee** | rajesh@archisys.com | password123 |
-| **Employee** | priya@archisys.com | password123 |
-| **Employee** | amit@archisys.com | password123 |
 | **Employee** | sita@archisys.com | password123 |
+| **Employee** | bikash@archisys.com | password123 |
 
 **Change the admin password after your first login!**
+
+### Step 6: Configure Office Hours
+
+Log in as admin → **Office Settings** in the sidebar. Set:
+- Office start/end time
+- Late grace period (minutes)
+- Half-day threshold (hours)
+- Working days
+- Company name and timezone
 
 ---
 
@@ -437,6 +446,7 @@ To put your own company name and logo:
 | Website favicon | Replace `web/public/favicon.svg` |
 | Company name in sidebar | Edit `web/src/components/Layout.jsx` — search for "Archisys" |
 | Company name on login page | Edit `web/src/pages/Login.jsx` — search for "Archisys" |
+| Company name (dynamic) | Admin → **Office Settings** → Company Name |
 
 ---
 

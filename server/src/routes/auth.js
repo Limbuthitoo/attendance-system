@@ -5,7 +5,7 @@ const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'archisys-default-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Login
 router.post('/login', (req, res) => {
@@ -58,8 +58,8 @@ router.put('/change-password', authenticate, (req, res) => {
     return res.status(400).json({ error: 'Current and new password are required' });
   }
 
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
   const db = getDB();

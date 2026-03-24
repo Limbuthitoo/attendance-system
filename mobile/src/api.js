@@ -1,7 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-// Change this to your server's IP when testing on a physical device
-const API_BASE = 'http://192.168.1.3:3001/api';
+// Reads from app.json extra.apiUrl, falls back to localhost for simulator
+const API_BASE = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.3:3001/api';
 
 async function getToken() {
   return await SecureStore.getItemAsync('token');

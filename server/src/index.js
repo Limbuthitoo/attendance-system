@@ -14,6 +14,7 @@ const leaveRoutes = require('./routes/leaves');
 const employeeRoutes = require('./routes/employees');
 const dashboardRoutes = require('./routes/dashboard');
 const nfcRoutes = require('./routes/nfc');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,9 +45,9 @@ app.use(express.json({ limit: '1mb' }));
 
 // Rate limiting on auth routes (prevent brute force)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 attempts per window
-  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -58,6 +59,7 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/nfc', nfcRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -66,7 +68,7 @@ app.get('/api/health', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
+  console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 

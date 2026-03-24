@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { isLateCheckIn, getHalfDayHours } = require('../settings');
 
 const router = express.Router();
 
@@ -16,10 +17,8 @@ router.post('/check-in', authenticate, (req, res) => {
     return res.status(400).json({ error: 'Already checked in today' });
   }
 
-  // Determine if late (after 9:30 AM)
-  const currentHour = new Date().getHours();
-  const currentMinute = new Date().getMinutes();
-  const isLate = currentHour > 9 || (currentHour === 9 && currentMinute > 30);
+  // Determine if late based on office settings
+  const isLate = isLateCheckIn(new Date());
 
   if (existing) {
     db.prepare('UPDATE attendance SET check_in = ?, status = ? WHERE id = ?')
@@ -53,7 +52,7 @@ router.post('/check-out', authenticate, (req, res) => {
   const checkOutTime = new Date(now);
   const workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2);
 
-  const status = parseFloat(workHours) < 4 ? 'half-day' : existing.status;
+  const status = parseFloat(workHours) < getHalfDayHours() ? 'half-day' : existing.status;
 
   db.prepare('UPDATE attendance SET check_out = ?, work_hours = ?, status = ? WHERE id = ?')
     .run(now, parseFloat(workHours), status, existing.id);

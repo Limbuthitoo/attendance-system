@@ -7,6 +7,8 @@ import Attendance from './pages/Attendance';
 import Leaves from './pages/Leaves';
 import Employees from './pages/Employees';
 import LeaveManagement from './pages/LeaveManagement';
+import ActivityLog from './pages/ActivityLog';
+import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="leaves" element={<Leaves />} />
         <Route path="leave-management" element={<AdminRoute><LeaveManagement /></AdminRoute>} />
         <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />
+        <Route path="activity-log" element={<ActivityLog />} />
+        <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
