@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  api:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_PATH=data/attendance.db
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - NODE_ENV=production
+      - NFC_API_KEY=${NFC_API_KEY}
+    volumes:
+      - db-data:/app/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:

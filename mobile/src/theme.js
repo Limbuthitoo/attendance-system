@@ -1,0 +1,30 @@
+export const colors = {
+  primary: '#2563eb',
+  primaryDark: '#1d4ed8',
+  primaryLight: '#dbeafe',
+  white: '#ffffff',
+  background: '#f8fafc',
+  card: '#ffffff',
+  text: '#0f172a',
+  textSecondary: '#64748b',
+  textTertiary: '#94a3b8',
+  border: '#e2e8f0',
+  success: '#059669',
+  successLight: '#d1fae5',
+  warning: '#d97706',
+  warningLight: '#fef3c7',
+  danger: '#dc2626',
+  dangerLight: '#fee2e2',
+  purple: '#7c3aed',
+  purpleLight: '#ede9fe',
+};
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};

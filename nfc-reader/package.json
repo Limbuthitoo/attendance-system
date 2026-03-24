@@ -1,0 +1,13 @@
+{
+  "name": "archisys-nfc-reader",
+  "version": "1.0.0",
+  "description": "Local NFC reader service for ACR122U — sends tap events to Archisys Attendance backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "nfc-pcsc": "^0.8.1"
+  }
+}
