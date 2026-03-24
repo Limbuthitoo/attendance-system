@@ -25,6 +25,9 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  // Raw request helper (used by ActivityLog etc.)
+  _request: (endpoint, options) => request(endpoint, options),
+
   // Auth
   login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   getMe: () => request('/auth/me'),

@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings
 } from 'lucide-react';
 import { useState } from 'react';
+import NotificationBell from './NotificationBell';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -19,10 +20,12 @@ export default function Layout() {
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/attendance', icon: Clock, label: 'Attendance' },
     { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
+    { to: '/activity-log', icon: Activity, label: 'Activity Log' },
     ...(user?.role === 'admin'
       ? [
           { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
           { to: '/employees', icon: Users, label: 'Employees' },
+          { to: '/settings', icon: Settings, label: 'Office Settings' },
         ]
       : []),
   ];
@@ -103,6 +106,7 @@ export default function Layout() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {user?.role === 'admin' && <NotificationBell />}
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary-100 text-primary-700 capitalize">
               {user?.role}
             </span>

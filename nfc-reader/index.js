@@ -4,9 +4,10 @@ const { NFC } = require('nfc-pcsc');
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 const NFC_API_KEY = process.env.NFC_API_KEY;
 const DEVICE_ID = process.env.DEVICE_ID || 'reader-01';
-const DEBOUNCE_SECONDS = parseInt(process.env.DEBOUNCE_SECONDS) || 5;
+const DEBOUNCE_SECONDS = parseInt(process.env.DEBOUNCE_SECONDS) || 10;
 const RETRY_QUEUE_MAX = parseInt(process.env.RETRY_QUEUE_MAX) || 100;
 const WRITE_POLL_SECONDS = parseInt(process.env.WRITE_POLL_SECONDS) || 3;
+const ACTION_COOLDOWN_SECONDS = parseInt(process.env.ACTION_COOLDOWN_SECONDS) || 30;
 
 if (!NFC_API_KEY) {
   console.error('ERROR: NFC_API_KEY is required in .env');
@@ -21,21 +22,38 @@ const apiHeaders = {
 // ─── Debounce: prevent rapid duplicate taps ────────────────────────────────
 
 const recentTaps = new Map();
+const actionCooldowns = new Map(); // Longer cooldown after successful check-in/out
 
 function isDuplicate(cardUid) {
   const now = Date.now();
+
+  // Check action cooldown first (longer, after successful check-in/out)
+  const cooldownUntil = actionCooldowns.get(cardUid);
+  if (cooldownUntil && now < cooldownUntil) {
+    return true;
+  }
+
+  // Then check rapid tap debounce
   const last = recentTaps.get(cardUid);
   if (last && (now - last) < DEBOUNCE_SECONDS * 1000) return true;
   recentTaps.set(cardUid, now);
   return false;
 }
 
+function setActionCooldown(cardUid) {
+  actionCooldowns.set(cardUid, Date.now() + ACTION_COOLDOWN_SECONDS * 1000);
+}
+
 setInterval(() => {
-  const cutoff = Date.now() - DEBOUNCE_SECONDS * 1000;
+  const now = Date.now();
+  const debounceCutoff = now - DEBOUNCE_SECONDS * 1000;
   for (const [uid, ts] of recentTaps) {
-    if (ts < cutoff) recentTaps.delete(uid);
+    if (ts < debounceCutoff) recentTaps.delete(uid);
   }
-}, 60000);
+  for (const [uid, until] of actionCooldowns) {
+    if (now > until) actionCooldowns.delete(uid);
+  }
+}, 30000);
 
 // ─── Retry Queue ───────────────────────────────────────────────────────────
 
@@ -62,6 +80,8 @@ setInterval(processRetryQueue, 15000);
 // ─── Pending Write Job ─────────────────────────────────────────────────────
 
 let pendingWriteJob = null; // { id, data_to_write, emp_code, name }
+let writeRetryCount = 0;
+const MAX_WRITE_RETRIES = 3;
 
 async function pollForWriteJobs() {
   try {
@@ -140,6 +160,13 @@ async function handleTap(cardUid) {
 
     console.log(`  ${icon} ${result.status}: ${result.message || ''}`);
     if (result.employee) console.log(`  Employee: ${result.employee}`);
+
+    // After a successful check-in or check-out, apply a longer cooldown
+    // to prevent accidental re-tap from toggling the state
+    if (result.status === 'CHECKED_IN' || result.status === 'CHECKED_OUT') {
+      setActionCooldown(payload.cardUid);
+      console.log(`  🕐 Cooldown: ${ACTION_COOLDOWN_SECONDS}s before next tap accepted`);
+    }
   } catch (err) {
     console.error(`  ⚠️  Backend unreachable: ${err.message}`);
     if (retryQueue.length < RETRY_QUEUE_MAX) {
@@ -153,17 +180,47 @@ async function handleTap(cardUid) {
 
 // ─── Write to NFC Card (NDEF text record) ──────────────────────────────────
 
-async function writeToCard(reader, cardUid, dataString) {
-  // Write as raw bytes to block 4+ (MIFARE Classic/Ultralight compatible)
-  // Format: length byte + UTF-8 string, padded to 16 bytes
+async function writeToCard(reader, card, cardUid, dataString) {
   const textBuf = Buffer.from(dataString, 'utf8');
   const payload = Buffer.alloc(16, 0); // 16-byte block
   payload[0] = textBuf.length;
   textBuf.copy(payload, 1, 0, Math.min(textBuf.length, 15));
 
-  // Write to block 4 (first data block on MIFARE Classic 1K)
-  // For MIFARE Ultralight, this maps to pages 4-7
-  await reader.write(4, payload, 16);
+  const blockNumber = 4; // First data block
+
+  // Detect card type from ATR
+  const atr = card.atr || Buffer.alloc(0);
+  const isUltralight = atr.length >= 2 && atr[atr.length - 1] === 0x03;
+
+  if (isUltralight) {
+    // MIFARE Ultralight — no authentication needed, 4-byte pages
+    // Block 4 in nfc-pcsc maps to page 4 for Ultralight
+    // We write 4 pages (16 bytes) starting at page 4
+    for (let page = 0; page < 4; page++) {
+      const pageData = payload.subarray(page * 4, (page + 1) * 4);
+      await reader.write(blockNumber + page, pageData, 4);
+    }
+    console.log(`  [WRITE] Ultralight: wrote ${textBuf.length} bytes to pages 4-7`);
+  } else {
+    // MIFARE Classic — authenticate first with default key
+    const KEY_A = 0x60;
+    const DEFAULT_KEY = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+
+    try {
+      await reader.authenticate(blockNumber, KEY_A, DEFAULT_KEY);
+    } catch (authErr) {
+      // Try Key B
+      const KEY_B = 0x61;
+      try {
+        await reader.authenticate(blockNumber, KEY_B, DEFAULT_KEY);
+      } catch {
+        throw new Error(`Authentication failed for block ${blockNumber}: ${authErr.message}`);
+      }
+    }
+
+    await reader.write(blockNumber, payload, 16);
+    console.log(`  [WRITE] Classic: wrote ${textBuf.length} bytes to block ${blockNumber}`);
+  }
 }
 
 // ─── NFC Reader (PC/SC via nfc-pcsc) ───────────────────────────────────────
@@ -189,13 +246,24 @@ nfc.on('reader', (reader) => {
 
       console.log(`\n✏️  Writing "${job.data_to_write}" to card ${cardUid}...`);
       try {
-        await writeToCard(reader, cardUid, job.data_to_write);
+        await writeToCard(reader, card, cardUid, job.data_to_write);
         console.log(`  ✅ Write successful!`);
         console.log(`  Card UID: ${cardUid} → Employee: ${job.name} (${job.emp_code})`);
         await reportWriteResult(job.id, cardUid, true);
+        writeRetryCount = 0;
       } catch (err) {
         console.error(`  ❌ Write failed: ${err.message}`);
-        await reportWriteResult(job.id, cardUid, false, err.message);
+        writeRetryCount++;
+        if (writeRetryCount < MAX_WRITE_RETRIES) {
+          // Restore the job so next card placement retries
+          pendingWriteJob = job;
+          console.log(`  🔄 Will retry on next card placement (${writeRetryCount}/${MAX_WRITE_RETRIES})`);
+          console.log(`  Hold the card steady on the reader and try again.`);
+        } else {
+          console.error(`  ❌ Max retries reached — reporting failure to backend`);
+          await reportWriteResult(job.id, cardUid, false, err.message);
+          writeRetryCount = 0;
+        }
       }
       return;
     }
@@ -223,10 +291,12 @@ nfc.on('error', (err) => {
 
 console.log('═══════════════════════════════════════════════');
 console.log(' Archisys NFC Reader Service');
-console.log(`  Backend:  ${API_URL}`);
-console.log(`  Device:   ${DEVICE_ID}`);
-console.log(`  Debounce: ${DEBOUNCE_SECONDS}s`);
+console.log(`  Backend:    ${API_URL}`);
+console.log(`  Device:     ${DEVICE_ID}`);
+console.log(`  Debounce:   ${DEBOUNCE_SECONDS}s`);
+console.log(`  Cooldown:   ${ACTION_COOLDOWN_SECONDS}s after check-in/out`);
 console.log(`  Write poll: ${WRITE_POLL_SECONDS}s`);
+console.log(`  Write retries: ${MAX_WRITE_RETRIES}`);
 console.log('═══════════════════════════════════════════════');
 console.log('Waiting for NFC reader...');
 console.log('Mode: READ (tap attendance) + WRITE (polls for jobs)\n');

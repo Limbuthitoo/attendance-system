@@ -124,7 +124,34 @@ function initDB() {
       completed_at TEXT,
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     );
+
+    -- Office settings (key-value config)
+    CREATE TABLE IF NOT EXISTS office_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  // Seed default office settings if empty
+  const settingsCount = database.prepare('SELECT COUNT(*) as c FROM office_settings').get().c;
+  if (settingsCount === 0) {
+    const defaults = {
+      office_start: '09:00',
+      office_end: '18:00',
+      late_threshold_minutes: '30',
+      half_day_hours: '4',
+      full_day_hours: '8',
+      min_checkout_minutes: '2',
+      working_days: 'mon,tue,wed,thu,fri',
+      timezone: 'Asia/Kathmandu',
+      company_name: 'Archisys Innovations',
+    };
+    const insert = database.prepare('INSERT OR IGNORE INTO office_settings (key, value) VALUES (?, ?)');
+    for (const [k, v] of Object.entries(defaults)) {
+      insert.run(k, v);
+    }
+  }
 
   return database;
 }

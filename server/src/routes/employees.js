@@ -22,8 +22,12 @@ router.post('/', authenticate, requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'Name, email, employee ID, and password are required' });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
   const db = getDB();
@@ -81,8 +85,8 @@ router.put('/:id', authenticate, requireAdmin, (req, res) => {
 router.put('/:id/reset-password', authenticate, requireAdmin, (req, res) => {
   const { password } = req.body;
 
-  if (!password || password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
   const db = getDB();
