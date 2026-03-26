@@ -8,6 +8,35 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
 import { colors, spacing } from '../theme';
 
+const DEPARTMENTS = [
+  'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
+  'Sales', 'Human Resources', 'Finance', 'Operations', 'Quality Assurance',
+  'DevOps', 'Product', 'Customer Support', 'Administration', 'Data & Analytics',
+];
+
+const DESIGNATIONS = [
+  'CEO', 'CTO', 'COO', 'CFO', 'Director', 'Vice President',
+  'Senior Manager', 'Manager', 'Assistant Manager', 'Team Lead',
+  'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer',
+  'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer',
+  'UI/UX Designer', 'Senior Designer', 'Graphic Designer', 'Motion Designer',
+  'Digital Marketing Manager', 'Digital Marketing Executive',
+  'SEO Manager', 'SEO Specialist', 'SEO Analyst',
+  'Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter',
+  'Social Media Manager', 'Social Media Executive',
+  'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist',
+  'Business Development Manager', 'Business Development Executive',
+  'Sales Manager', 'Sales Executive', 'Account Manager',
+  'HR Manager', 'HR Executive', 'Recruiter',
+  'Finance Manager', 'Accountant',
+  'QA Lead', 'Senior QA Engineer', 'QA Engineer',
+  'DevOps Engineer', 'System Administrator', 'Cloud Engineer',
+  'Product Manager', 'Project Manager', 'Scrum Master',
+  'Data Analyst', 'Data Scientist', 'Data Engineer',
+  'Customer Support Manager', 'Customer Support Executive',
+  'Office Administrator', 'Intern', 'Trainee',
+];
+
 export default function EmployeesScreen() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,8 +165,21 @@ export default function EmployeesScreen() {
             <FormField label="Full Name *" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="Enter full name" />
             <FormField label="Email *" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="Enter email" keyboardType="email-address" autoCapitalize="none" />
             <FormField label="Password *" value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder="Min 6 characters" secureTextEntry />
-            <FormField label="Department" value={form.department} onChangeText={(v) => setForm({ ...form, department: v })} placeholder="e.g. Engineering" />
-            <FormField label="Designation" value={form.designation} onChangeText={(v) => setForm({ ...form, designation: v })} placeholder="e.g. Developer" />
+
+            <PickerField
+              label="Department"
+              value={form.department}
+              options={DEPARTMENTS}
+              placeholder="Select Department"
+              onSelect={(v) => setForm({ ...form, department: v })}
+            />
+            <PickerField
+              label="Designation"
+              value={form.designation}
+              options={DESIGNATIONS}
+              placeholder="Select Designation"
+              onSelect={(v) => setForm({ ...form, designation: v })}
+            />
             <FormField label="Phone" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} placeholder="Phone number" keyboardType="phone-pad" />
 
             <Text style={styles.fieldLabel}>Role</Text>
@@ -171,6 +213,64 @@ function FormField({ label, ...props }) {
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput style={styles.input} placeholderTextColor={colors.textTertiary} {...props} />
+    </View>
+  );
+}
+
+function PickerField({ label, value, options, placeholder, onSelect }) {
+  const [visible, setVisible] = useState(false);
+  const [search, setSearch] = useState('');
+  const filtered = search
+    ? options.filter(o => o.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => { setVisible(true); setSearch(''); }}
+        activeOpacity={0.7}
+      >
+        <Text style={[{ fontSize: 15 }, value ? { color: colors.text } : { color: colors.textTertiary }]}>
+          {value || placeholder}
+        </Text>
+      </TouchableOpacity>
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{placeholder}</Text>
+            <TouchableOpacity onPress={() => setVisible(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+            <TextInput
+              style={styles.input}
+              placeholder="Search..."
+              placeholderTextColor={colors.textTertiary}
+              value={search}
+              onChangeText={setSearch}
+              autoFocus
+            />
+          </View>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item}
+            contentContainerStyle={{ padding: spacing.lg }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.pickerItem, value === item && styles.pickerItemActive]}
+                onPress={() => { onSelect(item); setVisible(false); }}
+              >
+                <Text style={[styles.pickerItemText, value === item && styles.pickerItemActiveText]}>{item}</Text>
+                {value === item && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={styles.emptyText}>No results</Text>}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -235,4 +335,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: spacing.md,
   },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+
+  // Picker
+  pickerItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, marginBottom: 4,
+  },
+  pickerItemActive: { backgroundColor: colors.primaryLight },
+  pickerItemText: { fontSize: 15, color: colors.text },
+  pickerItemActiveText: { fontWeight: '600', color: colors.primary },
 });

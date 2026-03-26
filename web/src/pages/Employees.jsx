@@ -2,6 +2,35 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound, UserX, Edit } from 'lucide-react';
 
+const DEPARTMENTS = [
+  'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
+  'Sales', 'Human Resources', 'Finance', 'Operations', 'Quality Assurance',
+  'DevOps', 'Product', 'Customer Support', 'Administration', 'Data & Analytics',
+];
+
+const DESIGNATIONS = [
+  'CEO', 'CTO', 'COO', 'CFO', 'Director', 'Vice President',
+  'Senior Manager', 'Manager', 'Assistant Manager', 'Team Lead',
+  'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer',
+  'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer',
+  'UI/UX Designer', 'Senior Designer', 'Graphic Designer', 'Motion Designer',
+  'Digital Marketing Manager', 'Digital Marketing Executive',
+  'SEO Manager', 'SEO Specialist', 'SEO Analyst',
+  'Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter',
+  'Social Media Manager', 'Social Media Executive',
+  'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist',
+  'Business Development Manager', 'Business Development Executive',
+  'Sales Manager', 'Sales Executive', 'Account Manager',
+  'HR Manager', 'HR Executive', 'Recruiter',
+  'Finance Manager', 'Accountant',
+  'QA Lead', 'Senior QA Engineer', 'QA Engineer',
+  'DevOps Engineer', 'System Administrator', 'Cloud Engineer',
+  'Product Manager', 'Project Manager', 'Scrum Master',
+  'Data Analyst', 'Data Scientist', 'Data Engineer',
+  'Customer Support Manager', 'Customer Support Executive',
+  'Office Administrator', 'Intern', 'Trainee',
+];
+
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +50,7 @@ export default function Employees() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [form, setForm] = useState({
     employee_id: '', name: '', email: '', password: '',
-    department: 'General', designation: 'Employee', role: 'employee', phone: ''
+    department: '', designation: '', role: 'employee', phone: ''
   });
 
   useEffect(() => {
@@ -46,7 +75,7 @@ export default function Employees() {
     try {
       await api.createEmployee(form);
       setShowForm(false);
-      setForm({ employee_id: '', name: '', email: '', password: '', department: 'General', designation: 'Employee', role: 'employee', phone: '' });
+      setForm({ employee_id: '', name: '', email: '', password: '', department: '', designation: '', role: 'employee', phone: '' });
       loadEmployees();
     } catch (err) {
       alert(err.message);
@@ -211,8 +240,6 @@ export default function Employees() {
               { key: 'name', label: 'Full Name', placeholder: 'John Doe', required: true },
               { key: 'email', label: 'Email', placeholder: 'john@archisys.com', required: true, type: 'email' },
               { key: 'password', label: 'Password', placeholder: 'Min 6 characters', required: true, type: 'password' },
-              { key: 'department', label: 'Department', placeholder: 'Engineering' },
-              { key: 'designation', label: 'Designation', placeholder: 'Developer' },
               { key: 'phone', label: 'Phone', placeholder: '9800000000' },
             ].map((field) => (
               <div key={field.key}>
@@ -227,6 +254,28 @@ export default function Employees() {
                 />
               </div>
             ))}
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
+              <select
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
+              <select
+                value={form.designation}
+                onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select Designation</option>
+                {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
               <select
@@ -540,23 +589,25 @@ export default function Employees() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={editForm.department}
                     onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    placeholder="Engineering"
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  >
+                    <option value="">Select Department</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
-                  <input
-                    type="text"
+                  <select
                     value={editForm.designation}
                     onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                    placeholder="Senior Developer"
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  >
+                    <option value="">Select Designation</option>
+                    {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
