@@ -246,6 +246,19 @@ nfc.on('reader', (reader) => {
 
       console.log(`\n✏️  Writing "${job.data_to_write}" to card ${cardUid}...`);
       try {
+        // Check if card is already assigned to another employee
+        const checkRes = await fetch(`${API_URL}/api/nfc/check-card/${cardUid}`, { headers: apiHeaders });
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.assigned && checkData.employee_id !== job.employee_id) {
+            console.error(`  🚫 Card ${cardUid} is already assigned to ${checkData.employee} (${checkData.emp_code})`);
+            console.error(`  ❌ Write BLOCKED — unassign the card first, then retry.`);
+            await reportWriteResult(job.id, cardUid, false, `Card already assigned to ${checkData.employee}`);
+            writeRetryCount = 0;
+            return;
+          }
+        }
+
         await writeToCard(reader, card, cardUid, job.data_to_write);
         console.log(`  ✅ Write successful!`);
         console.log(`  Card UID: ${cardUid} → Employee: ${job.name} (${job.emp_code})`);

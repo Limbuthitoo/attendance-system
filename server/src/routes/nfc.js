@@ -10,11 +10,18 @@ const router = express.Router();
 // ─── SSE: Real-time tap alerts for admin ────────────────────────────────────
 
 router.get('/events', authenticate, requireAdmin, (req, res) => {
+  // Remove CSP and other helmet headers that can interfere with SSE
+  res.removeHeader('Content-Security-Policy');
+  res.removeHeader('X-Content-Type-Options');
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',        // tell nginx to not buffer
+    'Access-Control-Allow-Origin': '*',
   });
+  res.flushHeaders();
   res.write(':\n\n'); // initial comment to establish connection
 
   const onTap = (data) => {
@@ -23,15 +30,26 @@ router.get('/events', authenticate, requireAdmin, (req, res) => {
 
   eventBus.on('nfc:tap', onTap);
 
-  // Keep-alive every 30s
+  // Keep-alive every 15s (more frequent to maintain connection)
   const keepAlive = setInterval(() => {
     res.write(':\n\n');
-  }, 30000);
+  }, 15000);
 
   req.on('close', () => {
     eventBus.off('nfc:tap', onTap);
     clearInterval(keepAlive);
   });
+});
+
+// ─── Polling fallback: recent taps for admin ────────────────────────────────
+
+router.get('/recent-tap', authenticate, requireAdmin, (req, res) => {
+  const db = getDB();
+  const since = req.query.since || new Date(Date.now() - 10000).toISOString();
+  const tap = db.prepare(
+    'SELECT card_uid, result, tap_time FROM nfc_tap_log WHERE tap_time > ? ORDER BY tap_time DESC LIMIT 1'
+  ).get(since);
+  res.json({ tap: tap || null });
 });
 
 // ─── NFC Tap Ingestion (called by reader service) ──────────────────────────
@@ -382,6 +400,19 @@ router.put('/write-jobs/:id/cancel', authenticate, requireAdmin, (req, res) => {
   res.json({ message: 'Write job cancelled' });
 });
 
+// Reader service: check if a card UID is already assigned
+router.get('/check-card/:uid', authenticateDevice, (req, res) => {
+  const db = getDB();
+  const card = db.prepare(
+    'SELECT nc.*, e.name, e.employee_id AS emp_code FROM nfc_cards nc JOIN employees e ON nc.employee_id = e.id WHERE nc.card_uid = ? AND nc.is_active = 1'
+  ).get(req.params.uid.toUpperCase());
+
+  if (card) {
+    return res.json({ assigned: true, employee: card.name, emp_code: card.emp_code, employee_id: card.employee_id });
+  }
+  res.json({ assigned: false });
+});
+
 // Reader service: poll for pending write jobs
 router.get('/write-jobs/pending', authenticateDevice, (req, res) => {
   const db = getDB();
@@ -413,13 +444,28 @@ router.put('/write-jobs/:id/complete', authenticateDevice, (req, res) => {
   }
 
   if (success && card_uid) {
+    // Check if card is already assigned to a DIFFERENT employee
+    const existingCard = db.prepare(
+      'SELECT nc.*, e.name FROM nfc_cards nc JOIN employees e ON nc.employee_id = e.id WHERE nc.card_uid = ? AND nc.is_active = 1'
+    ).get(card_uid);
+
+    if (existingCard && existingCard.employee_id !== job.employee_id) {
+      db.prepare(
+        "UPDATE nfc_write_jobs SET status = 'failed', error_message = ?, completed_at = datetime('now') WHERE id = ?"
+      ).run(`Card already assigned to ${existingCard.name}`, req.params.id);
+      return res.status(409).json({
+        status: 'ALREADY_ASSIGNED',
+        error: `Card ${card_uid} is already assigned to ${existingCard.name}. Unassign it first.`,
+        assigned_to: existingCard.name,
+      });
+    }
+
     // Mark job completed
     db.prepare(
       "UPDATE nfc_write_jobs SET status = 'completed', result_card_uid = ?, completed_at = datetime('now') WHERE id = ?"
     ).run(card_uid, req.params.id);
 
-    // Auto-assign the card to the employee (if not already assigned)
-    const existingCard = db.prepare('SELECT * FROM nfc_cards WHERE card_uid = ?').get(card_uid);
+    // Auto-assign the card to the employee (if not already assigned to them)
     if (!existingCard) {
       db.prepare(
         'INSERT INTO nfc_cards (card_uid, employee_id, label) VALUES (?, ?, ?)'

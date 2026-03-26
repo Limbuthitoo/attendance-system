@@ -45,6 +45,7 @@ export default function Employees() {
   const [sseConnected, setSseConnected] = useState(false);
   const [detectedUid, setDetectedUid] = useState(null);
   const sseRef = useRef(null);
+  const sseConnectedRef = useRef(false);
   const [resetModal, setResetModal] = useState(null);
   const [resetPassword, setResetPassword] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
@@ -96,7 +97,7 @@ export default function Employees() {
     }
   };
 
-  // SSE listener for auto-detecting NFC card taps
+  // SSE listener for auto-detecting NFC card taps (with polling fallback)
   useEffect(() => {
     if (!nfcModal) {
       if (sseRef.current) {
@@ -112,11 +113,49 @@ export default function Employees() {
     const API_BASE = import.meta.env.VITE_API_URL
       ? `${import.meta.env.VITE_API_URL}/api`
       : '/api';
+
+    let pollTimer = null;
+    let pollSince = new Date().toISOString();
+
+    // Polling fallback: poll /api/nfc/recent-tap every 2s
+    const startPolling = () => {
+      if (pollTimer) return;
+      setSseConnected(true); // show as connected via polling
+      pollTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/nfc/recent-tap?since=${encodeURIComponent(pollSince)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const { tap } = await res.json();
+            if (tap && tap.card_uid) {
+              setDetectedUid(tap.card_uid);
+              setNfcForm(prev => ({ ...prev, card_uid: tap.card_uid }));
+              pollSince = tap.tap_time; // don't re-detect same tap
+            }
+          }
+        } catch {}
+      }, 2000);
+    };
+
+    // Try SSE first
     const url = `${API_BASE}/nfc/events?token=${encodeURIComponent(token)}`;
     const es = new EventSource(url);
     sseRef.current = es;
 
-    es.onopen = () => setSseConnected(true);
+    // If SSE doesn't connect in 3s, fall back to polling
+    const sseFallbackTimer = setTimeout(() => {
+      if (!sseConnectedRef.current) {
+        es.close();
+        sseRef.current = null;
+        startPolling();
+      }
+    }, 3000);
+
+    es.onopen = () => {
+      setSseConnected(true);
+      sseConnectedRef.current = true;
+    };
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -126,11 +165,21 @@ export default function Employees() {
         }
       } catch {}
     };
-    es.onerror = () => setSseConnected(false);
-
-    return () => {
+    es.onerror = () => {
+      setSseConnected(false);
+      sseConnectedRef.current = false;
+      // If SSE fails, switch to polling
       es.close();
       sseRef.current = null;
+      startPolling();
+    };
+
+    return () => {
+      clearTimeout(sseFallbackTimer);
+      if (pollTimer) clearInterval(pollTimer);
+      if (sseRef.current) sseRef.current.close();
+      sseRef.current = null;
+      sseConnectedRef.current = false;
       setSseConnected(false);
       setDetectedUid(null);
     };
