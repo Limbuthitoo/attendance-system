@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound, UserX } from 'lucide-react';
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
@@ -285,6 +285,21 @@ export default function Employees() {
                           title="Manage NFC Cards"
                         >
                           <CreditCard size={12} /> NFC
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Are you sure you want to permanently delete ${emp.name}? This will remove all their attendance records, leaves, and NFC cards.`)) return;
+                            try {
+                              await api.deleteEmployee(emp.id);
+                              loadEmployees();
+                            } catch (err) {
+                              alert(err.message);
+                            }
+                          }}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                          title="Delete Employee"
+                        >
+                          <UserX size={12} /> Delete
                         </button>
                       </div>
                     </td>

@@ -96,4 +96,28 @@ router.put('/:id/reset-password', authenticate, requireAdmin, (req, res) => {
   res.json({ message: 'Password reset successfully' });
 });
 
+// Delete employee (admin)
+router.delete('/:id', authenticate, requireAdmin, (req, res) => {
+  const db = getDB();
+  const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
+
+  if (!employee) {
+    return res.status(404).json({ error: 'Employee not found' });
+  }
+
+  if (employee.role === 'admin') {
+    const adminCount = db.prepare("SELECT COUNT(*) as c FROM employees WHERE role = 'admin' AND is_active = 1").get().c;
+    if (adminCount <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the last admin account' });
+    }
+  }
+
+  db.prepare('DELETE FROM nfc_cards WHERE employee_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM leaves WHERE employee_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM attendance WHERE employee_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM employees WHERE id = ?').run(req.params.id);
+
+  res.json({ message: 'Employee deleted successfully' });
+});
+
 module.exports = router;
