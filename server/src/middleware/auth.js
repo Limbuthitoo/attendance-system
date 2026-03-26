@@ -17,7 +17,7 @@ function authenticate(req, res, next) {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     const db = getDB();
-    const user = db.prepare('SELECT id, employee_id, name, email, role, department, designation FROM employees WHERE id = ? AND is_active = 1').get(decoded.id);
+    const user = db.prepare('SELECT id, employee_id, name, email, role, department, designation, must_change_password FROM employees WHERE id = ? AND is_active = 1').get(decoded.id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found or inactive' });

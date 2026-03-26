@@ -40,7 +40,7 @@ router.post('/', authenticate, requireAdmin, (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10);
 
   const result = db.prepare(
-    'INSERT INTO employees (employee_id, name, email, password, department, designation, role, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO employees (employee_id, name, email, password, department, designation, role, phone, must_change_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)'
   ).run(employee_id, name, email, hashedPassword, department || 'General', designation || 'Employee', role || 'employee', phone || null);
 
   const employee = db.prepare(
@@ -91,7 +91,7 @@ router.put('/:id/reset-password', authenticate, requireAdmin, (req, res) => {
 
   const db = getDB();
   const hashedPassword = bcrypt.hashSync(password, 10);
-  db.prepare("UPDATE employees SET password = ?, updated_at = datetime('now') WHERE id = ?").run(hashedPassword, req.params.id);
+  db.prepare("UPDATE employees SET password = ?, must_change_password = 1, updated_at = datetime('now') WHERE id = ?").run(hashedPassword, req.params.id);
 
   res.json({ message: 'Password reset successfully' });
 });

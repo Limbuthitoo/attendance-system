@@ -28,7 +28,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Logo" className="h-20 mx-auto mb-3 object-contain" />
+          <img src="/favicon.svg" alt="Logo" className="h-20 mx-auto mb-3 object-contain" />
           <p className="text-sm text-slate-500">Attendance Management System</p>
         </div>
 

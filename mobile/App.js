@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import LeavesScreen from './src/screens/LeavesScreen';
@@ -72,7 +73,11 @@ function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
-        <Stack.Screen name="Main" component={MainTabs} />
+        user.must_change_password ? (
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        ) : (
+          <Stack.Screen name="Main" component={MainTabs} />
+        )
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} />
       )}

@@ -34,6 +34,8 @@ export const api = {
   login: (email, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   getMe: () => request('/auth/me'),
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
 
   checkIn: () => request('/attendance/check-in', { method: 'POST' }),
   checkOut: () => request('/attendance/check-out', { method: 'POST' }),

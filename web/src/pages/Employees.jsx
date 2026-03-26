@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, Pencil } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound } from 'lucide-react';
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
@@ -13,6 +13,9 @@ export default function Employees() {
   const [nfcSubmitting, setNfcSubmitting] = useState(false);
   const [writeJobs, setWriteJobs] = useState([]);
   const [writeSubmitting, setWriteSubmitting] = useState(false);
+  const [resetModal, setResetModal] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
   const [form, setForm] = useState({
     employee_id: '', name: '', email: '', password: '',
     department: 'General', designation: 'Employee', role: 'employee', phone: ''
@@ -139,6 +142,21 @@ export default function Employees() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetSubmitting(true);
+    try {
+      await api.resetPassword(resetModal.id, resetPassword);
+      setResetModal(null);
+      setResetPassword('');
+      alert('Password reset successfully. Employee will be required to change it on next login.');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -253,6 +271,13 @@ export default function Employees() {
                           className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                         >
                           {emp.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => { setResetModal(emp); setResetPassword(''); }}
+                          className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
+                          title="Reset Password"
+                        >
+                          <KeyRound size={12} /> Reset
                         </button>
                         <button
                           onClick={() => openNfcModal(emp)}
@@ -375,6 +400,54 @@ export default function Employees() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setResetModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Reset Password</h3>
+                <p className="text-xs text-slate-500">{resetModal.name} ({resetModal.employee_id})</p>
+              </div>
+              <button onClick={() => setResetModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleResetPassword} className="p-5 space-y-4">
+              <p className="text-sm text-slate-600">
+                Set a new temporary password. The employee will be required to change it on their next login.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">New Password</label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="Min 8 characters"
+                  required
+                  minLength={8}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setResetModal(null)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetSubmitting}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {resetSubmitting ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

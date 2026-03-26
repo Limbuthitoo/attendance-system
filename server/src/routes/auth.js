@@ -40,14 +40,15 @@ router.post('/login', (req, res) => {
       department: user.department,
       designation: user.designation,
       phone: user.phone,
-      avatar: user.avatar
+      avatar: user.avatar,
+      must_change_password: !!user.must_change_password
     }
   });
 });
 
 // Get current user profile
 router.get('/me', authenticate, (req, res) => {
-  res.json({ user: req.user });
+  res.json({ user: { ...req.user, must_change_password: !!req.user.must_change_password } });
 });
 
 // Change password
@@ -70,7 +71,7 @@ router.put('/change-password', authenticate, (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(newPassword, 10);
-  db.prepare("UPDATE employees SET password = ?, updated_at = datetime('now') WHERE id = ?").run(hashedPassword, req.user.id);
+  db.prepare("UPDATE employees SET password = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?").run(hashedPassword, req.user.id);
 
   res.json({ message: 'Password changed successfully' });
 });

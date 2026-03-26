@@ -49,7 +49,7 @@ export default function Layout() {
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg" />
+              <img src="/favicon.svg" alt="Logo" className="w-9 h-9 rounded-lg" />
               <div>
                 <h1 className="text-lg font-bold text-slate-900">Archisys</h1>
                 <p className="text-xs text-slate-500">Attendance System</p>

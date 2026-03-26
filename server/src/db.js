@@ -29,6 +29,7 @@ function initDB() {
       role TEXT NOT NULL DEFAULT 'employee' CHECK(role IN ('admin', 'employee')),
       phone TEXT,
       avatar TEXT,
+      must_change_password INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -151,6 +152,12 @@ function initDB() {
     for (const [k, v] of Object.entries(defaults)) {
       insert.run(k, v);
     }
+  }
+
+  // Migration: add must_change_password column for existing databases
+  const cols = database.prepare("PRAGMA table_info(employees)").all();
+  if (!cols.some(c => c.name === 'must_change_password')) {
+    database.exec("ALTER TABLE employees ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
   }
 
   return database;
