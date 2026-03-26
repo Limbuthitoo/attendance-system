@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import NotificationBell from './NotificationBell';
@@ -21,6 +21,7 @@ export default function Layout() {
     { to: '/attendance', icon: Clock, label: 'Attendance' },
     { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
     { to: '/activity-log', icon: Activity, label: 'Activity Log' },
+    { to: '/profile', icon: UserCircle, label: 'My Profile' },
     ...(user?.role === 'admin'
       ? [
           { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
