@@ -9,12 +9,15 @@ if (!JWT_SECRET) {
 
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Support token via query param for SSE (EventSource can't send headers)
+  const queryToken = req.query.token;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : queryToken;
+
+  if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     const db = getDB();
     const user = db.prepare('SELECT id, employee_id, name, email, role, department, designation, must_change_password FROM employees WHERE id = ? AND is_active = 1').get(decoded.id);

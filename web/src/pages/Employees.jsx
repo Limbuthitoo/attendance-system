@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound, UserX, Edit } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound, UserX, Edit, Wifi } from 'lucide-react';
 
 const DEPARTMENTS = [
   'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
@@ -42,6 +42,9 @@ export default function Employees() {
   const [nfcSubmitting, setNfcSubmitting] = useState(false);
   const [writeJobs, setWriteJobs] = useState([]);
   const [writeSubmitting, setWriteSubmitting] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
+  const [detectedUid, setDetectedUid] = useState(null);
+  const sseRef = useRef(null);
   const [resetModal, setResetModal] = useState(null);
   const [resetPassword, setResetPassword] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
@@ -93,9 +96,50 @@ export default function Employees() {
     }
   };
 
+  // SSE listener for auto-detecting NFC card taps
+  useEffect(() => {
+    if (!nfcModal) {
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
+        setSseConnected(false);
+        setDetectedUid(null);
+      }
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const API_BASE = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL}/api`
+      : '/api';
+    const url = `${API_BASE}/nfc/events?token=${encodeURIComponent(token)}`;
+    const es = new EventSource(url);
+    sseRef.current = es;
+
+    es.onopen = () => setSseConnected(true);
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.cardUid) {
+          setDetectedUid(data.cardUid);
+          setNfcForm(prev => ({ ...prev, card_uid: data.cardUid }));
+        }
+      } catch {}
+    };
+    es.onerror = () => setSseConnected(false);
+
+    return () => {
+      es.close();
+      sseRef.current = null;
+      setSseConnected(false);
+      setDetectedUid(null);
+    };
+  }, [nfcModal]);
+
   const openNfcModal = async (emp) => {
     setNfcModal(emp);
     setNfcForm({ card_uid: '', label: '' });
+    setDetectedUid(null);
     try {
       const data = await api.getEmployeeNfcCards(emp.id);
       setNfcCards(data.cards);
@@ -411,15 +455,25 @@ export default function Employees() {
             </div>
 
             <div className="p-5">
+              {/* SSE Status */}
+              <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs font-medium ${sseConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                <Wifi size={14} className={sseConnected ? 'animate-pulse' : ''} />
+                {sseConnected
+                  ? detectedUid
+                    ? `Card detected: ${detectedUid} — click Assign to link it`
+                    : 'Listening... Tap a card on the NFC reader'
+                  : 'Connecting to NFC reader...'}
+              </div>
+
               {/* Assign new card */}
               <form onSubmit={handleAssignCard} className="flex gap-2 mb-4">
                 <input
                   type="text"
                   value={nfcForm.card_uid}
-                  onChange={(e) => setNfcForm({ ...nfcForm, card_uid: e.target.value })}
-                  placeholder="Card UID (hex)"
+                  onChange={(e) => { setNfcForm({ ...nfcForm, card_uid: e.target.value }); setDetectedUid(null); }}
+                  placeholder={sseConnected ? 'Tap card or type UID...' : 'Card UID (hex)'}
                   required
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${detectedUid ? 'border-emerald-400 bg-emerald-50 font-mono' : 'border-slate-300'}`}
                 />
                 <input
                   type="text"
