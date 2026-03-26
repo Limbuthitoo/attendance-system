@@ -42,6 +42,7 @@ export default function Employees() {
   const [nfcSubmitting, setNfcSubmitting] = useState(false);
 
   const [sseConnected, setSseConnected] = useState(false);
+  const [readerOnline, setReaderOnline] = useState(null); // null=unknown, true=connected, false=disconnected
   const [detectedUid, setDetectedUid] = useState(null);
   const sseRef = useRef(null);
   const sseConnectedRef = useRef(false);
@@ -182,6 +183,25 @@ export default function Employees() {
       setSseConnected(false);
       setDetectedUid(null);
     };
+  }, [nfcModal]);
+
+  // Poll reader status while modal is open
+  useEffect(() => {
+    if (!nfcModal) {
+      setReaderOnline(null);
+      return;
+    }
+    const checkReader = async () => {
+      try {
+        const data = await api.getReaderStatus();
+        setReaderOnline(data.anyReaderConnected);
+      } catch {
+        setReaderOnline(null);
+      }
+    };
+    checkReader();
+    const timer = setInterval(checkReader, 5000);
+    return () => clearInterval(timer);
   }, [nfcModal]);
 
   const openNfcModal = async (emp) => {
@@ -474,14 +494,22 @@ export default function Employees() {
             </div>
 
             <div className="p-5">
-              {/* SSE Status */}
-              <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs font-medium ${sseConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                <Wifi size={14} className={sseConnected ? 'animate-pulse' : ''} />
-                {sseConnected
-                  ? detectedUid
-                    ? `Card detected: ${detectedUid} — click Assign to link it`
-                    : 'Listening... Tap a card on the NFC reader'
-                  : 'Connecting to NFC reader...'}
+              {/* Reader Status */}
+              <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs font-medium ${
+                readerOnline === false
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : sseConnected
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>
+                <Wifi size={14} className={sseConnected && readerOnline !== false ? 'animate-pulse' : ''} />
+                {readerOnline === false
+                  ? 'NFC reader device is disconnected'
+                  : sseConnected
+                    ? detectedUid
+                      ? `Card detected: ${detectedUid} — click Assign to link it`
+                      : 'Listening... Tap a card on the NFC reader'
+                    : 'Connecting to NFC reader...'}
               </div>
 
               {/* Assign new card */}

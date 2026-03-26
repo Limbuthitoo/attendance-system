@@ -7,6 +7,37 @@ const { isLateCheckIn, getHalfDayHours, getMinCheckoutMinutes } = require('../se
 
 const router = express.Router();
 
+// ─── Reader Heartbeat (in-memory) ───────────────────────────────────────────
+
+const readerHeartbeats = new Map(); // deviceId -> { lastSeen, readerConnected }
+
+router.post('/heartbeat', authenticateDevice, (req, res) => {
+  const { device_id, reader_connected } = req.body;
+  if (!device_id) return res.status(400).json({ error: 'device_id required' });
+  readerHeartbeats.set(device_id, {
+    lastSeen: Date.now(),
+    readerConnected: !!reader_connected,
+  });
+  res.json({ ok: true });
+});
+
+router.get('/reader-status', authenticate, requireAdmin, (req, res) => {
+  const now = Date.now();
+  const STALE_MS = 15000; // consider offline if no heartbeat in 15s
+  const readers = [];
+  for (const [deviceId, info] of readerHeartbeats) {
+    const online = (now - info.lastSeen) < STALE_MS;
+    readers.push({
+      device_id: deviceId,
+      online,
+      reader_connected: online && info.readerConnected,
+      last_seen: new Date(info.lastSeen).toISOString(),
+    });
+  }
+  const anyReaderConnected = readers.some(r => r.reader_connected);
+  res.json({ readers, anyReaderConnected });
+});
+
 // ─── SSE: Real-time tap alerts for admin ────────────────────────────────────
 
 router.get('/events', authenticate, requireAdmin, (req, res) => {

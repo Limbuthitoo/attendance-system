@@ -77,6 +77,22 @@ async function processRetryQueue() {
 
 setInterval(processRetryQueue, 15000);
 
+// ─── Heartbeat: report reader connection status to backend ─────────────────
+
+let readerConnected = false;
+
+async function sendHeartbeat() {
+  try {
+    await fetch(`${API_URL}/api/nfc/heartbeat`, {
+      method: 'POST',
+      headers: apiHeaders,
+      body: JSON.stringify({ device_id: DEVICE_ID, reader_connected: readerConnected }),
+    });
+  } catch {}
+}
+
+setInterval(sendHeartbeat, 10000);
+
 // ─── Pending Write Job ─────────────────────────────────────────────────────
 
 let pendingWriteJob = null; // { id, data_to_write, emp_code, name }
@@ -229,6 +245,8 @@ const nfc = new NFC();
 
 nfc.on('reader', (reader) => {
   console.log(`\n📖 Reader connected: ${reader.name}`);
+  readerConnected = true;
+  sendHeartbeat();
 
   reader.on('card', async (card) => {
     const uid = card.uid;
@@ -293,6 +311,8 @@ nfc.on('reader', (reader) => {
 
   reader.on('end', () => {
     console.log(`📖 Reader disconnected: ${reader.name}`);
+    readerConnected = false;
+    sendHeartbeat();
   });
 });
 

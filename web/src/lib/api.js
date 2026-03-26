@@ -69,6 +69,7 @@ export const api = {
   getNfcTapLog: (date) => request(`/nfc/tap-log${date ? `?date=${date}` : ''}`),
   getNfcReaders: () => request('/nfc/readers'),
   registerNfcReader: (data) => request('/nfc/readers', { method: 'POST', body: JSON.stringify(data) }),
+  getReaderStatus: () => request('/nfc/reader-status'),
 
   // NFC Write Jobs
   createWriteJob: (data) => request('/nfc/write-jobs', { method: 'POST', body: JSON.stringify(data) }),
