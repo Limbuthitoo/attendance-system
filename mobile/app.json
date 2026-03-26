@@ -16,16 +16,31 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#2563eb"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.archisys.attendance"
     },
     "extra": {
-      "apiUrl": "https://hr.bijaysubbalimbu.com.np/api"
+      "apiUrl": "https://hr.bijaysubbalimbu.com.np/api",
+      "eas": {
+        "projectId": "aacb0d69-5f22-45db-8edb-22fe97a92a02"
+      }
     },
     "plugins": [
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "useLegacyPackaging": false
+          }
+        }
+      ],
+      "./plugins/withAbiFilter"
     ]
   }
 }
