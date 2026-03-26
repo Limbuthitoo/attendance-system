@@ -47,7 +47,7 @@ function MainTabs() {
         headerTitleStyle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Archisys Attendance' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Attendance System' }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
       <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
       {user?.role === 'admin' && (

@@ -38,7 +38,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
 
-      <Text style={styles.footer}>Archisys Innovations © 2026</Text>
+      <Text style={styles.footer}>Archisys Innovations © {new Date().getFullYear()}</Text>
     </View>
   );
 }

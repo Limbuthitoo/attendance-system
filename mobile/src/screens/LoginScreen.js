@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert
+  Platform, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing } from '../theme';
@@ -35,11 +35,8 @@ export default function LoginScreen() {
     >
       <View style={styles.inner}>
         <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>A</Text>
-          </View>
-          <Text style={styles.title}>Archisys Innovations</Text>
-          <Text style={styles.subtitle}>Attendance Management</Text>
+          <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.subtitle}>Attendance Management System</Text>
         </View>
 
         <View style={styles.form}>
@@ -83,7 +80,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>© 2026 Archisys Innovations</Text>
+        <Text style={styles.footer}>© {new Date().getFullYear()} Archisys Innovations</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -104,23 +101,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxxl,
   },
   logo: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 120,
+    height: 80,
     marginBottom: spacing.lg,
-  },
-  logoText: {
-    color: colors.white,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
