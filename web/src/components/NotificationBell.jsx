@@ -74,7 +74,7 @@ export default function NotificationBell() {
                 // Browser notification for check-in/out
                 if (data.status === 'CHECKED_IN' || data.status === 'CHECKED_OUT') {
                   if (Notification.permission === 'granted') {
-                    new Notification('Archisys Attendance', { body: data.message, icon: '/favicon.ico' });
+                    new Notification('Archisys Attendance', { body: data.message, icon: '/logo.png' });
                   } else if (Notification.permission !== 'denied') {
                     Notification.requestPermission();
                   }

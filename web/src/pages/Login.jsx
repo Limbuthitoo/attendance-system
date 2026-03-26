@@ -28,11 +28,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-600 text-white text-xl font-bold mb-4">
-            A
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Archisys Innovations</h1>
-          <p className="text-sm text-slate-500 mt-1">Attendance Management System</p>
+          <img src="/logo.png" alt="Logo" className="h-20 mx-auto mb-3 object-contain" />
+          <p className="text-sm text-slate-500">Attendance Management System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">

@@ -48,9 +48,12 @@ export default function Layout() {
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">Archisys</h1>
-              <p className="text-xs text-slate-500">Attendance System</p>
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg" />
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Archisys</h1>
+                <p className="text-xs text-slate-500">Attendance System</p>
+              </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-slate-600">
               <X size={20} />
