@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, Pencil, KeyRound, UserX, Edit, Wifi } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi } from 'lucide-react';
 
 const DEPARTMENTS = [
   'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
@@ -40,8 +40,7 @@ export default function Employees() {
   const [nfcCards, setNfcCards] = useState([]);
   const [nfcForm, setNfcForm] = useState({ card_uid: '', label: '' });
   const [nfcSubmitting, setNfcSubmitting] = useState(false);
-  const [writeJobs, setWriteJobs] = useState([]);
-  const [writeSubmitting, setWriteSubmitting] = useState(false);
+
   const [sseConnected, setSseConnected] = useState(false);
   const [detectedUid, setDetectedUid] = useState(null);
   const sseRef = useRef(null);
@@ -195,35 +194,6 @@ export default function Employees() {
     } catch (err) {
       console.error(err);
       setNfcCards([]);
-    }
-    try {
-      const data = await api.getWriteJobs();
-      setWriteJobs(data.jobs.filter(j => j.employee_id === emp.id));
-    } catch {
-      setWriteJobs([]);
-    }
-  };
-
-  const handleWriteCard = async () => {
-    setWriteSubmitting(true);
-    try {
-      await api.createWriteJob({ employee_id: nfcModal.id });
-      const data = await api.getWriteJobs();
-      setWriteJobs(data.jobs.filter(j => j.employee_id === nfcModal.id));
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setWriteSubmitting(false);
-    }
-  };
-
-  const cancelWriteJob = async (jobId) => {
-    try {
-      await api.cancelWriteJob(jobId);
-      const data = await api.getWriteJobs();
-      setWriteJobs(data.jobs.filter(j => j.employee_id === nfcModal.id));
-    } catch (err) {
-      alert(err.message);
     }
   };
 
@@ -539,44 +509,6 @@ export default function Employees() {
                   {nfcSubmitting ? '...' : 'Assign'}
                 </button>
               </form>
-
-              {/* Write Card */}
-              <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Pencil size={14} className="text-purple-600" />
-                    <span className="text-sm font-medium text-purple-800">Write Card</span>
-                  </div>
-                  <button
-                    onClick={handleWriteCard}
-                    disabled={writeSubmitting || writeJobs.some(j => j.status === 'pending')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50"
-                  >
-                    {writeSubmitting ? '...' : 'Queue Write Job'}
-                  </button>
-                </div>
-                <p className="text-xs text-purple-600 mb-2">Place a card on the NFC reader to write the employee ID to it. The card will be auto-assigned.</p>
-                {writeJobs.length > 0 && (
-                  <div className="space-y-1.5">
-                    {writeJobs.map((job) => (
-                      <div key={job.id} className="flex items-center justify-between bg-white rounded px-3 py-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-block w-2 h-2 rounded-full ${
-                            job.status === 'pending' ? 'bg-amber-400 animate-pulse' :
-                            job.status === 'completed' ? 'bg-emerald-500' :
-                            job.status === 'failed' ? 'bg-red-500' : 'bg-slate-400'
-                          }`} />
-                          <span className="capitalize text-slate-700">{job.status}</span>
-                          {job.result_card_uid && <span className="font-mono text-slate-500">({job.result_card_uid})</span>}
-                        </div>
-                        {job.status === 'pending' && (
-                          <button onClick={() => cancelWriteJob(job.id)} className="text-red-500 hover:text-red-700 font-medium">Cancel</button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               {/* Card list */}
               {nfcCards.length === 0 ? (
