@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { Plus, X, Trash2 } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 export default function Leaves() {
   const [leaves, setLeaves] = useState([]);
@@ -107,21 +108,19 @@ export default function Leaves() {
             <div />
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date</label>
-              <input
-                type="date"
+              <DatePicker
                 value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onChange={(v) => setForm({ ...form, start_date: v })}
+                placeholder="Select start date"
                 required
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date</label>
-              <input
-                type="date"
+              <DatePicker
                 value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onChange={(v) => setForm({ ...form, end_date: v })}
+                placeholder="Select end date"
                 required
               />
             </div>

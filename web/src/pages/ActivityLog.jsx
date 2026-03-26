@@ -5,6 +5,7 @@ import {
   LogIn, LogOut, CreditCard, CalendarDays, CheckCircle, XCircle,
   AlertTriangle, Filter, ChevronLeft, ChevronRight, Search
 } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const TYPE_CONFIG = {
   check_in:       { icon: LogIn,         label: 'Checked In',      color: 'text-green-600',  bg: 'bg-green-50',  dot: 'bg-green-500' },
@@ -117,12 +118,12 @@ export default function ActivityLog() {
         {/* Date nav */}
         <div className="flex items-center gap-2">
           <button onClick={() => shiftDate(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"><ChevronLeft size={18} /></button>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+          <div className="w-48">
+            <DatePicker
+              value={date}
+              onChange={v => setDate(v)}
+            />
+          </div>
           <button onClick={() => shiftDate(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"><ChevronRight size={18} /></button>
           <button
             onClick={() => setDate(new Date().toISOString().split('T')[0])}

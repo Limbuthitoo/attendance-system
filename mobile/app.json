@@ -36,11 +36,15 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "useLegacyPackaging": false
+            "useLegacyPackaging": false,
+            "buildArchs": [
+              "arm64-v8a"
+            ]
           }
         }
       ],
-      "./plugins/withAbiFilter"
+      "./plugins/withAbiFilter",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

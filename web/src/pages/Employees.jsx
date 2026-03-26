@@ -315,13 +315,15 @@ export default function Employees() {
                         >
                           <KeyRound size={12} /> Reset
                         </button>
+                        <span className="w-px h-4 bg-slate-200" />
                         <button
                           onClick={() => openNfcModal(emp)}
-                          className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                          className="text-xs font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
                           title="Manage NFC Cards"
                         >
                           <CreditCard size={12} /> NFC
                         </button>
+                        <span className="w-px h-4 bg-slate-200" />
                         <button
                           onClick={async () => {
                             if (!confirm(`Are you sure you want to permanently delete ${emp.name}? This will remove all their attendance records, leaves, and NFC cards.`)) return;

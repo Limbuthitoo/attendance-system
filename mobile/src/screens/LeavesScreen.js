@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
-  TextInput, Alert, Modal, ScrollView, RefreshControl
+  TextInput, Alert, Modal, ScrollView, RefreshControl, Platform
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../api';
 import { colors, spacing } from '../theme';
 
@@ -20,6 +21,8 @@ export default function LeavesScreen() {
     end_date: '',
     reason: '',
   });
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const loadLeaves = async () => {
     try {
@@ -42,12 +45,6 @@ export default function LeavesScreen() {
   const handleSubmit = async () => {
     if (!form.start_date || !form.end_date || !form.reason) {
       Alert.alert('Error', 'Please fill all fields');
-      return;
-    }
-    // Basic date validation
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(form.start_date) || !dateRegex.test(form.end_date)) {
-      Alert.alert('Error', 'Use date format: YYYY-MM-DD');
       return;
     }
 
@@ -182,25 +179,70 @@ export default function LeavesScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Start Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              value={form.start_date}
-              onChangeText={(v) => setForm({ ...form, start_date: v })}
-              placeholder="2026-03-25"
-              placeholderTextColor={colors.textTertiary}
-            />
+            <Text style={styles.label}>Start Date</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowStartPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={form.start_date ? styles.dateButtonText : styles.dateButtonPlaceholder}>
+                {form.start_date
+                  ? new Date(form.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'Select start date'}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+            {showStartPicker && (
+              <DateTimePicker
+                value={form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                onChange={(event, date) => {
+                  setShowStartPicker(Platform.OS === 'ios');
+                  if (date) {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setForm({ ...form, start_date: `${y}-${m}-${d}` });
+                  }
+                }}
+                style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
+              />
+            )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>End Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              value={form.end_date}
-              onChangeText={(v) => setForm({ ...form, end_date: v })}
-              placeholder="2026-03-26"
-              placeholderTextColor={colors.textTertiary}
-            />
+            <Text style={styles.label}>End Date</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowEndPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={form.end_date ? styles.dateButtonText : styles.dateButtonPlaceholder}>
+                {form.end_date
+                  ? new Date(form.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'Select end date'}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+            {showEndPicker && (
+              <DateTimePicker
+                value={form.end_date ? new Date(form.end_date + 'T00:00:00') : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                minimumDate={form.start_date ? new Date(form.start_date + 'T00:00:00') : undefined}
+                onChange={(event, date) => {
+                  setShowEndPicker(Platform.OS === 'ios');
+                  if (date) {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setForm({ ...form, end_date: `${y}-${m}-${d}` });
+                  }
+                }}
+                style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
+              />
+            )}
           </View>
 
           <View style={styles.formGroup}>
@@ -262,6 +304,10 @@ const styles = StyleSheet.create({
   formGroup: { marginBottom: spacing.xl },
   label: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: spacing.sm },
   input: { backgroundColor: colors.white, borderRadius: 12, paddingHorizontal: spacing.lg, paddingVertical: 14, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  dateButton: { backgroundColor: colors.white, borderRadius: 12, paddingHorizontal: spacing.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateButtonText: { fontSize: 15, color: colors.text },
+  dateButtonPlaceholder: { fontSize: 15, color: colors.textTertiary },
+  iosPicker: { marginTop: spacing.sm },
   textArea: { height: 100, paddingTop: 14 },
   typeSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border },
