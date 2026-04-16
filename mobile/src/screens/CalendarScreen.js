@@ -21,6 +21,7 @@ export default function CalendarScreen() {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [viewMode, setViewMode] = useState('monthly');
 
   const loadHolidays = async () => {
     try {
@@ -104,6 +105,93 @@ export default function CalendarScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Tab switcher */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, viewMode === 'monthly' && styles.tabActive]}
+          onPress={() => setViewMode('monthly')}
+        >
+          <Ionicons name="calendar-outline" size={16} color={viewMode === 'monthly' ? '#fff' : colors.textSecondary} />
+          <Text style={[styles.tabText, viewMode === 'monthly' && styles.tabTextActive]}>Monthly</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, viewMode === 'notice' && styles.tabActive]}
+          onPress={() => setViewMode('notice')}
+        >
+          <Ionicons name="document-text-outline" size={16} color={viewMode === 'notice' ? '#fff' : colors.textSecondary} />
+          <Text style={[styles.tabText, viewMode === 'notice' && styles.tabTextActive]}>Holiday Notice</Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewMode === 'notice' ? (
+        /* Holiday Notice View */
+        <View style={styles.noticeContainer}>
+          <View style={styles.noticeHeader}>
+            <Text style={styles.noticeCompany}>ARCHISYS INNOVATIONS</Text>
+            <Text style={styles.noticeSubtitle}>Attendance Management System</Text>
+          </View>
+          <Text style={styles.noticeTitle}>OFFICIAL NOTICE</Text>
+          <Text style={styles.noticeSubject}>
+            <Text style={{ fontWeight: '700' }}>Subject: </Text>
+            Public Holiday Schedule for Fiscal Year {year} B.S.
+          </Text>
+          <Text style={styles.noticeBody}>
+            This is to inform all employees that the following public holidays have been approved for the fiscal year {year} B.S. The schedule reflects major national, cultural, and religious observances while ensuring continuity of business operations.
+          </Text>
+
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+          ) : (
+            <>
+              {/* Table Header */}
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderText, { width: 36 }]}>S.N.</Text>
+                <Text style={[styles.tableHeaderText, { flex: 1 }]}>Holiday</Text>
+                <Text style={[styles.tableHeaderText, { width: 90 }]}>BS Date</Text>
+                <Text style={[styles.tableHeaderText, { width: 90 }]}>AD Date</Text>
+              </View>
+
+              {/* Table Rows */}
+              {holidays.map((h, i) => {
+                const bsDate = h.bs_day_end
+                  ? `${h.bs_month}/${h.bs_day}-${h.bs_day_end}`
+                  : `${h.bs_month}/${h.bs_day}`;
+                const adDate = h.ad_date_end
+                  ? `${h.ad_date.slice(5)} – ${h.ad_date_end.slice(5)}`
+                  : h.ad_date ? h.ad_date.slice(5) : '—';
+                return (
+                  <View key={h.id} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>
+                    <Text style={[styles.tableCell, { width: 36, textAlign: 'center' }]}>{i + 1}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.tableCell, { fontWeight: '600' }]}>{h.name}</Text>
+                      {h.women_only ? <Text style={styles.womenTag}>Women Only</Text> : null}
+                    </View>
+                    <Text style={[styles.tableCell, { width: 90, textAlign: 'center' }]}>{bsDate}</Text>
+                    <Text style={[styles.tableCell, { width: 90, textAlign: 'center' }]}>{adDate}</Text>
+                  </View>
+                );
+              })}
+
+              {/* Notes */}
+              <View style={styles.noticeNotes}>
+                <Text style={styles.noticeNotesTitle}>Notes:</Text>
+                <Text style={styles.noticeNote}>• Saturdays shall remain weekly holidays.</Text>
+                <Text style={styles.noticeNote}>• Holidays falling on weekends shall not be substituted unless otherwise notified.</Text>
+                <Text style={styles.noticeNote}>• Festival dates are subject to change as per official lunar calendar confirmations.</Text>
+                <Text style={styles.noticeNote}>• The management reserves the right to make necessary amendments if required.</Text>
+              </View>
+
+              {/* Signature */}
+              <View style={styles.noticeSignature}>
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureName}>Authorized Signatory</Text>
+                <Text style={styles.signatureDept}>Human Resources Department</Text>
+              </View>
+            </>
+          )}
+        </View>
+      ) : (
+      <>
       {/* Month navigation */}
       <View style={styles.navRow}>
         <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
@@ -248,6 +336,8 @@ export default function CalendarScreen() {
             </View>
           </View>
         </>
+      )}
+      </>
       )}
       <View style={{ height: 20 }} />
     </ScrollView>
@@ -490,5 +580,150 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  // Tab switcher
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 4,
+    marginVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
+  // Holiday Notice
+  noticeContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  noticeHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.text,
+    paddingBottom: spacing.md,
+    marginBottom: spacing.md,
+  },
+  noticeCompany: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: 1,
+  },
+  noticeSubtitle: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  noticeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    letterSpacing: 1,
+    marginBottom: spacing.md,
+  },
+  noticeSubject: {
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  noticeBody: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: spacing.lg,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  tableHeaderText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableRowEven: {
+    backgroundColor: '#f8fafc',
+  },
+  tableCell: {
+    fontSize: 12,
+    color: colors.text,
+  },
+  womenTag: {
+    fontSize: 9,
+    color: '#7c3aed',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  noticeNotes: {
+    marginTop: spacing.lg,
+  },
+  noticeNotesTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  noticeNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 3,
+    lineHeight: 17,
+  },
+  noticeSignature: {
+    alignItems: 'flex-end',
+    marginTop: spacing.xxl,
+  },
+  signatureLine: {
+    width: 160,
+    borderTopWidth: 1,
+    borderTopColor: colors.textTertiary,
+    marginBottom: 6,
+  },
+  signatureName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  signatureDept: {
+    fontSize: 11,
+    color: colors.textTertiary,
   },
 });
