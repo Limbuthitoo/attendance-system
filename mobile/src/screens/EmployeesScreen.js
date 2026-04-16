@@ -53,6 +53,9 @@ export default function EmployeesScreen() {
     phone: '',
     role: 'employee',
   });
+  const [resetModalVisible, setResetModalVisible] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   const loadEmployees = async () => {
     try {
@@ -104,8 +107,33 @@ export default function EmployeesScreen() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    setResetting(true);
+    try {
+      await api.resetPassword(resetModalVisible.id, newPassword);
+      setResetModalVisible(null);
+      setNewPassword('');
+      Alert.alert('Success', `Password reset for ${resetModalVisible.name}. They will be required to change it on next login.`);
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const renderEmployee = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.7}
+      onLongPress={() => {
+        setResetModalVisible(item);
+        setNewPassword('');
+      }}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{item.name?.charAt(0)}</Text>
       </View>
@@ -119,7 +147,7 @@ export default function EmployeesScreen() {
           {item.role}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -202,6 +230,42 @@ export default function EmployeesScreen() {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Add Employee</Text>}
             </TouchableOpacity>
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal visible={!!resetModalVisible} animationType="slide" transparent>
+        <View style={styles.resetOverlay}>
+          <View style={styles.resetContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reset Password</Text>
+              <TouchableOpacity onPress={() => setResetModalVisible(null)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            {resetModalVisible && (
+              <View style={{ padding: spacing.lg }}>
+                <Text style={styles.resetEmpName}>{resetModalVisible.name}</Text>
+                <Text style={styles.resetEmpMeta}>{resetModalVisible.employee_id} · {resetModalVisible.email}</Text>
+                <FormField
+                  label="New Password *"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Min 6 characters"
+                  secureTextEntry
+                />
+                <Text style={styles.resetHint}>Employee will be forced to change password on next login.</Text>
+                <TouchableOpacity style={styles.resetBtn} onPress={handleResetPassword} disabled={resetting} activeOpacity={0.8}>
+                  {resetting ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Ionicons name="key" size={18} color="#fff" />
+                      <Text style={styles.resetBtnText}>Reset Password</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -344,4 +408,19 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: colors.primaryLight },
   pickerItemText: { fontSize: 15, color: colors.text },
   pickerItemActiveText: { fontWeight: '600', color: colors.primary },
+  // Reset password modal
+  resetOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
+  },
+  resetContent: {
+    backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+  },
+  resetEmpName: { fontSize: 17, fontWeight: '700', color: colors.text },
+  resetEmpMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.lg },
+  resetHint: { fontSize: 12, color: colors.textTertiary, marginBottom: spacing.lg, marginTop: -8 },
+  resetBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#d97706', paddingVertical: 14, borderRadius: 10,
+  },
+  resetBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

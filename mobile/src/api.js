@@ -96,6 +96,11 @@ export const api = {
   getMyLeaves: (status) => request(`/leaves/my${status ? `?status=${status}` : ''}`),
   cancelLeave: (id) => request(`/leaves/${id}`, { method: 'DELETE' }),
 
+  // Leave management (admin)
+  getAllLeaves: (status) => request(`/leaves/all${status ? `?status=${status}` : ''}`),
+  reviewLeave: (id, status, review_note) =>
+    request(`/leaves/${id}/review`, { method: 'PUT', body: JSON.stringify({ status, review_note }) }),
+
   getStats: () => request('/dashboard/stats'),
 
   // Employees (admin)
@@ -103,6 +108,8 @@ export const api = {
   createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
   updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
+  resetPassword: (id, password) =>
+    request(`/employees/${id}/reset-password`, { method: 'PUT', body: JSON.stringify({ password }) }),
 
   // Holidays
   getHolidays: (year) => request(`/holidays?year=${year}`),
