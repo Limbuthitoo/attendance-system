@@ -29,12 +29,14 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const data = await api.login(email, password);
     await SecureStore.setItemAsync('token', data.token);
+    await SecureStore.setItemAsync('refreshToken', data.refreshToken);
     setUser(data.user);
     return data.user;
   };
 
   const logout = async () => {
     await SecureStore.deleteItemAsync('token');
+    await SecureStore.deleteItemAsync('refreshToken');
     setUser(null);
   };
 

@@ -11,6 +11,12 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - NODE_ENV=production
       - NFC_API_KEY=${NFC_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@archisysinnovation.com}
+      - NOTIFY_EMAIL=${NOTIFY_EMAIL:-info@archisysinnovation.com}
     volumes:
       - db-data:/app/data
     restart: unless-stopped

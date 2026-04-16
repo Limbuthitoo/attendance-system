@@ -2,6 +2,32 @@ const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
 
+let isRefreshing = false;
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+
+  const data = await res.json();
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('refreshToken', data.refreshToken);
+  return data.token;
+}
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const headers = {
@@ -14,6 +40,30 @@ async function request(endpoint, options = {}) {
     ...options,
     headers,
   });
+
+  // If 401 and we have a refresh token, try to refresh silently
+  // Old sessions without refreshToken will just redirect to login
+  if (res.status === 401 && localStorage.getItem('refreshToken') && !options._isRetry) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = refreshAccessToken().finally(() => {
+        isRefreshing = false;
+        refreshPromise = null;
+      });
+    }
+
+    try {
+      const newToken = await (refreshPromise || refreshAccessToken());
+      // Retry the original request with the new token
+      return request(endpoint, {
+        ...options,
+        headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
+        _isRetry: true,
+      });
+    } catch {
+      // Refresh failed, propagate the original error
+    }
+  }
 
   const data = await res.json();
 

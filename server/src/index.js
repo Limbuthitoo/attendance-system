@@ -34,32 +34,58 @@ app.use(compression());
 app.use(morgan('combined'));
 
 // CORS — restrict in production
-const corsOrigin = process.env.CORS_ORIGIN || '*';
+const corsOrigin = process.env.CORS_ORIGIN || '';
+if (!corsOrigin) {
+  console.warn('⚠  WARNING: CORS_ORIGIN is not set — allowing all origins. Set CORS_ORIGIN env var to restrict in production (e.g. CORS_ORIGIN=https://yourdomain.com)');
+}
 app.use(cors({
-  origin: corsOrigin === '*' ? true : corsOrigin.split(','),
+  origin: corsOrigin
+    ? corsOrigin.split(',').map(s => s.trim())
+    : true, // allow all origins when not configured (backward compat)
   credentials: true,
 }));
 
 // Request body limit
 app.use(express.json({ limit: '1mb' }));
 
-// Rate limiting on auth routes (prevent brute force)
+// Rate limiting — auth routes (strict: prevent brute force)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 30, // tighter limit for auth
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting — general API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+// Rate limiting — write/mutation routes (more restrictive)
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limiter to all /api routes
+app.use('/api', apiLimiter);
+
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/leaves', leaveRoutes);
-app.use('/api/employees', employeeRoutes);
+app.use('/api/attendance', writeLimiter, attendanceRoutes);
+app.use('/api/leaves', writeLimiter, leaveRoutes);
+app.use('/api/employees', writeLimiter, employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/nfc', nfcRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use('/api/settings', writeLimiter, settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

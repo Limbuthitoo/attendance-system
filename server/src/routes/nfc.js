@@ -3,7 +3,7 @@ const { getDB } = require('../db');
 const { authenticateDevice } = require('../middleware/deviceAuth');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { eventBus } = require('../events');
-const { isLateCheckIn, getHalfDayHours, getMinCheckoutMinutes } = require('../settings');
+const { isLateCheckIn, getHalfDayHours, getMinCheckoutMinutes, getTodayDate } = require('../settings');
 
 const router = express.Router();
 
@@ -94,7 +94,7 @@ router.post('/tap', authenticateDevice, (req, res) => {
 
   const db = getDB();
   const tapTime = timestamp || new Date().toISOString();
-  const today = new Date(tapTime).toISOString().split('T')[0];
+  const today = getTodayDate();
 
   // Log helper — writes every tap to audit log
   function logTap(employeeId, result, attendanceId) {

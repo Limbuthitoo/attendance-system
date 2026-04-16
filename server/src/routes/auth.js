@@ -3,9 +3,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { validatePassword } = require('../validation');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
+const ACCESS_TOKEN_EXPIRY = process.env.JWT_EXPIRY || '2h';
+const REFRESH_TOKEN_EXPIRY = '7d';
 
 // Login
 router.post('/login', (req, res) => {
@@ -27,10 +30,13 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+  const refreshToken = jwt.sign({ id: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
 
   res.json({
     token,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_EXPIRY,
     user: {
       id: user.id,
       employee_id: user.employee_id,
@@ -46,6 +52,37 @@ router.post('/login', (req, res) => {
   });
 });
 
+// Refresh access token using refresh token
+router.post('/refresh', (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'Refresh token is required' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    const db = getDB();
+    const user = db.prepare('SELECT id, role FROM employees WHERE id = ? AND is_active = 1').get(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found or inactive' });
+    }
+
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const newRefreshToken = jwt.sign({ id: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
+
+    res.json({ token, refreshToken: newRefreshToken, expiresIn: ACCESS_TOKEN_EXPIRY });
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+});
+
 // Get current user profile
 router.get('/me', authenticate, (req, res) => {
   res.json({ user: { ...req.user, must_change_password: !!req.user.must_change_password } });
@@ -59,8 +96,9 @@ router.put('/change-password', authenticate, (req, res) => {
     return res.status(400).json({ error: 'Current and new password are required' });
   }
 
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  const pwCheck = validatePassword(newPassword);
+  if (!pwCheck.valid) {
+    return res.status(400).json({ error: pwCheck.error });
   }
 
   const db = getDB();

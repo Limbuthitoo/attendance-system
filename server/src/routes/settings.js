@@ -22,6 +22,7 @@ router.put('/', authenticate, requireAdmin, (req, res) => {
     'office_start', 'office_end', 'late_threshold_minutes',
     'half_day_hours', 'full_day_hours', 'min_checkout_minutes',
     'working_days', 'timezone', 'company_name',
+    'quota_sick', 'quota_casual', 'quota_earned',
   ];
 
   const db = getDB();

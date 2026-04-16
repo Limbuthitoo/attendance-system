@@ -1,8 +1,30 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { getOfficeSettings } = require('../settings');
+const { sendLeaveApplicationEmail } = require('../mailer');
 
 const router = express.Router();
+
+// Default annual leave quotas per type (days per year)
+// Can be overridden via office_settings keys: quota_sick, quota_casual, quota_earned
+const DEFAULT_LEAVE_QUOTAS = {
+  sick: 12,
+  casual: 12,
+  earned: 15,
+  // unpaid and other have no quota limit
+};
+
+function getLeaveQuota(leaveType) {
+  const settings = getOfficeSettings();
+  const settingKey = `quota_${leaveType}`;
+  if (settings[settingKey] !== undefined) {
+    const val = parseInt(settings[settingKey]);
+    if (val === 0) return null; // 0 means no limit (admin disabled quota)
+    if (val > 0) return val;
+  }
+  return DEFAULT_LEAVE_QUOTAS[leaveType] || null;
+}
 
 // Apply for leave
 router.post('/', authenticate, (req, res) => {
@@ -22,11 +44,56 @@ router.post('/', authenticate, (req, res) => {
   const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
   const db = getDB();
+
+  // Check for overlapping leaves (pending or approved)
+  const overlap = db.prepare(`
+    SELECT id, start_date, end_date, status FROM leaves
+    WHERE employee_id = ? AND status IN ('pending', 'approved')
+      AND start_date <= ? AND end_date >= ?
+  `).get(req.user.id, end_date, start_date);
+
+  if (overlap) {
+    return res.status(400).json({
+      error: `Leave dates overlap with an existing ${overlap.status} leave (${overlap.start_date} to ${overlap.end_date})`
+    });
+  }
+
+  // Check annual quota for leave types that have limits
+  const quota = getLeaveQuota(leave_type);
+  if (quota) {
+    const currentYear = new Date().getFullYear().toString();
+    const usedDays = db.prepare(`
+      SELECT COALESCE(SUM(days), 0) as total FROM leaves
+      WHERE employee_id = ? AND leave_type = ? AND status IN ('pending', 'approved')
+        AND strftime('%Y', start_date) = ?
+    `).get(req.user.id, leave_type, currentYear).total;
+
+    if (usedDays + days > quota) {
+      const remaining = Math.max(0, quota - usedDays);
+      return res.status(400).json({
+        error: `${leave_type.charAt(0).toUpperCase() + leave_type.slice(1)} leave quota exceeded. Annual limit: ${quota} days, used: ${usedDays}, remaining: ${remaining}, requested: ${days}`
+      });
+    }
+  }
+
   const result = db.prepare(
     'INSERT INTO leaves (employee_id, leave_type, start_date, end_date, days, reason) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(req.user.id, leave_type, start_date, end_date, days, reason);
 
   const leave = db.prepare('SELECT * FROM leaves WHERE id = ?').get(result.lastInsertRowid);
+
+  // Send email notification to admin (fire-and-forget, won't block response)
+  sendLeaveApplicationEmail({
+    employeeName: req.user.name,
+    empCode: req.user.employee_id,
+    department: req.user.department,
+    leaveType: leave_type,
+    startDate: start_date,
+    endDate: end_date,
+    days,
+    reason,
+  });
+
   res.status(201).json({ message: 'Leave application submitted', leave });
 });
 

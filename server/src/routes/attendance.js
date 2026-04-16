@@ -1,14 +1,14 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
-const { isLateCheckIn, getHalfDayHours } = require('../settings');
+const { isLateCheckIn, getHalfDayHours, getTodayDate } = require('../settings');
 
 const router = express.Router();
 
 // Check in
 router.post('/check-in', authenticate, (req, res) => {
   const db = getDB();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   const now = new Date().toISOString();
 
   const existing = db.prepare('SELECT * FROM attendance WHERE employee_id = ? AND date = ?').get(req.user.id, today);
@@ -35,7 +35,7 @@ router.post('/check-in', authenticate, (req, res) => {
 // Check out
 router.post('/check-out', authenticate, (req, res) => {
   const db = getDB();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   const now = new Date().toISOString();
 
   const existing = db.prepare('SELECT * FROM attendance WHERE employee_id = ? AND date = ?').get(req.user.id, today);
@@ -64,7 +64,7 @@ router.post('/check-out', authenticate, (req, res) => {
 // Get today's attendance for current user
 router.get('/today', authenticate, (req, res) => {
   const db = getDB();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   const record = db.prepare('SELECT * FROM attendance WHERE employee_id = ? AND date = ?').get(req.user.id, today);
   res.json({ attendance: record || null });
 });
@@ -95,7 +95,7 @@ router.get('/all', authenticate, (req, res) => {
 
   const db = getDB();
   const { date } = req.query;
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || getTodayDate();
 
   const records = db.prepare(`
     SELECT a.*, e.name, e.employee_id as emp_code, e.department, e.designation

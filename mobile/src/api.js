@@ -8,6 +8,31 @@ async function getToken() {
   return await SecureStore.getItemAsync('token');
 }
 
+let isRefreshing = false;
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  const refreshToken = await SecureStore.getItemAsync('refreshToken');
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) {
+    await SecureStore.deleteItemAsync('token');
+    await SecureStore.deleteItemAsync('refreshToken');
+    throw new Error('Session expired');
+  }
+
+  const data = await res.json();
+  await SecureStore.setItemAsync('token', data.token);
+  await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+  return data.token;
+}
+
 async function request(endpoint, options = {}) {
   const token = await getToken();
   const headers = {
@@ -20,6 +45,31 @@ async function request(endpoint, options = {}) {
     ...options,
     headers,
   });
+
+  // If 401 and we have a refresh token, try to refresh
+  if (res.status === 401 && !options._isRetry) {
+    const refreshToken = await SecureStore.getItemAsync('refreshToken');
+    if (refreshToken) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshAccessToken().finally(() => {
+          isRefreshing = false;
+          refreshPromise = null;
+        });
+      }
+
+      try {
+        const newToken = await (refreshPromise || refreshAccessToken());
+        return request(endpoint, {
+          ...options,
+          headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
+          _isRetry: true,
+        });
+      } catch {
+        // Refresh failed
+      }
+    }
+  }
 
   const data = await res.json();
 

@@ -1,14 +1,15 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { getTodayDate } = require('../settings');
 
 const router = express.Router();
 
 // Dashboard stats
 router.get('/stats', authenticate, (req, res) => {
   const db = getDB();
-  const today = new Date().toISOString().split('T')[0];
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const today = getTodayDate();
+  const currentMonth = today.slice(0, 7);
 
   if (req.user.role === 'admin') {
     const totalEmployees = db.prepare('SELECT COUNT(*) as count FROM employees WHERE is_active = 1').get().count;
@@ -73,7 +74,7 @@ router.get('/activity-log', authenticate, (req, res) => {
   const db = getDB();
   const { date, employee_id, limit: qLimit } = req.query;
   const isAdmin = req.user.role === 'admin';
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || getTodayDate();
   const rowLimit = Math.min(parseInt(qLimit) || 100, 500);
 
   // For non-admin, force own employee_id
