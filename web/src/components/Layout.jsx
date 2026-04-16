@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone
 } from 'lucide-react';
 import { useState } from 'react';
 import NotificationBell from './NotificationBell';
@@ -20,6 +20,7 @@ export default function Layout() {
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/attendance', icon: Clock, label: 'Attendance' },
     { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
+    { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
     { to: '/activity-log', icon: Activity, label: 'Activity Log' },
     { to: '/profile', icon: UserCircle, label: 'My Profile' },
     ...(user?.role === 'admin'
@@ -27,6 +28,8 @@ export default function Layout() {
           { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
           { to: '/employees', icon: Users, label: 'Employees' },
           { to: '/settings', icon: Settings, label: 'Office Settings' },
+          { to: '/holidays', icon: Star, label: 'Holiday Management' },
+          { to: '/app-update', icon: Smartphone, label: 'App Update' },
         ]
       : []),
   ];

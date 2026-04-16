@@ -9,8 +9,11 @@ import Attendance from './pages/Attendance';
 import Leaves from './pages/Leaves';
 import Employees from './pages/Employees';
 import LeaveManagement from './pages/LeaveManagement';
+import LeaveCalendar from './pages/LeaveCalendar';
 import ActivityLog from './pages/ActivityLog';
 import Settings from './pages/Settings';
+import HolidayManager from './pages/HolidayManager';
+import AppUpdate from './pages/AppUpdate';
 import Profile from './pages/Profile';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
@@ -175,10 +178,13 @@ export default function App() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="leaves" element={<Leaves />} />
         <Route path="leave-management" element={<AdminRoute><LeaveManagement /></AdminRoute>} />
+        <Route path="leave-calendar" element={<LeaveCalendar />} />
         <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />
         <Route path="activity-log" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
+        <Route path="holidays" element={<AdminRoute><HolidayManager /></AdminRoute>} />
+        <Route path="app-update" element={<AdminRoute><AppUpdate /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

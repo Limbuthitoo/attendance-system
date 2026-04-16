@@ -15,6 +15,8 @@ const employeeRoutes = require('./routes/employees');
 const dashboardRoutes = require('./routes/dashboard');
 const nfcRoutes = require('./routes/nfc');
 const settingsRoutes = require('./routes/settings');
+const holidaysRoutes = require('./routes/holidays');
+const appUpdateRoutes = require('./routes/app-update');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,7 +62,7 @@ const authLimiter = rateLimit({
 // Rate limiting — general API routes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -69,7 +71,7 @@ const apiLimiter = rateLimit({
 // Rate limiting — write/mutation routes (more restrictive)
 const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: 150,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -86,6 +88,8 @@ app.use('/api/employees', writeLimiter, employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/nfc', nfcRoutes);
 app.use('/api/settings', writeLimiter, settingsRoutes);
+app.use('/api/holidays', writeLimiter, holidaysRoutes);
+app.use('/api/app-update', appUpdateRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

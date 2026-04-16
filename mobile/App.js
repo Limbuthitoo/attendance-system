@@ -6,12 +6,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import UpdateChecker from './src/components/UpdateChecker';
 import LoginScreen from './src/screens/LoginScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import LeavesScreen from './src/screens/LeavesScreen';
 import EmployeesScreen from './src/screens/EmployeesScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
@@ -27,7 +29,8 @@ function MainTabs() {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             Attendance: focused ? 'time' : 'time-outline',
-            Leaves: focused ? 'calendar' : 'calendar-outline',
+            Leaves: focused ? 'document-text' : 'document-text-outline',
+            Calendar: focused ? 'calendar' : 'calendar-outline',
             Employees: focused ? 'people' : 'people-outline',
             Profile: focused ? 'person' : 'person-outline',
           };
@@ -51,6 +54,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Attendance System' }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
       <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
+      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
       {user?.role === 'admin' && (
         <Tab.Screen name="Employees" component={EmployeesScreen} options={{ headerTitle: 'Employees' }} />
       )}
@@ -88,10 +92,12 @@ function AppNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <AppNavigator />
-      </NavigationContainer>
+      <UpdateChecker>
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <AppNavigator />
+        </NavigationContainer>
+      </UpdateChecker>
     </AuthProvider>
   );
 }

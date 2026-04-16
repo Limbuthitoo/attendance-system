@@ -112,6 +112,39 @@ function initDB() {
     CREATE INDEX IF NOT EXISTS idx_nfc_tap_log_time ON nfc_tap_log(tap_time);
     CREATE INDEX IF NOT EXISTS idx_nfc_tap_log_card ON nfc_tap_log(card_uid);
 
+    -- Public holidays (admin-managed)
+    CREATE TABLE IF NOT EXISTS holidays (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bs_year INTEGER NOT NULL,
+      bs_month INTEGER NOT NULL,
+      bs_day INTEGER NOT NULL,
+      bs_day_end INTEGER,
+      bs_month_end INTEGER,
+      name TEXT NOT NULL,
+      name_np TEXT,
+      ad_date TEXT,
+      ad_date_end TEXT,
+      women_only INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_holidays_year ON holidays(bs_year);
+    CREATE INDEX IF NOT EXISTS idx_holidays_month ON holidays(bs_year, bs_month);
+
+    -- App releases (APK uploads for OTA update)
+    CREATE TABLE IF NOT EXISTS app_releases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      release_notes TEXT DEFAULT '',
+      is_mandatory INTEGER NOT NULL DEFAULT 0,
+      uploaded_by INTEGER,
+      uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (uploaded_by) REFERENCES employees(id)
+    );
+
     -- NFC write jobs (backend queues, reader service picks up)
     CREATE TABLE IF NOT EXISTS nfc_write_jobs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,6 +191,30 @@ function initDB() {
   const cols = database.prepare("PRAGMA table_info(employees)").all();
   if (!cols.some(c => c.name === 'must_change_password')) {
     database.exec("ALTER TABLE employees ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
+  }
+
+  // Seed default holidays for 2083 if none exist
+  const holidayCount = database.prepare('SELECT COUNT(*) as c FROM holidays WHERE bs_year = 2083').get().c;
+  if (holidayCount === 0) {
+    const insertHoliday = database.prepare(
+      'INSERT INTO holidays (bs_year, bs_month, bs_day, bs_day_end, bs_month_end, name, name_np, ad_date, ad_date_end, women_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    const defaultHolidays = [
+      [2083, 1, 1, null, null, 'Nepali New Year', 'नेपाली नयाँ वर्ष', '2026-04-14', null, 0],
+      [2083, 1, 18, null, null, 'International Labour Day', 'अन्तर्राष्ट्रिय श्रमिक दिवस', '2026-05-01', null, 0],
+      [2083, 1, 18, null, null, 'Buddha Jayanti', 'बुद्ध जयन्ती', '2026-05-01', null, 0],
+      [2083, 2, 15, null, null, 'Republic Day', 'गणतन्त्र दिवस', '2026-05-29', null, 0],
+      [2083, 5, 22, null, null, 'Teej (Women Only)', 'तीज (महिलाहरूको लागि मात्र)', '2026-09-07', null, 1],
+      [2083, 6, 3, null, null, 'Constitution Day', 'संविधान दिवस', '2026-09-19', null, 0],
+      [2083, 6, 31, 5, 7, 'Dashain Festival (6 Days)', 'दशैं पर्व (६ दिन)', '2026-10-17', '2026-10-22', 0],
+      [2083, 7, 22, 25, 7, 'Tihar Festival (4 Days)', 'तिहार पर्व (४ दिन)', '2026-11-08', '2026-11-11', 0],
+      [2083, 10, 1, null, null, 'Maghe Sankranti', 'माघे संक्रान्ति', '2027-01-15', null, 0],
+      [2083, 11, 22, null, null, 'Maha Shivaratri', 'महाशिवरात्रि', '2027-03-06', null, 0],
+      [2083, 11, 30, null, null, 'Holi (Fagu Purnima)', 'फागु पूर्णिमा (होली)', '2027-03-14', null, 0],
+    ];
+    for (const h of defaultHolidays) {
+      insertHoliday.run(...h);
+    }
   }
 
   return database;

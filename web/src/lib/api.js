@@ -125,4 +125,10 @@ export const api = {
   createWriteJob: (data) => request('/nfc/write-jobs', { method: 'POST', body: JSON.stringify(data) }),
   getWriteJobs: (status) => request(`/nfc/write-jobs${status ? `?status=${status}` : ''}`),
   cancelWriteJob: (id) => request(`/nfc/write-jobs/${id}/cancel`, { method: 'PUT' }),
+
+  // Holidays
+  getHolidays: (year) => request(`/holidays?year=${year || 2083}`),
+  createHoliday: (data) => request('/holidays', { method: 'POST', body: JSON.stringify(data) }),
+  updateHoliday: (id, data) => request(`/holidays/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteHoliday: (id) => request(`/holidays/${id}`, { method: 'DELETE' }),
 };
