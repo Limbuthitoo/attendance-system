@@ -54,7 +54,10 @@ export function getBsMonthDays(year, month) {
 
 export function adToBs(adDate) {
   const date = typeof adDate === 'string' ? new Date(adDate + 'T00:00:00') : new Date(adDate);
-  const diffTime = date.getTime() - AD_REF.getTime();
+  date.setHours(0, 0, 0, 0);
+  const ref = new Date(AD_REF);
+  ref.setHours(0, 0, 0, 0);
+  const diffTime = date.getTime() - ref.getTime();
   let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
   let bsYear = BS_REF.year;

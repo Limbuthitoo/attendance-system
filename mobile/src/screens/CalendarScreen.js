@@ -25,7 +25,7 @@ export default function CalendarScreen() {
   const loadHolidays = async () => {
     try {
       const data = await api.getHolidays(year);
-      setHolidays(data);
+      setHolidays(data.holidays || []);
     } catch (err) {
       console.error('Failed to load holidays:', err);
     } finally {
