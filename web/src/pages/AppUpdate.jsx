@@ -209,7 +209,7 @@ export default function AppUpdate() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".apk"
+              accept=".apk,application/vnd.android.package-archive"
               onChange={handleFileSelect}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700"
             />

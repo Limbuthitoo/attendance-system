@@ -26,7 +26,7 @@ const upload = multer({
   }),
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
   fileFilter: (req, file, cb) => {
-    if (file.originalname.endsWith('.apk') || file.mimetype === 'application/vnd.android.package-archive') {
+    if (file.originalname.endsWith('.apk') || file.mimetype === 'application/vnd.android.package-archive' || file.mimetype === 'application/octet-stream') {
       cb(null, true);
     } else {
       cb(new Error('Only .apk files are allowed'));
