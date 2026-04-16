@@ -180,7 +180,7 @@ export default function AppUpdate() {
       )}
 
       {/* Upload New APK */}
-      <form onSubmit={handleUpload} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+      <form onSubmit={handleUpload} noValidate className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-lg bg-blue-50">
             <Upload size={22} className="text-blue-600" />
