@@ -139,6 +139,7 @@ function MenuStackScreen() {
       <MenuStack.Screen name="NoticesPage" component={NoticesScreen} options={{ headerTitle: 'Notices' }} />
       <MenuStack.Screen name="DesignTasksPage" component={DesignTasksScreen} options={{ headerTitle: 'My Design Tasks' }} />
       <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
+      <MenuStack.Screen name="ChangePasswordPage" component={ChangePasswordScreen} options={{ headerTitle: 'Change Password' }} />
       {user?.role === 'admin' && (
         <MenuStack.Screen name="RequestsPage" component={LeaveRequestsScreen} options={{ headerTitle: 'Leave Requests' }} />
       )}
@@ -232,6 +233,20 @@ function AppNavigator() {
               options={{
                 headerShown: true,
                 headerTitle: 'My Profile',
+                headerStyle: { backgroundColor: '#0f172a' },
+                headerShadowVisible: false,
+                headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
+                headerBackTitleVisible: false,
+                headerTintColor: '#94a3b8',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="ChangePasswordPage"
+              component={ChangePasswordScreen}
+              options={{
+                headerShown: true,
+                headerTitle: 'Change Password',
                 headerStyle: { backgroundColor: '#0f172a' },
                 headerShadowVisible: false,
                 headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#ffffff' },

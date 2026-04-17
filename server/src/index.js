@@ -118,4 +118,103 @@ app.listen(PORT, () => {
   // Auto-notify designers 7 days before upcoming events
   const { startDesignTaskScheduler } = require('./routes/design-tasks');
   startDesignTaskScheduler();
+
+  // Auto-notify employees who forgot to check out (daily at 8:00 PM NPT)
+  startForgotCheckoutScheduler();
 });
+
+// ── Forgot-checkout reminder scheduler ──────────────────────────
+function startForgotCheckoutScheduler() {
+  const { getNowInTimezone, getTodayDate, getOfficeSettings } = require('./settings');
+
+  const DAY_MAP = { 0: 'sun', 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat' };
+  const TARGET_HOUR = 20; // 8:00 PM NPT
+  const TARGET_MINUTE = 0;
+
+  const scheduleAt8PM = () => {
+    const now = new Date();
+    const settings = getOfficeSettings();
+    const tz = settings.timezone || 'Asia/Kathmandu';
+
+    // Get current time in office timezone
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now);
+    const curH = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const curM = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+
+    const nowMinutes = curH * 60 + curM;
+    const targetMinutes = TARGET_HOUR * 60 + TARGET_MINUTE;
+    let delayMinutes = targetMinutes - nowMinutes;
+    if (delayMinutes <= 0) delayMinutes += 1440; // next day
+
+    console.log(`⏰ Forgot-checkout reminder scheduled in ${Math.round(delayMinutes / 60)}h ${delayMinutes % 60}m`);
+
+    setTimeout(() => {
+      checkForgotCheckout();
+      setInterval(checkForgotCheckout, 24 * 60 * 60 * 1000);
+    }, delayMinutes * 60 * 1000);
+  };
+
+  const checkForgotCheckout = async () => {
+    try {
+      const settings = getOfficeSettings();
+      const workingDays = (settings.working_days || 'mon,tue,wed,thu,fri').split(',').map(d => d.trim().toLowerCase());
+      const today = getTodayDate();
+
+      // Check if today is a working day
+      const dayOfWeek = DAY_MAP[new Date().getDay()];
+      if (!workingDays.includes(dayOfWeek)) {
+        console.log('📋 Forgot-checkout: not a working day, skipping');
+        return;
+      }
+
+      const db = getDB();
+
+      // Find employees who checked in today but haven't checked out
+      const forgotCheckout = db.prepare(`
+        SELECT a.employee_id, e.name
+        FROM attendance a
+        JOIN employees e ON e.id = a.employee_id
+        WHERE a.date = ? AND a.check_in IS NOT NULL AND a.check_out IS NULL AND e.is_active = 1
+      `).all(today);
+
+      if (forgotCheckout.length === 0) {
+        console.log('📋 Forgot-checkout: no one forgot to check out today');
+        return;
+      }
+
+      const ids = forgotCheckout.map(r => r.employee_id);
+      console.log(`📋 Forgot-checkout: notifying ${ids.length} employees`);
+
+      await sendPushToEmployees(ids, {
+        title: 'Forgot to Check Out?',
+        body: 'You checked in today but haven\'t checked out yet. Please check out before leaving.',
+        data: { type: 'checkout_reminder' },
+      });
+
+      // Also store in-app notifications
+      const insertNotif = db.prepare(`
+        INSERT INTO notifications (employee_id, title, body, type, created_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+      `);
+      const txn = db.transaction(() => {
+        for (const emp of forgotCheckout) {
+          insertNotif.run(
+            emp.employee_id,
+            'Forgot to Check Out?',
+            'You checked in today but haven\'t checked out yet. Please check out before leaving.',
+            'checkout_reminder'
+          );
+        }
+      });
+      txn();
+    } catch (err) {
+      console.error('Forgot-checkout scheduler error:', err);
+    }
+  };
+
+  scheduleAt8PM();
+}

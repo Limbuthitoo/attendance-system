@@ -273,7 +273,7 @@ export default function HomeScreen({ navigation }) {
         {/* ── Monthly Overview ────────────────────── */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Monthly Overview</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Attendance')} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => navigation.navigate('My Attendance')} activeOpacity={0.7}>
             <Text style={styles.seeAllLink}>See All</Text>
           </TouchableOpacity>
         </View>

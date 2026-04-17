@@ -8,12 +8,13 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import { colors, spacing, shadows, radius } from '../theme';
 
-export default function ChangePasswordScreen() {
+export default function ChangePasswordScreen({ navigation, route }) {
   const { user, setUser, logout } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const isFromProfile = !user?.must_change_password;
 
   const handleSubmit = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -33,6 +34,9 @@ export default function ChangePasswordScreen() {
     try {
       await api.changePassword(currentPassword, newPassword);
       setUser({ ...user, must_change_password: false });
+      Alert.alert('Success', 'Password changed successfully', [
+        { text: 'OK', onPress: () => { if (isFromProfile && navigation?.goBack) navigation.goBack(); } },
+      ]);
     } catch (err) {
       Alert.alert('Error', err.message);
     } finally {
