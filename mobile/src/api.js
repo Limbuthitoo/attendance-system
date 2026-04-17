@@ -113,4 +113,9 @@ export const api = {
 
   // Holidays
   getHolidays: (year) => request(`/holidays?year=${year}`),
+
+  // Design tasks (for designer)
+  getMyDesignTasks: (year) => request(`/design-tasks/my${year ? `?year=${year}` : ''}`),
+  updateDesignTaskStatus: (id, status) =>
+    request(`/design-tasks/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
 };

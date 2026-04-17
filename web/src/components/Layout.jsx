@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Palette
 } from 'lucide-react';
 import { useState } from 'react';
 import NotificationBell from './NotificationBell';
@@ -30,6 +30,7 @@ export default function Layout() {
           { to: '/settings', icon: Settings, label: 'Office Settings' },
           { to: '/holidays', icon: Star, label: 'Holiday Management' },
           { to: '/app-update', icon: Smartphone, label: 'App Update' },
+          { to: '/design-tasks', icon: Palette, label: 'Design Tasks' },
         ]
       : []),
   ];

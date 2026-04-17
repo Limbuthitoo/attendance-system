@@ -14,6 +14,7 @@ import ActivityLog from './pages/ActivityLog';
 import Settings from './pages/Settings';
 import HolidayManager from './pages/HolidayManager';
 import AppUpdate from './pages/AppUpdate';
+import DesignTasks from './pages/DesignTasks';
 import Profile from './pages/Profile';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
@@ -185,6 +186,7 @@ export default function App() {
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
         <Route path="holidays" element={<AdminRoute><HolidayManager /></AdminRoute>} />
         <Route path="app-update" element={<AdminRoute><AppUpdate /></AdminRoute>} />
+        <Route path="design-tasks" element={<AdminRoute><DesignTasks /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

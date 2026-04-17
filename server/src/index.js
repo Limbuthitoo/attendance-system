@@ -17,6 +17,7 @@ const nfcRoutes = require('./routes/nfc');
 const settingsRoutes = require('./routes/settings');
 const holidaysRoutes = require('./routes/holidays');
 const appUpdateRoutes = require('./routes/app-update');
+const designTasksRoutes = require('./routes/design-tasks');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -90,6 +91,7 @@ app.use('/api/nfc', nfcRoutes);
 app.use('/api/settings', writeLimiter, settingsRoutes);
 app.use('/api/holidays', writeLimiter, holidaysRoutes);
 app.use('/api/app-update', appUpdateRoutes);
+app.use('/api/design-tasks', writeLimiter, designTasksRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

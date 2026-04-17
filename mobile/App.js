@@ -16,6 +16,7 @@ import EmployeesScreen from './src/screens/EmployeesScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import LeaveRequestsScreen from './src/screens/LeaveRequestsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import DesignTasksScreen from './src/screens/DesignTasksScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,11 +53,19 @@ function MenuScreen({ navigation }) {
         />
         <View style={styles.menuDivider} />
         <MenuItem
+          icon="color-palette-outline"
+          label="My Design Tasks"
+          description="Event designs assigned to you"
+          onPress={() => navigation.navigate('DesignTasksPage')}
+          color="#8b5cf6"
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
           icon="person-outline"
           label="Profile"
           description="Account settings & info"
           onPress={() => navigation.navigate('ProfilePage')}
-          color="#8b5cf6"
+          color="#64748b"
         />
       </View>
 
@@ -100,6 +109,7 @@ function MenuStackScreen() {
     >
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
       <MenuStack.Screen name="LeavesPage" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
+      <MenuStack.Screen name="DesignTasksPage" component={DesignTasksScreen} options={{ headerTitle: 'My Design Tasks' }} />
       <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
       {user?.role === 'admin' && (
         <MenuStack.Screen name="RequestsPage" component={LeaveRequestsScreen} options={{ headerTitle: 'Leave Requests' }} />
