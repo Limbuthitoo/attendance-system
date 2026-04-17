@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { getDB } = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { validatePassword } = require('../validation');
+const { registerToken, removeToken } = require('../push');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -112,6 +113,25 @@ router.put('/change-password', authenticate, (req, res) => {
   db.prepare("UPDATE employees SET password = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?").run(hashedPassword, req.user.id);
 
   res.json({ message: 'Password changed successfully' });
+});
+
+// Register push notification token
+router.post('/push-token', authenticate, (req, res) => {
+  const { token, device_name } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+  registerToken(req.user.id, token, device_name);
+  res.json({ message: 'Push token registered' });
+});
+
+// Remove push token (logout)
+router.delete('/push-token', authenticate, (req, res) => {
+  const { token } = req.body;
+  if (token) {
+    removeToken(req.user.id, token);
+  }
+  res.json({ message: 'Push token removed' });
 });
 
 module.exports = router;

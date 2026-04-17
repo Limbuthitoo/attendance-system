@@ -3,6 +3,7 @@ const { getDB } = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { getOfficeSettings } = require('../settings');
 const { sendLeaveApplicationEmail } = require('../mailer');
+const { sendPushToAdmins } = require('../push');
 
 const router = express.Router();
 
@@ -92,6 +93,13 @@ router.post('/', authenticate, (req, res) => {
     endDate: end_date,
     days,
     reason,
+  });
+
+  // Push notification to all admins
+  sendPushToAdmins({
+    title: '📋 New Leave Request',
+    body: `${req.user.name} applied for ${days}d ${leave_type} leave (${start_date} to ${end_date})`,
+    data: { type: 'leave_request', leaveId: leave.id },
   });
 
   res.status(201).json({ message: 'Leave application submitted', leave });

@@ -188,6 +188,20 @@ function initDB() {
     CREATE INDEX IF NOT EXISTS idx_design_tasks_year ON design_tasks(bs_year);
     CREATE INDEX IF NOT EXISTS idx_design_tasks_assigned ON design_tasks(assigned_to);
     CREATE INDEX IF NOT EXISTS idx_design_tasks_status ON design_tasks(status);
+
+    -- Push notification tokens (Expo)
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      token TEXT NOT NULL,
+      device_name TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (employee_id) REFERENCES employees(id),
+      UNIQUE(employee_id, token)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_push_tokens_employee ON push_tokens(employee_id);
   `);
 
   // Seed default office settings if empty

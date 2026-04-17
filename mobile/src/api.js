@@ -87,6 +87,12 @@ export const api = {
   changePassword: (currentPassword, newPassword) =>
     request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
 
+  // Push tokens
+  registerPushToken: (token, device_name) =>
+    request('/auth/push-token', { method: 'POST', body: JSON.stringify({ token, device_name }) }),
+  removePushToken: (token) =>
+    request('/auth/push-token', { method: 'DELETE', body: JSON.stringify({ token }) }),
+
   checkIn: () => request('/attendance/check-in', { method: 'POST' }),
   checkOut: () => request('/attendance/check-out', { method: 'POST' }),
   getToday: () => request('/attendance/today'),

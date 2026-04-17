@@ -2,6 +2,7 @@ const express = require('express');
 const { getDB } = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { sendMail} = require('../mailer');
+const { sendPushToEmployees } = require('../push');
 
 const router = express.Router();
 
@@ -136,6 +137,16 @@ router.post('/', authenticate, requireAdmin, (req, res) => {
   );
 
   const task = db.prepare('SELECT * FROM design_tasks WHERE id = ?').get(result.lastInsertRowid);
+
+  // Push notification to assigned designer
+  if (assigned_to) {
+    sendPushToEmployees([Number(assigned_to)], {
+      title: '🎨 New Design Task',
+      body: `You've been assigned: ${event_name}`,
+      data: { type: 'design_task', taskId: task.id },
+    });
+  }
+
   res.status(201).json({ task });
 });
 
@@ -165,6 +176,16 @@ router.post('/seed', authenticate, requireAdmin, (req, res) => {
   insertMany(EVENT_TEMPLATES);
 
   const tasks = db.prepare('SELECT * FROM design_tasks WHERE bs_year = ? ORDER BY event_name').all(year);
+
+  // Push notification to assigned designer
+  if (assigned_to) {
+    sendPushToEmployees([Number(assigned_to)], {
+      title: '🎨 Design Tasks Assigned',
+      body: `${tasks.length} event designs for BS ${year} have been assigned to you`,
+      data: { type: 'design_tasks_seed', year },
+    });
+  }
+
   res.status(201).json({ tasks, count: tasks.length });
 });
 
@@ -290,6 +311,13 @@ router.post('/:id/notify', authenticate, requireAdmin, (req, res) => {
     WHERE id = ?
   `).run(req.params.id);
 
+  // Push notification to designer
+  sendPushToEmployees([task.assigned_to], {
+    title: '🎨 Design Task',
+    body: `Please prepare design for: ${task.event_name}`,
+    data: { type: 'design_task_notify', taskId: task.id },
+  });
+
   res.json({ message: `Notification sent to ${task.assigned_name} (${task.assigned_email})` });
 });
 
@@ -349,6 +377,13 @@ router.post('/notify-bulk', authenticate, requireAdmin, (req, res) => {
       UPDATE design_tasks SET notification_sent = 1, notification_date = datetime('now'), updated_at = datetime('now')
       WHERE id = ?
     `).run(task.id);
+
+    // Push notification to designer
+    sendPushToEmployees([task.assigned_to], {
+      title: '🎨 Design Task',
+      body: `Please prepare design for: ${task.event_name}`,
+      data: { type: 'design_task_notify', taskId: task.id },
+    });
 
     sent++;
   }
