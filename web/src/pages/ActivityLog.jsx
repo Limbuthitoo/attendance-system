@@ -322,17 +322,52 @@ export default function ActivityLog() {
                       {a.department && <span className="text-xs text-slate-400">· {a.department}</span>}
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                       {a.type === 'attendance' && a.status === 'late' && (
-                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">LATE</span>
+                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <AlertTriangle size={10} /> LATE
+                        </span>
                       )}
                     </div>
 
                     {a.type === 'attendance' ? (
-                      <div className="flex items-center gap-4 mt-1 text-xs text-slate-500">
-                        <span className="flex items-center gap-1"><LogIn size={12} className="text-green-500" /> {formatTime(a.checkIn)}</span>
-                        <span className="text-slate-300">→</span>
-                        <span className="flex items-center gap-1"><LogOut size={12} className="text-blue-500" /> {formatTime(a.checkOut)}</span>
-                        {a.workHours && <span className="text-slate-600 font-medium">{a.workHours}h</span>}
-                        {a.method && <span className={a.method === 'NFC' ? 'text-indigo-500' : 'text-slate-400'}>{a.method}</span>}
+                      <div className="flex items-center gap-3 mt-2">
+                        {/* Check In pill */}
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${a.checkIn ? 'bg-green-50 border border-green-200' : 'bg-slate-50 border border-slate-200'}`}>
+                          <LogIn size={14} className={a.checkIn ? 'text-green-600' : 'text-slate-400'} />
+                          <div>
+                            <p className="text-[10px] font-medium text-slate-400 leading-none">IN</p>
+                            <p className={`text-sm font-bold leading-tight ${a.checkIn ? 'text-green-700' : 'text-slate-400'}`}>{formatTime(a.checkIn)}</p>
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <div className="flex items-center gap-0.5">
+                          <div className={`w-6 h-0.5 ${a.checkOut ? 'bg-blue-300' : 'bg-slate-200'}`} />
+                          <ChevronRight size={14} className={a.checkOut ? 'text-blue-400' : 'text-slate-300'} />
+                        </div>
+
+                        {/* Check Out pill */}
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${a.checkOut ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-dashed border-slate-300'}`}>
+                          <LogOut size={14} className={a.checkOut ? 'text-blue-600' : 'text-slate-400'} />
+                          <div>
+                            <p className="text-[10px] font-medium text-slate-400 leading-none">OUT</p>
+                            <p className={`text-sm font-bold leading-tight ${a.checkOut ? 'text-blue-700' : 'text-slate-400'}`}>{formatTime(a.checkOut)}</p>
+                          </div>
+                        </div>
+
+                        {/* Work hours badge */}
+                        {a.workHours && (
+                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200">
+                            <Clock size={12} className="text-slate-500" />
+                            <span className="text-sm font-bold text-slate-700">{a.workHours}h</span>
+                          </div>
+                        )}
+
+                        {/* Method badge */}
+                        {a.method && (
+                          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
+                            a.method === 'NFC' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'
+                          }`}>{a.method}</span>
+                        )}
                       </div>
                     ) : (
                       <>
