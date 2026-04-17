@@ -67,6 +67,98 @@ router.get('/stats', authenticate, (req, res) => {
 
 module.exports = router;
 
+// ─── Chart Data Endpoints ───────────────────────────────────────────────────
+
+// Weekly attendance trend (last 7 working days) — Admin
+router.get('/weekly-trend', authenticate, (req, res) => {
+  const db = getDB();
+  const days = parseInt(req.query.days) || 7;
+
+  if (req.user.role === 'admin') {
+    const rows = db.prepare(`
+      SELECT date,
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
+        SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late,
+        SUM(CASE WHEN status = 'half-day' THEN 1 ELSE 0 END) as halfDay,
+        SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent
+      FROM attendance
+      WHERE date >= date('now', ?)
+      GROUP BY date
+      ORDER BY date ASC
+    `).all(`-${days} days`);
+
+    const totalEmployees = db.prepare('SELECT COUNT(*) as c FROM employees WHERE is_active = 1').get().c;
+    res.json({ trend: rows, totalEmployees });
+  } else {
+    // Employee: own daily work hours for last N days
+    const rows = db.prepare(`
+      SELECT date, status, work_hours,
+        TIME(check_in) as check_in_time
+      FROM attendance
+      WHERE employee_id = ? AND date >= date('now', ?)
+      ORDER BY date ASC
+    `).all(req.user.id, `-${days} days`);
+
+    res.json({ trend: rows });
+  }
+});
+
+// Department attendance stats — Admin only
+router.get('/department-stats', authenticate, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+  const db = getDB();
+  const today = getTodayDate();
+  const currentMonth = today.slice(0, 7);
+
+  const departments = db.prepare(`
+    SELECT e.department,
+      COUNT(DISTINCT e.id) as total,
+      COUNT(DISTINCT CASE WHEN a.status IN ('present', 'late') THEN a.employee_id END) as present,
+      COUNT(DISTINCT CASE WHEN a.status = 'late' THEN a.employee_id END) as late
+    FROM employees e
+    LEFT JOIN attendance a ON e.id = a.employee_id AND a.date = ?
+    WHERE e.is_active = 1
+    GROUP BY e.department
+    ORDER BY total DESC
+  `).all(today);
+
+  res.json({ departments });
+});
+
+// Leave distribution — Admin: all, Employee: own
+router.get('/leave-stats', authenticate, (req, res) => {
+  const db = getDB();
+  const year = new Date().getFullYear();
+
+  if (req.user.role === 'admin') {
+    const byType = db.prepare(`
+      SELECT leave_type as type, COUNT(*) as count, SUM(days) as totalDays
+      FROM leaves
+      WHERE strftime('%Y', start_date) = ? AND status = 'approved'
+      GROUP BY leave_type
+    `).all(String(year));
+
+    const byMonth = db.prepare(`
+      SELECT strftime('%m', start_date) as month, COUNT(*) as count
+      FROM leaves
+      WHERE strftime('%Y', start_date) = ? AND status = 'approved'
+      GROUP BY month ORDER BY month
+    `).all(String(year));
+
+    res.json({ byType, byMonth });
+  } else {
+    const byType = db.prepare(`
+      SELECT leave_type as type, COUNT(*) as count, SUM(days) as totalDays
+      FROM leaves
+      WHERE employee_id = ? AND strftime('%Y', start_date) = ?
+      GROUP BY leave_type
+    `).all(req.user.id, String(year));
+
+    res.json({ byType });
+  }
+});
+
 // ─── Activity Log ───────────────────────────────────────────────────────────
 // Merged timeline of attendance, NFC taps, and leave activities
 
