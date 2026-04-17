@@ -19,6 +19,8 @@ const settingsRoutes = require('./routes/settings');
 const holidaysRoutes = require('./routes/holidays');
 const appUpdateRoutes = require('./routes/app-update');
 const designTasksRoutes = require('./routes/design-tasks');
+const noticesRoutes = require('./routes/notices');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -79,6 +81,9 @@ const writeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Serve branding assets (logo/favicon) without rate limiting
+app.use('/api/settings/branding', settingsRoutes);
+
 // Apply general rate limiter to all /api routes
 app.use('/api', apiLimiter);
 
@@ -93,6 +98,8 @@ app.use('/api/settings', writeLimiter, settingsRoutes);
 app.use('/api/holidays', writeLimiter, holidaysRoutes);
 app.use('/api/app-update', appUpdateRoutes);
 app.use('/api/design-tasks', writeLimiter, designTasksRoutes);
+app.use('/api/notices', writeLimiter, noticesRoutes);
+app.use('/api/notifications', writeLimiter, notificationsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

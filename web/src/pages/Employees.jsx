@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi } from 'lucide-react';
 
@@ -408,7 +409,7 @@ export default function Employees() {
                           {emp.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900">{emp.name}</p>
+                          <Link to={`/employees/${emp.id}`} className="font-medium text-slate-900 hover:text-primary-600 transition">{emp.name}</Link>
                           <p className="text-xs text-slate-500">{emp.employee_id} &middot; {emp.email}</p>
                         </div>
                       </div>

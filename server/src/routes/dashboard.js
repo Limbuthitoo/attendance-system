@@ -72,10 +72,13 @@ module.exports = router;
 
 router.get('/activity-log', authenticate, (req, res) => {
   const db = getDB();
-  const { date, employee_id, limit: qLimit } = req.query;
+  const { date, start_date, end_date, employee_id, limit: qLimit } = req.query;
   const isAdmin = req.user.role === 'admin';
-  const targetDate = date || getTodayDate();
-  const rowLimit = Math.min(parseInt(qLimit) || 100, 500);
+  const rowLimit = Math.min(parseInt(qLimit) || 200, 500);
+
+  // Support date range or single date
+  const hasRange = start_date && end_date;
+  const targetDate = hasRange ? null : (date || getTodayDate());
 
   // For non-admin, force own employee_id
   const empFilter = isAdmin && employee_id ? parseInt(employee_id) : (isAdmin ? null : req.user.id);
@@ -87,9 +90,15 @@ router.get('/activity-log', authenticate, (req, res) => {
     SELECT a.*, e.name, e.employee_id AS emp_code, e.department
     FROM attendance a
     JOIN employees e ON a.employee_id = e.id
-    WHERE a.date = ?
   `;
-  const attParams = [targetDate];
+  const attParams = [];
+  if (hasRange) {
+    attQuery += ' WHERE a.date >= ? AND a.date <= ?';
+    attParams.push(start_date, end_date);
+  } else {
+    attQuery += ' WHERE a.date = ?';
+    attParams.push(targetDate);
+  }
   if (empFilter) {
     attQuery += ' AND a.employee_id = ?';
     attParams.push(empFilter);
@@ -130,9 +139,15 @@ router.get('/activity-log', authenticate, (req, res) => {
       SELECT tl.*, e.name, e.employee_id AS emp_code
       FROM nfc_tap_log tl
       LEFT JOIN employees e ON tl.employee_id = e.id
-      WHERE DATE(tl.tap_time) = ?
     `;
-    const tapParams = [targetDate];
+    const tapParams = [];
+    if (hasRange) {
+      tapQuery += ' WHERE DATE(tl.tap_time) >= ? AND DATE(tl.tap_time) <= ?';
+      tapParams.push(start_date, end_date);
+    } else {
+      tapQuery += ' WHERE DATE(tl.tap_time) = ?';
+      tapParams.push(targetDate);
+    }
     if (empFilter) {
       tapQuery += ' AND tl.employee_id = ?';
       tapParams.push(empFilter);
@@ -164,9 +179,15 @@ router.get('/activity-log', authenticate, (req, res) => {
     FROM leaves l
     JOIN employees e ON l.employee_id = e.id
     LEFT JOIN employees r ON l.reviewed_by = r.id
-    WHERE DATE(l.created_at) = ? OR DATE(l.updated_at) = ?
   `;
-  const leaveParams = [targetDate, targetDate];
+  const leaveParams = [];
+  if (hasRange) {
+    leaveQuery += ' WHERE (DATE(l.created_at) >= ? AND DATE(l.created_at) <= ?) OR (DATE(l.updated_at) >= ? AND DATE(l.updated_at) <= ?)';
+    leaveParams.push(start_date, end_date, start_date, end_date);
+  } else {
+    leaveQuery += ' WHERE DATE(l.created_at) = ? OR DATE(l.updated_at) = ?';
+    leaveParams.push(targetDate, targetDate);
+  }
   if (empFilter) {
     leaveQuery += ' AND l.employee_id = ?';
     leaveParams.push(empFilter);
@@ -175,7 +196,16 @@ router.get('/activity-log', authenticate, (req, res) => {
 
   const leaves = db.prepare(leaveQuery).all(...leaveParams);
   for (const l of leaves) {
-    if (l.created_at && l.created_at.startsWith(targetDate)) {
+    const createdDate = l.created_at ? l.created_at.split('T')[0] : '';
+    const updatedDate = l.updated_at ? l.updated_at.split('T')[0] : '';
+    const matchesCreated = hasRange
+      ? (createdDate >= start_date && createdDate <= end_date)
+      : createdDate === targetDate;
+    const matchesUpdated = hasRange
+      ? (updatedDate >= start_date && updatedDate <= end_date)
+      : updatedDate === targetDate;
+
+    if (l.created_at && matchesCreated) {
       activities.push({
         type: 'leave_applied',
         time: l.created_at,
@@ -190,7 +220,7 @@ router.get('/activity-log', authenticate, (req, res) => {
         reason: l.reason,
       });
     }
-    if (l.status !== 'pending' && l.updated_at && l.updated_at.startsWith(targetDate)) {
+    if (l.status !== 'pending' && l.updated_at && matchesUpdated) {
       activities.push({
         type: l.status === 'approved' ? 'leave_approved' : 'leave_rejected',
         time: l.updated_at,

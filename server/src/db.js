@@ -202,6 +202,38 @@ function initDB() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_push_tokens_employee ON push_tokens(employee_id);
+
+    -- Official notices published by admin
+    CREATE TABLE IF NOT EXISTS notices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'general' CHECK(type IN ('general', 'official', 'event', 'urgent')),
+      target TEXT NOT NULL DEFAULT 'all',
+      published_by INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (published_by) REFERENCES employees(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notices_created ON notices(created_at);
+
+    -- Per-employee notifications (generated from notices, leave updates, etc.)
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'notice' CHECK(type IN ('notice', 'leave', 'design_task', 'system')),
+      reference_type TEXT,
+      reference_id INTEGER,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      is_cleared INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notifications_employee ON notifications(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(employee_id, is_read, is_cleared);
   `);
 
   // Seed default office settings if empty

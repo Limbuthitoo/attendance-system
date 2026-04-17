@@ -125,4 +125,17 @@ export const api = {
   getDesignEvents: (year) => request(`/design-tasks/calendar-events?year=${year || 2083}`),
   updateDesignTaskStatus: (id, status) =>
     request(`/design-tasks/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+
+  // Notices
+  getNotices: (limit, offset) => request(`/notices?limit=${limit || 50}&offset=${offset || 0}`),
+  getNotice: (id) => request(`/notices/${id}`),
+
+  // Notifications
+  getNotifications: (limit, offset, unreadOnly) =>
+    request(`/notifications?limit=${limit || 50}&offset=${offset || 0}${unreadOnly ? '&unread_only=1' : ''}`),
+  getUnreadCount: () => request('/notifications/unread-count'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
+  clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
+  clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
 };

@@ -87,6 +87,51 @@ router.get('/history', authenticate, (req, res) => {
   res.json({ attendance: records });
 });
 
+// Get attendance for a specific employee (admin) with optional date range
+router.get('/employee/:id', authenticate, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  const db = getDB();
+  const { start_date, end_date } = req.query;
+  const empId = parseInt(req.params.id);
+
+  let query = `
+    SELECT a.*, e.name, e.employee_id as emp_code, e.department, e.designation
+    FROM attendance a
+    JOIN employees e ON a.employee_id = e.id
+    WHERE a.employee_id = ?
+  `;
+  const params = [empId];
+
+  if (start_date) {
+    query += ' AND a.date >= ?';
+    params.push(start_date);
+  }
+  if (end_date) {
+    query += ' AND a.date <= ?';
+    params.push(end_date);
+  }
+
+  query += ' ORDER BY a.date DESC LIMIT 200';
+  const records = db.prepare(query).all(...params);
+
+  // Summary stats
+  const totalDays = records.length;
+  const presentDays = records.filter(r => r.status === 'present').length;
+  const lateDays = records.filter(r => r.status === 'late').length;
+  const halfDays = records.filter(r => r.status === 'half-day').length;
+  const avgHours = totalDays > 0
+    ? (records.reduce((sum, r) => sum + (r.work_hours || 0), 0) / totalDays).toFixed(1)
+    : '0.0';
+
+  res.json({
+    attendance: records,
+    summary: { totalDays, presentDays, lateDays, halfDays, avgHours },
+  });
+});
+
 // Get all attendance (admin)
 router.get('/all', authenticate, (req, res) => {
   if (req.user.role !== 'admin') {

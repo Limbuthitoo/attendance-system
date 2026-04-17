@@ -1,15 +1,53 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarLogo, setSidebarLogo] = useState('/favicon.svg');
+
+  const apiBase = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
+  function updateFavicon(url) {
+    // Remove all existing favicon links
+    document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']").forEach(el => el.remove());
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.href = url;
+    document.head.appendChild(link);
+    // Also set shortcut icon for older browsers
+    const shortcut = document.createElement('link');
+    shortcut.rel = 'shortcut icon';
+    shortcut.href = url;
+    document.head.appendChild(shortcut);
+  }
+
+  useEffect(() => {
+    // Load logo from API
+    fetch(`${apiBase}/settings/branding/logo`).then(r => {
+      if (r.ok) setSidebarLogo(`${apiBase}/settings/branding/logo?t=${Date.now()}`);
+    }).catch(() => {});
+    // Load favicon from API
+    fetch(`${apiBase}/settings/branding/favicon`).then(r => {
+      if (r.ok) updateFavicon(`${apiBase}/settings/branding/favicon?t=${Date.now()}`);
+    }).catch(() => {});
+    // Listen for branding updates from Settings page
+    function onBrandingUpdate(e) {
+      const { logo, favicon } = e.detail || {};
+      if (logo === null) setSidebarLogo('/favicon.svg');
+      else if (logo) setSidebarLogo(logo);
+      if (favicon === null) updateFavicon('/favicon.svg');
+      else if (favicon) updateFavicon(favicon);
+    }
+    window.addEventListener('branding-updated', onBrandingUpdate);
+    return () => window.removeEventListener('branding-updated', onBrandingUpdate);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -21,13 +59,14 @@ export default function Layout() {
     { to: '/attendance', icon: Clock, label: 'Attendance' },
     { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
     { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
+    { to: '/notices', icon: Megaphone, label: 'Notices' },
     { to: '/activity-log', icon: Activity, label: 'Activity Log' },
     { to: '/profile', icon: UserCircle, label: 'My Profile' },
     ...(user?.role === 'admin'
       ? [
           { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
           { to: '/employees', icon: Users, label: 'Employees' },
-          { to: '/settings', icon: Settings, label: 'Office Settings' },
+          { to: '/settings', icon: Settings, label: 'General Settings' },
           { to: '/holidays', icon: Star, label: 'Holiday Management' },
           { to: '/app-update', icon: Smartphone, label: 'App Update' },
         ]
@@ -52,13 +91,7 @@ export default function Layout() {
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/favicon.svg" alt="Logo" className="w-9 h-9 rounded-lg" />
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Archisys</h1>
-                <p className="text-xs text-slate-500">Attendance System</p>
-              </div>
-            </div>
+            <img src={sidebarLogo} alt="Logo" className="h-12 max-w-[250px] object-contain" />
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-slate-600">
               <X size={20} />
             </button>
@@ -113,7 +146,7 @@ export default function Layout() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {user?.role === 'admin' && <NotificationBell />}
+            <NotificationBell />
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary-100 text-primary-700 capitalize">
               {user?.role}
             </span>

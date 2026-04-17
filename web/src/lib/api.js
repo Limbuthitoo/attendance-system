@@ -91,6 +91,8 @@ export const api = {
   getToday: () => request('/attendance/today'),
   getHistory: (month, year) => request(`/attendance/history?month=${month}&year=${year}`),
   getAllAttendance: (date) => request(`/attendance/all?date=${date}`),
+  getEmployeeAttendance: (id, startDate, endDate) =>
+    request(`/attendance/employee/${id}?${startDate ? `start_date=${startDate}` : ''}${endDate ? `&end_date=${endDate}` : ''}`),
 
   // Leaves
   applyLeave: (data) => request('/leaves', { method: 'POST', body: JSON.stringify(data) }),
@@ -135,4 +137,19 @@ export const api = {
 
   // Design Task Calendar Events
   getDesignEvents: (year, month) => request(`/design-tasks/calendar-events?year=${year || 2083}${month ? `&month=${month}` : ''}`),
+
+  // Notices
+  getNotices: (limit, offset) => request(`/notices?limit=${limit || 50}&offset=${offset || 0}`),
+  getNotice: (id) => request(`/notices/${id}`),
+  publishNotice: (data) => request('/notices', { method: 'POST', body: JSON.stringify(data) }),
+  deleteNotice: (id) => request(`/notices/${id}`, { method: 'DELETE' }),
+
+  // Notifications
+  getNotifications: (limit, offset, unreadOnly) =>
+    request(`/notifications?limit=${limit || 50}&offset=${offset || 0}${unreadOnly ? '&unread_only=1' : ''}`),
+  getUnreadCount: () => request('/notifications/unread-count'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
+  clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
+  clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
 };

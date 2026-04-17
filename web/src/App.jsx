@@ -15,6 +15,8 @@ import Settings from './pages/Settings';
 import HolidayManager from './pages/HolidayManager';
 import AppUpdate from './pages/AppUpdate';
 import DesignTasks from './pages/DesignTasks';
+import Notices from './pages/Notices';
+import EmployeeProfile from './pages/EmployeeProfile';
 import Profile from './pages/Profile';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
@@ -180,7 +182,9 @@ export default function App() {
         <Route path="leaves" element={<Leaves />} />
         <Route path="leave-management" element={<AdminRoute><LeaveManagement /></AdminRoute>} />
         <Route path="leave-calendar" element={<LeaveCalendar />} />
+        <Route path="notices" element={<Notices />} />
         <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />
+        <Route path="employees/:id" element={<AdminRoute><EmployeeProfile /></AdminRoute>} />
         <Route path="activity-log" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />

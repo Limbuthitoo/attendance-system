@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import UpdateChecker from './src/components/UpdateChecker';
 import LoginScreen from './src/screens/LoginScreen';
@@ -17,10 +18,15 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import LeaveRequestsScreen from './src/screens/LeaveRequestsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import DesignTasksScreen from './src/screens/DesignTasksScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import NoticesScreen from './src/screens/NoticesScreen';
+import { api } from './src/api';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const MenuStack = createNativeStackNavigator();
+
+const navigationRef = React.createRef();
 
 function MenuItem({ icon, label, description, onPress, color = '#2563eb' }) {
   return (
@@ -50,6 +56,14 @@ function MenuScreen({ navigation }) {
           label="Leaves"
           description="Apply & track leave requests"
           onPress={() => navigation.navigate('LeavesPage')}
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
+          icon="megaphone-outline"
+          label="Notices"
+          description="Official notices & announcements"
+          onPress={() => navigation.navigate('NoticesPage')}
+          color="#2563eb"
         />
         <View style={styles.menuDivider} />
         <MenuItem
@@ -109,6 +123,7 @@ function MenuStackScreen() {
     >
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
       <MenuStack.Screen name="LeavesPage" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
+      <MenuStack.Screen name="NoticesPage" component={NoticesScreen} options={{ headerTitle: 'Notices' }} />
       <MenuStack.Screen name="DesignTasksPage" component={DesignTasksScreen} options={{ headerTitle: 'My Design Tasks' }} />
       <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
       {user?.role === 'admin' && (
@@ -122,6 +137,24 @@ function MenuStackScreen() {
 }
 
 function MainTabs() {
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { user } = useAuth();
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const data = await api.getUnreadCount();
+      setUnreadCount(data.count);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnread();
+      const interval = setInterval(fetchUnread, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchUnread]);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -129,6 +162,7 @@ function MainTabs() {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             Attendance: focused ? 'time' : 'time-outline',
+            Alerts: focused ? 'notifications' : 'notifications-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
             More: focused ? 'grid' : 'grid-outline',
           };
@@ -151,6 +185,15 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Attendance System' }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
+      <Tab.Screen
+        name="Alerts"
+        component={NotificationsScreen}
+        options={{
+          headerTitle: 'Notifications',
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10, minWidth: 18, height: 18, lineHeight: 18 },
+        }}
+      />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
       <Tab.Screen name="More" component={MenuStackScreen} options={{ headerShown: false }} />
     </Tab.Navigator>
@@ -245,10 +288,36 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  const notificationListener = useRef();
+  const responseListener = useRef();
+
+  useEffect(() => {
+    // Handle notification tapped (when app is in background/killed)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      // Navigate based on notification type
+      setTimeout(() => {
+        const nav = navigationRef.current;
+        if (!nav) return;
+        if (data?.type === 'notice') {
+          nav.navigate('Main', { screen: 'More', params: { screen: 'NoticesPage' } });
+        } else if (data?.type === 'design_task_reminder') {
+          nav.navigate('Main', { screen: 'Calendar' });
+        } else {
+          nav.navigate('Main', { screen: 'Alerts' });
+        }
+      }, 500);
+    });
+
+    return () => {
+      if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <UpdateChecker>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <StatusBar style="dark" />
           <AppNavigator />
         </NavigationContainer>
