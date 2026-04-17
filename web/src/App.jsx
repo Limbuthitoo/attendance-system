@@ -17,6 +17,7 @@ import AppUpdate from './pages/AppUpdate';
 import DesignTasks from './pages/DesignTasks';
 import Notices from './pages/Notices';
 import EmployeeProfile from './pages/EmployeeProfile';
+import EmployeeAttendance from './pages/EmployeeAttendance';
 import Profile from './pages/Profile';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
@@ -185,6 +186,7 @@ export default function App() {
         <Route path="notices" element={<Notices />} />
         <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />
         <Route path="employees/:id" element={<AdminRoute><EmployeeProfile /></AdminRoute>} />
+        <Route path="employee-attendance" element={<AdminRoute><EmployeeAttendance /></AdminRoute>} />
         <Route path="activity-log" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />

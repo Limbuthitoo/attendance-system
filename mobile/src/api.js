@@ -104,6 +104,11 @@ export const api = {
     if (params.year) q.append('year', params.year);
     return request(`/attendance/history?${q.toString()}`);
   },
+  getAllAttendance: (date, department) => {
+    let url = `/attendance/all?date=${date}`;
+    if (department) url += `&department=${encodeURIComponent(department)}`;
+    return request(url);
+  },
 
   applyLeave: (data) => request('/leaves', { method: 'POST', body: JSON.stringify(data) }),
   getMyLeaves: (status) => request(`/leaves/my${status ? `?status=${status}` : ''}`),
@@ -136,6 +141,8 @@ export const api = {
   // Notices
   getNotices: (limit, offset) => request(`/notices?limit=${limit || 50}&offset=${offset || 0}`),
   getNotice: (id) => request(`/notices/${id}`),
+  createNotice: (data) => request('/notices', { method: 'POST', body: JSON.stringify(data) }),
+  deleteNotice: (id) => request(`/notices/${id}`, { method: 'DELETE' }),
 
   // Notifications
   getNotifications: (limit, offset, unreadOnly) =>

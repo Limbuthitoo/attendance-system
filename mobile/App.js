@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import UpdateChecker from './src/components/UpdateChecker';
 import LoginScreen from './src/screens/LoginScreen';
@@ -20,6 +21,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import DesignTasksScreen from './src/screens/DesignTasksScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import NoticesScreen from './src/screens/NoticesScreen';
+import EmployeeAttendanceScreen from './src/screens/EmployeeAttendanceScreen';
 import { api } from './src/api';
 
 const Stack = createNativeStackNavigator();
@@ -100,9 +102,22 @@ function MenuScreen({ navigation }) {
               onPress={() => navigation.navigate('EmployeesPage')}
               color="#10b981"
             />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="clipboard-outline"
+              label="Employee Attendance"
+              description="Daily attendance overview"
+              onPress={() => navigation.navigate('EmployeeAttendancePage')}
+              color="#6366f1"
+            />
           </View>
         </>
       )}
+
+      {/* App version */}
+      <View style={styles.versionContainer}>
+        <Text style={styles.versionText}>Archisys Attendance v{Constants.expoConfig?.version || '1.2.0'}</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -130,6 +145,9 @@ function MenuStackScreen() {
       {user?.role === 'admin' && (
         <MenuStack.Screen name="EmployeesPage" component={EmployeesScreen} options={{ headerTitle: 'Employees' }} />
       )}
+      {user?.role === 'admin' && (
+        <MenuStack.Screen name="EmployeeAttendancePage" component={EmployeeAttendanceScreen} options={{ headerTitle: 'Employee Attendance' }} />
+      )}
     </MenuStack.Navigator>
   );
 }
@@ -143,7 +161,7 @@ function MainTabs() {
         tabBarIcon: ({ focused, color }) => {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
-            Attendance: focused ? 'time' : 'time-outline',
+            'My Attendance': focused ? 'time' : 'time-outline',
             Leaves: focused ? 'document-text' : 'document-text-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
             More: focused ? 'grid' : 'grid-outline',
@@ -171,7 +189,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
+      <Tab.Screen name="My Attendance" component={AttendanceScreen} options={{ headerTitle: 'My Attendance' }} />
       <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
       <Tab.Screen
@@ -292,6 +310,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f1f5f9',
     marginLeft: 68,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingBottom: 40,
+  },
+  versionText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
 });
 

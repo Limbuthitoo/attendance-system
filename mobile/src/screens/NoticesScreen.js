@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Modal, ScrollView,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl,
+  Modal, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import { colors, spacing, shadows, radius } from '../theme';
 
@@ -26,10 +28,19 @@ function timeAgo(dateStr) {
 }
 
 export default function NoticesScreen() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selected, setSelected] = useState(null);
+
+  // Create notice state
+  const [showCreate, setShowCreate] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createBody, setCreateBody] = useState('');
+  const [createType, setCreateType] = useState('general');
+  const [creating, setCreating] = useState(false);
 
   const fetchNotices = useCallback(async () => {
     try {
@@ -85,6 +96,26 @@ export default function NoticesScreen() {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const handleCreate = async () => {
+    if (!createTitle.trim() || !createBody.trim()) {
+      Alert.alert('Error', 'Title and body are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      await api.createNotice({ title: createTitle.trim(), body: createBody.trim(), type: createType });
+      setShowCreate(false);
+      setCreateTitle('');
+      setCreateBody('');
+      setCreateType('general');
+      fetchNotices();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to create notice');
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (loading) {
@@ -145,6 +176,87 @@ export default function NoticesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Admin FAB */}
+      {isAdmin && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowCreate(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={26} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Create Notice Modal */}
+      <Modal visible={showCreate} animationType="slide" transparent onRequestClose={() => setShowCreate(false)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.modal, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>New Notice</Text>
+              <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              {/* Type selector */}
+              <Text style={styles.fieldLabel}>Type</Text>
+              <View style={styles.typeRow}>
+                {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.typeChip, createType === key && { backgroundColor: cfg.bg, borderColor: cfg.color }]}
+                    onPress={() => setCreateType(key)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={cfg.icon} size={14} color={createType === key ? cfg.color : colors.textTertiary} />
+                    <Text style={[styles.typeChipText, createType === key && { color: cfg.color }]}>{cfg.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Title */}
+              <Text style={styles.fieldLabel}>Title</Text>
+              <TextInput
+                style={styles.input}
+                value={createTitle}
+                onChangeText={setCreateTitle}
+                placeholder="Notice title"
+                placeholderTextColor={colors.textTertiary}
+              />
+
+              {/* Body */}
+              <Text style={styles.fieldLabel}>Content</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={createBody}
+                onChangeText={setCreateBody}
+                placeholder="Write your notice content..."
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                textAlignVertical="top"
+              />
+
+              {/* Publish button */}
+              <TouchableOpacity
+                style={[styles.publishBtn, creating && { opacity: 0.6 }]}
+                onPress={handleCreate}
+                disabled={creating}
+                activeOpacity={0.7}
+              >
+                {creating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={16} color="#fff" />
+                    <Text style={styles.publishBtnText}>Publish Notice</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -196,4 +308,34 @@ const styles = StyleSheet.create({
   modalMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xl },
   modalMetaText: { fontSize: 12, color: colors.textTertiary, fontWeight: '500' },
   modalContent: { fontSize: 15, color: colors.textSecondary, lineHeight: 24, paddingBottom: spacing.xxxl },
+
+  // FAB
+  fab: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    ...shadows.lg, elevation: 6,
+  },
+
+  // Create form
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 6, marginTop: spacing.lg },
+  typeRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  typeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white,
+  },
+  typeChipText: { fontSize: 12, fontWeight: '600', color: colors.textTertiary },
+  input: {
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, color: colors.text,
+  },
+  textArea: { height: 120, paddingTop: 12 },
+  publishBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary, borderRadius: radius.md,
+    paddingVertical: 14, marginTop: spacing.xl, marginBottom: spacing.xxxl,
+  },
+  publishBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

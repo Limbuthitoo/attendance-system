@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
@@ -56,7 +56,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/attendance', icon: Clock, label: 'Attendance' },
+    { to: '/attendance', icon: Clock, label: 'My Attendance' },
     { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
     { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
     { to: '/notices', icon: Megaphone, label: 'Notices' },
@@ -65,6 +65,7 @@ export default function Layout() {
     ...(user?.role === 'admin'
       ? [
           { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
+          { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance' },
           { to: '/employees', icon: Users, label: 'Employees' },
           { to: '/settings', icon: Settings, label: 'General Settings' },
           { to: '/holidays', icon: Star, label: 'Holiday Management' },

@@ -142,9 +142,20 @@ router.get('/all', authenticate, (req, res) => {
   }
 
   const db = getDB();
-  const { date } = req.query;
+  const { date, department } = req.query;
   const targetDate = date || getTodayDate();
 
+  // Get all active employees
+  let empSql = `SELECT id, employee_id as emp_code, name, department, designation FROM employees WHERE is_active = 1`;
+  const empParams = [];
+  if (department) {
+    empSql += ' AND department = ?';
+    empParams.push(department);
+  }
+  empSql += ' ORDER BY name ASC';
+  const employees = db.prepare(empSql).all(...empParams);
+
+  // Get attendance records for the date
   const records = db.prepare(`
     SELECT a.*, e.name, e.employee_id as emp_code, e.department, e.designation
     FROM attendance a
@@ -153,7 +164,44 @@ router.get('/all', authenticate, (req, res) => {
     ORDER BY a.check_in ASC
   `).all(targetDate);
 
-  res.json({ attendance: records, date: targetDate });
+  const recordMap = {};
+  for (const r of records) recordMap[r.employee_id] = r;
+
+  // Merge: every employee gets a row
+  const merged = employees.map(emp => {
+    const rec = recordMap[emp.id];
+    return {
+      employee_id: emp.id,
+      emp_code: emp.emp_code,
+      name: emp.name,
+      department: emp.department,
+      designation: emp.designation,
+      date: targetDate,
+      check_in: rec?.check_in || null,
+      check_out: rec?.check_out || null,
+      work_hours: rec?.work_hours || null,
+      status: rec?.status || 'absent',
+      method: rec?.method || null,
+    };
+  });
+
+  // Get unique departments for filter
+  const departments = db.prepare(
+    `SELECT DISTINCT department FROM employees WHERE is_active = 1 ORDER BY department`
+  ).all().map(d => d.department);
+
+  // Summary
+  const present = merged.filter(m => m.status === 'present').length;
+  const late = merged.filter(m => m.status === 'late').length;
+  const halfDay = merged.filter(m => m.status === 'half-day').length;
+  const absent = merged.filter(m => m.status === 'absent').length;
+
+  res.json({
+    attendance: merged,
+    date: targetDate,
+    departments,
+    summary: { total: merged.length, present, late, halfDay, absent },
+  });
 });
 
 module.exports = router;
