@@ -18,7 +18,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "package": "com.archisys.attendance"
+      "package": "com.archisys.attendance",
+      "googleServicesFile": "./google-services.json"
     },
     "extra": {
       "apiUrl": "https://hr.bijaysubbalimbu.com.np/api",
