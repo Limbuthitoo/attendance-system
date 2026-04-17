@@ -122,6 +122,7 @@ export const api = {
 
   // Design tasks (for designer)
   getMyDesignTasks: (year) => request(`/design-tasks/my${year ? `?year=${year}` : ''}`),
+  getDesignEvents: (year) => request(`/design-tasks/calendar-events?year=${year || 2083}`),
   updateDesignTaskStatus: (id, status) =>
     request(`/design-tasks/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
 };

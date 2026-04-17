@@ -19,14 +19,19 @@ export default function CalendarScreen() {
   const [year, setYear] = useState(todayBs.year);
   const [month, setMonth] = useState(todayBs.month);
   const [holidays, setHolidays] = useState([]);
+  const [designEvents, setDesignEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
   const [viewMode, setViewMode] = useState('monthly');
 
   const loadHolidays = async () => {
     try {
-      const data = await api.getHolidays(year);
-      setHolidays(data.holidays || []);
+      const [hData, dData] = await Promise.all([
+        api.getHolidays(year),
+        api.getDesignEvents(year).catch(() => ({ events: [] })),
+      ]);
+      setHolidays(hData.holidays || []);
+      setDesignEvents(dData.events || []);
     } catch (err) {
       console.error('Failed to load holidays:', err);
     } finally {
@@ -102,6 +107,25 @@ export default function CalendarScreen() {
   // Selected day info
   const selectedHoliday = selectedDay ? holidayMap[selectedDay] : null;
   const selectedAdDate = selectedDay ? bsToAd(year, month, selectedDay) : null;
+
+  // Build design event lookup by AD date
+  const designEventMap = {};
+  designEvents.forEach(e => {
+    if (e.event_date) {
+      if (!designEventMap[e.event_date]) designEventMap[e.event_date] = [];
+      designEventMap[e.event_date].push(e);
+    }
+  });
+
+  // Get design events for a given BS day
+  const getDesignEventsForDay = (d) => {
+    if (!d) return [];
+    const adDate = bsToAd(year, month, d);
+    const adStr = adDate.toISOString().split('T')[0];
+    return designEventMap[adStr] || [];
+  };
+
+  const selectedDesignEvents = selectedDay ? getDesignEventsForDay(selectedDay) : [];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -230,6 +254,7 @@ export default function CalendarScreen() {
               const today = isToday(day);
               const sat = isSaturday(day);
               const isSelected = selectedDay === day;
+              const dayDesignEvents = getDesignEventsForDay(day);
 
               return (
                 <TouchableOpacity
@@ -260,9 +285,14 @@ export default function CalendarScreen() {
                   ]}>
                     {day}
                   </Text>
-                  {holiday && (
-                    <View style={[styles.dot, holiday.women_only ? styles.dotPurple : styles.dotRed]} />
-                  )}
+                  <View style={{ flexDirection: 'row', gap: 2, justifyContent: 'center' }}>
+                    {holiday && (
+                      <View style={[styles.dot, holiday.women_only ? styles.dotPurple : styles.dotRed]} />
+                    )}
+                    {dayDesignEvents.length > 0 && (
+                      <View style={[styles.dot, { backgroundColor: '#7c3aed' }]} />
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -284,9 +314,18 @@ export default function CalendarScreen() {
                     {selectedHoliday.name}{selectedHoliday.name_np ? ` (${selectedHoliday.name_np})` : ''}
                   </Text>
                 </View>
-              ) : (
+              ) : selectedDesignEvents.length === 0 ? (
                 <Text style={styles.infoNormal}>Regular working day</Text>
-              )}
+              ) : null}
+              {selectedDesignEvents.length > 0 && selectedDesignEvents.map(dt => (
+                <View key={dt.id} style={{ backgroundColor: '#f5f3ff', borderRadius: 8, padding: 10, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 18 }}>🎨</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#6d28d9' }}>{dt.event_name}</Text>
+                    <Text style={{ fontSize: 11, color: '#7c3aed', textTransform: 'capitalize' }}>{dt.category} • {dt.status || 'pending'}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -315,6 +354,28 @@ export default function CalendarScreen() {
               ))}
             </View>
           )}
+
+          {/* Design events this month */}
+          {(() => {
+            const monthFirstAd = bsToAd(year, month, 1).toISOString().split('T')[0];
+            const monthLastAd = bsToAd(year, month, daysInMonth).toISOString().split('T')[0];
+            const monthDesignEvents = designEvents.filter(e => e.event_date >= monthFirstAd && e.event_date <= monthLastAd);
+            if (monthDesignEvents.length === 0) return null;
+            return (
+              <View style={[styles.holidayList, { borderLeftColor: '#7c3aed' }]}>
+                <Text style={[styles.holidayListTitle, { color: '#6d28d9' }]}>🎨 Design Events this month</Text>
+                {monthDesignEvents.map(dt => (
+                  <View key={dt.id} style={styles.holidayItem}>
+                    <View style={[styles.holidayDot, { backgroundColor: '#7c3aed' }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.holidayName}>{dt.event_name}</Text>
+                      <Text style={styles.holidayDate}>{dt.event_date} • {dt.category}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
 
           {/* Legend */}
           <View style={styles.legend}>

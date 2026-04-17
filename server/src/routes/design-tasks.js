@@ -6,60 +6,72 @@ const { sendPushToEmployees } = require('../push');
 
 const router = express.Router();
 
-// All events template (used for seeding a year)
-const EVENT_TEMPLATES = [
-  { name: 'Nepali New Year (Nawa Barsa)', category: 'national' },
-  { name: 'Loktantra Diwas', category: 'national' },
-  { name: 'Prajatantra Diwas', category: 'national' },
-  { name: 'Ganatantra Diwas', category: 'national' },
-  { name: 'Sahid Diwas', category: 'national' },
-  { name: 'Bisket Jatra', category: 'festival' },
-  { name: 'Buddha Jayanti', category: 'religious' },
-  { name: 'Ropain (Asar 15)', category: 'cultural' },
-  { name: 'Janai Purnima / Raksha Bandhan', category: 'religious' },
-  { name: 'Gai Jatra', category: 'cultural' },
-  { name: 'Krishna Janmashtami', category: 'religious' },
-  { name: 'Teej (Dar Khane Din)', category: 'festival' },
-  { name: 'Haritalika Teej', category: 'festival' },
-  { name: 'Sambidhan Diwas', category: 'national' },
-  { name: 'Indra Jatra', category: 'cultural' },
-  { name: 'Ghatasthapana', category: 'festival' },
-  { name: 'Fulpati', category: 'festival' },
-  { name: 'Bijaya Dashami', category: 'festival' },
-  { name: 'Dhanwantari Jayanti', category: 'religious' },
-  { name: 'Kag Tihar', category: 'festival' },
-  { name: 'Kukur Tihar', category: 'festival' },
-  { name: 'Gai Puja', category: 'festival' },
-  { name: 'Gobardhan Puja', category: 'festival' },
-  { name: 'Laxmi Puja', category: 'festival' },
-  { name: 'Bhai Tika', category: 'festival' },
-  { name: 'Chhath Parva', category: 'festival' },
-  { name: 'Yomari Punhi', category: 'cultural' },
-  { name: 'Uudhauli Parwa', category: 'cultural' },
-  { name: 'Christmas Day', category: 'festival' },
-  { name: 'Tamu Lhosar', category: 'cultural' },
-  { name: 'Sonam Lhosar', category: 'cultural' },
-  { name: 'Gyalpo Lhosar', category: 'cultural' },
-  { name: 'Prithivi Jayanti', category: 'national' },
-  { name: 'Maghe Sankranti', category: 'festival' },
-  { name: 'Saraswati Puja', category: 'religious' },
-  { name: 'Maha Shivaratri', category: 'religious' },
-  { name: 'International Women\'s Day', category: 'national' },
-  { name: 'Holi (Fagu Purnima)', category: 'festival' },
-  { name: 'Ghode Jatra', category: 'cultural' },
-  { name: 'Chaite Dashain', category: 'festival' },
-  { name: 'Bibaha Panchami', category: 'religious' },
-  { name: 'Bala Chaturdashi Parwa', category: 'religious' },
-  { name: 'Guru Nanak Jayanti', category: 'religious' },
-  { name: 'Dhanteras', category: 'festival' },
-  { name: 'Jitiya Parwa', category: 'cultural' },
-  { name: 'Guru Purnima', category: 'religious' },
-  { name: 'Labour Day', category: 'national' },
-  { name: 'Mother\'s Day', category: 'cultural' },
-  { name: 'Father\'s Day', category: 'cultural' },
-  { name: 'Topi Diwas', category: 'national' },
-  { name: 'Laxmi Prasad Devkota Jayanti', category: 'national' },
-  { name: 'Biswakarma Diwas', category: 'cultural' },
+// BS 2083 events with correct dates from Hamro Patro
+const EVENT_TEMPLATES_2083 = [
+  // Baisakh
+  { name: 'Naya Barsha 2083 / Bisket Jatra', ad_date: '2026-04-14', category: 'national' },
+  { name: 'Mata Tirtha Aunsi (Mother\'s Day)', ad_date: '2026-04-17', category: 'cultural' },
+  { name: 'Loktantra Diwas (Democracy Day)', ad_date: '2026-04-24', category: 'national' },
+  { name: 'Buddha Jayanti / Ubhauli Parwa', ad_date: '2026-05-01', category: 'religious' },
+  { name: 'International Labour Day', ad_date: '2026-05-01', category: 'national' },
+  // Jestha
+  { name: 'Ganatantra Diwas (Republic Day)', ad_date: '2026-05-29', category: 'national' },
+  { name: 'World Environment Day', ad_date: '2026-06-05', category: 'national' },
+  // Asadh
+  { name: 'International Yoga Day / Father\'s Day', ad_date: '2026-06-21', category: 'cultural' },
+  { name: 'Dahi Chiura Khane / Asar 15 (Ropain)', ad_date: '2026-06-29', category: 'cultural' },
+  { name: 'Bhanubhakta Jayanti', ad_date: '2026-07-13', category: 'national' },
+  // Shrawan
+  { name: 'Shrawan Sankranti', ad_date: '2026-07-17', category: 'cultural' },
+  { name: 'Guru Purnima', ad_date: '2026-07-29', category: 'religious' },
+  // Bhadra
+  { name: 'Nag Panchami', ad_date: '2026-08-17', category: 'religious' },
+  { name: 'Janai Purnima / Raksha Bandhan', ad_date: '2026-08-28', category: 'religious' },
+  { name: 'Gai Jatra', ad_date: '2026-08-29', category: 'cultural' },
+  { name: 'Krishna Janmashtami', ad_date: '2026-09-04', category: 'religious' },
+  { name: 'Kushe Aunsi (Father\'s Day)', ad_date: '2026-09-11', category: 'cultural' },
+  { name: 'Haritalika Teej', ad_date: '2026-09-14', category: 'festival' },
+  // Ashoj
+  { name: 'Biswakarma Puja', ad_date: '2026-09-17', category: 'cultural' },
+  { name: 'Sambidhan Diwas (Constitution Day)', ad_date: '2026-09-19', category: 'national' },
+  { name: 'Indra Jatra', ad_date: '2026-09-25', category: 'cultural' },
+  { name: 'Jitiya Parwa', ad_date: '2026-10-04', category: 'cultural' },
+  { name: 'Ghatasthapana (Navratri)', ad_date: '2026-10-11', category: 'festival' },
+  { name: 'Fulpati', ad_date: '2026-10-17', category: 'festival' },
+  // Kartik
+  { name: 'Maha Navami', ad_date: '2026-10-20', category: 'festival' },
+  { name: 'Vijaya Dashami (Dashain)', ad_date: '2026-10-21', category: 'festival' },
+  { name: 'Dhanteras', ad_date: '2026-11-06', category: 'festival' },
+  { name: 'Kag Tihar', ad_date: '2026-11-07', category: 'festival' },
+  { name: 'Laxmi Puja / Kukur Tihar', ad_date: '2026-11-08', category: 'festival' },
+  { name: 'Gai Puja', ad_date: '2026-11-09', category: 'festival' },
+  { name: 'Gobardhan Puja / Mha Puja / Nepal Sambat', ad_date: '2026-11-10', category: 'festival' },
+  { name: 'Bhai Tika', ad_date: '2026-11-11', category: 'festival' },
+  { name: 'Chhath Parva', ad_date: '2026-11-15', category: 'festival' },
+  // Mangsir
+  { name: 'Bala Chaturdashi', ad_date: '2026-12-07', category: 'religious' },
+  { name: 'Bibaha Panchami', ad_date: '2026-12-14', category: 'religious' },
+  // Poush
+  { name: 'Yomari Punhi / Udhauli Parwa', ad_date: '2026-12-24', category: 'cultural' },
+  { name: 'Christmas Day', ad_date: '2026-12-25', category: 'festival' },
+  { name: 'Tamu Lhosar', ad_date: '2026-12-30', category: 'cultural' },
+  { name: 'English New Year 2027 / Topi Diwas', ad_date: '2027-01-01', category: 'national' },
+  { name: 'Prithvi Jayanti / Rastriya Ekta Diwas', ad_date: '2027-01-11', category: 'national' },
+  // Magh
+  { name: 'Maghe Sankranti / Ghiu Chaku', ad_date: '2027-01-15', category: 'festival' },
+  { name: 'Shahid Diwas (Martyrs\' Day)', ad_date: '2027-01-30', category: 'national' },
+  { name: 'Sonam Lhosar', ad_date: '2027-02-07', category: 'cultural' },
+  { name: 'Saraswati Puja / Basanta Panchami', ad_date: '2027-02-11', category: 'religious' },
+  // Falgun
+  { name: 'Prajatantra Diwas (Democracy Day)', ad_date: '2027-02-19', category: 'national' },
+  { name: 'International Mother Language Day', ad_date: '2027-02-21', category: 'national' },
+  { name: 'Maha Shivaratri', ad_date: '2027-03-06', category: 'religious' },
+  { name: 'International Women\'s Day', ad_date: '2027-03-08', category: 'national' },
+  { name: 'Gyalpo Lhosar', ad_date: '2027-03-09', category: 'cultural' },
+  // Chaitra
+  { name: 'Fagu Purnima (Holi)', ad_date: '2027-03-21', category: 'festival' },
+  { name: 'Ghode Jatra', ad_date: '2027-04-06', category: 'cultural' },
+  { name: 'Ram Navami / Chaite Dashain', ad_date: '2027-04-07', category: 'festival' },
 ];
 
 // GET /design-tasks — list all tasks with filters (admin)
@@ -111,7 +123,42 @@ router.get('/my', authenticate, (req, res) => {
 
 // GET /design-tasks/templates — get all event templates
 router.get('/templates', authenticate, requireAdmin, (req, res) => {
-  res.json({ templates: EVENT_TEMPLATES });
+  res.json({ templates: EVENT_TEMPLATES_2083 });
+});
+
+// GET /design-tasks/calendar-events — events for calendar view (designer sees own, admin sees all)
+router.get('/calendar-events', authenticate, (req, res) => {
+  const db = getDB();
+  const { year, month } = req.query; // month in AD format: YYYY-MM
+
+  let sql = `
+    SELECT dt.id, dt.event_name, dt.event_date, dt.category, dt.status,
+           dt.description, dt.bs_year, dt.assigned_to
+    FROM design_tasks dt
+    WHERE dt.event_date IS NOT NULL
+  `;
+  const params = [];
+
+  // Non-admin users only see their own assigned events
+  if (req.user.role !== 'admin') {
+    sql += ' AND dt.assigned_to = ?';
+    params.push(req.user.id);
+  }
+
+  if (year) {
+    sql += ' AND dt.bs_year = ?';
+    params.push(year);
+  }
+
+  if (month) {
+    sql += ' AND dt.event_date LIKE ?';
+    params.push(month + '%');
+  }
+
+  sql += ' ORDER BY dt.event_date ASC';
+
+  const events = db.prepare(sql).all(...params);
+  res.json({ events });
 });
 
 // POST /design-tasks — create single task (admin)
@@ -163,17 +210,17 @@ router.post('/seed', authenticate, requireAdmin, (req, res) => {
   }
 
   const stmt = db.prepare(`
-    INSERT INTO design_tasks (event_name, bs_year, category, assigned_to, created_by)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO design_tasks (event_name, event_date, bs_year, category, assigned_to, created_by)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((templates) => {
     for (const t of templates) {
-      stmt.run(t.name, year, t.category, assigned_to || null, req.user.id);
+      stmt.run(t.name, t.ad_date || null, year, t.category, assigned_to || null, req.user.id);
     }
   });
 
-  insertMany(EVENT_TEMPLATES);
+  insertMany(EVENT_TEMPLATES_2083);
 
   const tasks = db.prepare('SELECT * FROM design_tasks WHERE bs_year = ? ORDER BY event_name').all(year);
 

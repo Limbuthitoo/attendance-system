@@ -6,7 +6,7 @@ import {
   formatBsDate, toNepaliNumeral, BS_MONTHS, BS_MONTHS_NP, WEEKDAYS_SHORT, WEEKDAYS_SHORT_NP
 } from '../lib/bs-date';
 import { getEventForDate } from '../lib/nepal-events';
-import { ChevronLeft, ChevronRight, Calendar, Filter, X, Star, Printer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Filter, X, Star, Printer, Palette } from 'lucide-react';
 
 export default function LeaveCalendar() {
   const { user } = useAuth();
@@ -22,10 +22,16 @@ export default function LeaveCalendar() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [apiHolidays, setApiHolidays] = useState([]);
+  const [designEvents, setDesignEvents] = useState([]);
 
   // Load holidays from API
   useEffect(() => {
     api.getHolidays(currentYear).then(data => setApiHolidays(data.holidays || [])).catch(() => {});
+  }, [currentYear]);
+
+  // Load design task events
+  useEffect(() => {
+    api.getDesignEvents(currentYear).then(data => setDesignEvents(data.events || [])).catch(() => {});
   }, [currentYear]);
 
   // Build holiday lookup from API data
@@ -80,6 +86,18 @@ export default function LeaveCalendar() {
     }
   };
 
+  // Build design event lookup by AD date
+  const designEventMap = useMemo(() => {
+    const map = {};
+    designEvents.forEach(e => {
+      if (e.event_date) {
+        if (!map[e.event_date]) map[e.event_date] = [];
+        map[e.event_date].push(e);
+      }
+    });
+    return map;
+  }, [designEvents]);
+
   // Build calendar grid for current BS month
   const calendarGrid = useMemo(() => {
     const daysInMonth = getBsMonthDays(currentYear, currentMonth);
@@ -104,12 +122,13 @@ export default function LeaveCalendar() {
       const dayOfWeek = (firstDayOfWeek + d - 1) % 7;
       const isSaturday = dayOfWeek === 6;
       const isToday = currentYear === todayBs.year && currentMonth === todayBs.month && d === todayBs.day;
+      const designTasks = designEventMap[adStr] || [];
 
-      grid.push({ day: d, adDate: adStr, adDay, adMonth, adMonthName, adYear, holiday, event, isSaturday, isToday, dayOfWeek });
+      grid.push({ day: d, adDate: adStr, adDay, adMonth, adMonthName, adYear, holiday, event, isSaturday, isToday, dayOfWeek, designTasks });
     }
 
     return grid;
-  }, [currentYear, currentMonth, holidayMap]);
+  }, [currentYear, currentMonth, holidayMap, designEventMap]);
 
   // Map leaves to AD dates for lookup
   const leaveDateMap = useMemo(() => {
@@ -543,6 +562,21 @@ export default function LeaveCalendar() {
                       </div>
                     )}
 
+                    {/* Design task events */}
+                    {cell.designTasks.length > 0 && (
+                      <div className="space-y-0.5 mb-0.5">
+                        {cell.designTasks.slice(0, 1).map(dt => (
+                          <div key={dt.id} className="flex items-center gap-1 text-[10px] text-purple-700 bg-purple-50 rounded px-1 py-0.5 truncate" title={dt.event_name}>
+                            <span className="shrink-0">🎨</span>
+                            <span className="truncate">{dt.event_name}</span>
+                          </div>
+                        ))}
+                        {cell.designTasks.length > 1 && (
+                          <div className="text-[9px] text-purple-500 pl-1">+{cell.designTasks.length - 1} more</div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Leave indicators */}
                     <div className="space-y-1">
                       {filtered.slice(0, 2).map((leave, i) => (
@@ -592,6 +626,12 @@ export default function LeaveCalendar() {
               <span className="text-sm text-red-500 font-semibold">Sat</span>
               <span className="text-sm text-slate-600">= Weekend</span>
             </div>
+            {designEvents.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-3.5 h-3.5 rounded bg-purple-100 border border-purple-300 flex items-center justify-center text-[8px]">🎨</div>
+                <span className="text-sm text-slate-600">Design Task</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -633,6 +673,19 @@ export default function LeaveCalendar() {
                     {cell.event && !cell.holiday && (
                       <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                         <p className="text-sm font-medium text-blue-700">{cell.event}</p>
+                      </div>
+                    )}
+                    {cell.designTasks && cell.designTasks.length > 0 && (
+                      <div className="mb-3 space-y-2">
+                        {cell.designTasks.map(dt => (
+                          <div key={dt.id} className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
+                            <Palette size={18} className="text-purple-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-semibold text-purple-700">{dt.event_name}</p>
+                              <p className="text-xs text-purple-500 capitalize">{dt.category} • {dt.status || 'pending'}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     {cell.isSaturday && (

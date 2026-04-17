@@ -7,7 +7,8 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-const { initDB } = require('./db');
+const { initDB, getDB } = require('./db');
+const { sendPushToEmployees } = require('./push');
 const authRoutes = require('./routes/auth');
 const attendanceRoutes = require('./routes/attendance');
 const leaveRoutes = require('./routes/leaves');
@@ -106,4 +107,49 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Archisys Attendance Server running on port ${PORT}`);
+
+  // Daily cron: send push notification to designers for events happening tomorrow
+  const checkDesignTaskNotifications = () => {
+    try {
+      const db = getDB();
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Find events happening tomorrow that haven't been notified yet
+      const tasks = db.prepare(`
+        SELECT dt.*, e.name as assigned_name
+        FROM design_tasks dt
+        LEFT JOIN employees e ON dt.assigned_to = e.id
+        WHERE dt.event_date = ? AND dt.notification_sent = 0 AND dt.assigned_to IS NOT NULL
+      `).all(tomorrowStr);
+
+      for (const task of tasks) {
+        sendPushToEmployees([task.assigned_to], {
+          title: '🎨 Design Reminder - Tomorrow!',
+          body: `${task.event_name} is tomorrow. Please prepare the design.`,
+          data: { type: 'design_task_reminder', taskId: task.id },
+        });
+
+        // Mark as notified
+        db.prepare(`
+          UPDATE design_tasks SET notification_sent = 1, notification_date = datetime('now')
+          WHERE id = ?
+        `).run(task.id);
+
+        console.log(`📢 Notified designer for: ${task.event_name} (${tomorrowStr})`);
+      }
+
+      if (tasks.length > 0) {
+        console.log(`✅ Sent ${tasks.length} design task reminder(s) for ${tomorrowStr}`);
+      }
+    } catch (err) {
+      console.error('Design task notification cron error:', err);
+    }
+  };
+
+  // Run every hour (checks for tomorrow's events)
+  setInterval(checkDesignTaskNotifications, 60 * 60 * 1000);
+  // Also run once on startup after a short delay
+  setTimeout(checkDesignTaskNotifications, 10000);
 });

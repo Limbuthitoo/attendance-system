@@ -132,4 +132,7 @@ export const api = {
   createHoliday: (data) => request('/holidays', { method: 'POST', body: JSON.stringify(data) }),
   updateHoliday: (id, data) => request(`/holidays/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteHoliday: (id) => request(`/holidays/${id}`, { method: 'DELETE' }),
+
+  // Design Task Calendar Events
+  getDesignEvents: (year, month) => request(`/design-tasks/calendar-events?year=${year || 2083}${month ? `&month=${month}` : ''}`),
 };
