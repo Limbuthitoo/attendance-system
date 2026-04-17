@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Image
+  Platform, ActivityIndicator, Alert, Image, StatusBar
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing } from '../theme';
+import { colors, spacing, shadows, radius } from '../theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [secureEntry, setSecureEntry] = useState(true);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -29,60 +31,78 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.inner}>
-        <View style={styles.logoContainer}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      {/* Dark branded header */}
+      <View style={styles.headerBg}>
+        <View style={styles.headerContent}>
           <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.subtitle}>Attendance Management System</Text>
+          <Text style={styles.brandTitle}>Attendance Management</Text>
+          <Text style={styles.brandSubtitle}>Sign in to your account</Text>
         </View>
+      </View>
 
+      {/* Form card overlapping the header */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.formWrapper}
+      >
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@archisys.com"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputRow}>
+              <Ionicons name="mail-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@archisys.com"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textTertiary}
-              secureTextEntry
-            />
+            <View style={styles.inputRow}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textTertiary}
+                secureTextEntry={secureEntry}
+              />
+              <TouchableOpacity onPress={() => setSecureEntry(!secureEntry)} style={styles.eyeBtn}>
+                <Ionicons name={secureEntry ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             {loading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <>
+                <Text style={styles.buttonText}>Sign In</Text>
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
+              </>
             )}
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>© {new Date().getFullYear()} Archisys Innovations</Text>
-      </View>
-    </KeyboardAvoidingView>
+        <Text style={styles.footer}>© {new Date().getFullYear()} Archisys Innovations Pvt. Ltd.</Text>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -91,68 +111,96 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  inner: {
-    flex: 1,
-    justifyContent: 'center',
+  headerBg: {
+    backgroundColor: colors.headerDark,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 60,
     paddingHorizontal: spacing.xxl,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-  logoContainer: {
+  headerContent: {
     alignItems: 'center',
-    marginBottom: spacing.xxxl,
   },
   logo: {
-    width: 240,
-    height: 64,
+    width: 200,
+    height: 52,
     marginBottom: spacing.lg,
+    tintColor: '#ffffff',
   },
-  subtitle: {
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textInverse,
+    marginTop: spacing.sm,
+    letterSpacing: -0.3,
+  },
+  brandSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
+    color: '#94a3b8',
+    marginTop: spacing.xs,
+  },
+  formWrapper: {
+    flex: 1,
+    marginTop: -28,
+    paddingHorizontal: spacing.xl,
   },
   form: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: radius.xl,
     padding: spacing.xxl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...shadows.lg,
   },
   inputGroup: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: spacing.sm,
+    letterSpacing: 0.2,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  inputIcon: {
+    paddingLeft: spacing.lg,
   },
   input: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 15,
     fontSize: 15,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
+  },
+  eyeBtn: {
+    paddingRight: spacing.lg,
+    paddingVertical: 15,
   },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 15,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginTop: spacing.sm,
+    ...shadows.md,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: colors.white,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   footer: {
     textAlign: 'center',

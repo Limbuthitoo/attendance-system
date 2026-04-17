@@ -96,7 +96,14 @@ export const api = {
   checkIn: () => request('/attendance/check-in', { method: 'POST' }),
   checkOut: () => request('/attendance/check-out', { method: 'POST' }),
   getToday: () => request('/attendance/today'),
-  getHistory: (month, year) => request(`/attendance/history?month=${month}&year=${year}`),
+  getHistory: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.start_date) q.append('start_date', params.start_date);
+    if (params.end_date) q.append('end_date', params.end_date);
+    if (params.month) q.append('month', params.month);
+    if (params.year) q.append('year', params.year);
+    return request(`/attendance/history?${q.toString()}`);
+  },
 
   applyLeave: (data) => request('/leaves', { method: 'POST', body: JSON.stringify(data) }),
   getMyLeaves: (status) => request(`/leaves/my${status ? `?status=${status}` : ''}`),

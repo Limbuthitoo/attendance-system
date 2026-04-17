@@ -72,12 +72,15 @@ router.get('/today', authenticate, (req, res) => {
 // Get attendance history for current user
 router.get('/history', authenticate, (req, res) => {
   const db = getDB();
-  const { month, year } = req.query;
+  const { month, year, start_date, end_date } = req.query;
 
   let query = 'SELECT * FROM attendance WHERE employee_id = ?';
   const params = [req.user.id];
 
-  if (month && year) {
+  if (start_date && end_date) {
+    query += ' AND date >= ? AND date <= ?';
+    params.push(start_date, end_date);
+  } else if (month && year) {
     query += " AND strftime('%m', date) = ? AND strftime('%Y', date) = ?";
     params.push(month.toString().padStart(2, '0'), year.toString());
   }

@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { api } from '../api';
+import { api } from './api';
 
 // Configure notification handling
 Notifications.setNotificationHandler({

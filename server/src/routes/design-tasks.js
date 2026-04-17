@@ -198,9 +198,10 @@ router.post('/', authenticate, requireAdmin, (req, res) => {
 });
 
 // POST /design-tasks/seed — bulk create all events for a year (admin)
+// Auto-assigns to designers (Senior Designer / Graphic Designer) in round-robin
 router.post('/seed', authenticate, requireAdmin, (req, res) => {
   const db = getDB();
-  const { bs_year, assigned_to } = req.body;
+  const { bs_year } = req.body;
   const year = bs_year || 2083;
 
   // Check if already seeded for this year
@@ -209,31 +210,49 @@ router.post('/seed', authenticate, requireAdmin, (req, res) => {
     return res.status(400).json({ error: `Events already exist for BS ${year}. Delete them first if you want to re-seed.` });
   }
 
+  // Find all active designers
+  const designers = db.prepare(
+    `SELECT id, name FROM employees WHERE is_active = 1 AND LOWER(designation) IN ('senior designer', 'graphic designer')`
+  ).all();
+
   const stmt = db.prepare(`
     INSERT INTO design_tasks (event_name, event_date, bs_year, category, assigned_to, created_by)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((templates) => {
-    for (const t of templates) {
-      stmt.run(t.name, t.ad_date || null, year, t.category, assigned_to || null, req.user.id);
+    for (let i = 0; i < templates.length; i++) {
+      const t = templates[i];
+      // Round-robin assignment across designers
+      const assignee = designers.length > 0 ? designers[i % designers.length].id : null;
+      stmt.run(t.name, t.ad_date || null, year, t.category, assignee, req.user.id);
     }
   });
 
   insertMany(EVENT_TEMPLATES_2083);
 
-  const tasks = db.prepare('SELECT * FROM design_tasks WHERE bs_year = ? ORDER BY event_name').all(year);
+  const tasks = db.prepare('SELECT * FROM design_tasks WHERE bs_year = ? ORDER BY event_date').all(year);
 
-  // Push notification to assigned designer
-  if (assigned_to) {
-    sendPushToEmployees([Number(assigned_to)], {
+  // Notify all designers
+  if (designers.length > 0) {
+    const designerIds = designers.map(d => d.id);
+    sendPushToEmployees(designerIds, {
       title: '🎨 Design Tasks Assigned',
-      body: `${tasks.length} event designs for BS ${year} have been assigned to you`,
+      body: `${tasks.length} event designs for BS ${year} have been assigned. Check your tasks!`,
       data: { type: 'design_tasks_seed', year },
     });
+
+    // Create in-app notifications for each designer
+    const notifStmt = db.prepare(
+      `INSERT INTO notifications (employee_id, title, body, type, reference_type) VALUES (?, ?, ?, 'design_task', 'design_tasks')`
+    );
+    for (const d of designers) {
+      const count = tasks.filter(t => t.assigned_to === d.id).length;
+      notifStmt.run(d.id, '🎨 Design Tasks Assigned', `${count} event designs for BS ${year} have been assigned to you`);
+    }
   }
 
-  res.status(201).json({ tasks, count: tasks.length });
+  res.status(201).json({ tasks, count: tasks.length, designers_assigned: designers.length });
 });
 
 // PUT /design-tasks/:id — update task (admin)
@@ -470,4 +489,131 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// ── Auto-notification scheduler ──
+// Auto-seeds tasks for the current BS year if not already created,
+// assigns round-robin to designers, then checks every hour for
+// events coming up in the next 7 days and notifies assigned designers.
+function startDesignTaskScheduler() {
+  const BS_YEAR = 2083;
+  const NOTIFY_DAYS_BEFORE = 7;
+
+  const autoSeed = () => {
+    try {
+      const db = getDB();
+      const existing = db.prepare('SELECT COUNT(*) as c FROM design_tasks WHERE bs_year = ?').get(BS_YEAR).c;
+      if (existing > 0) return; // already seeded
+
+      const designers = db.prepare(
+        `SELECT id, name FROM employees WHERE is_active = 1 AND LOWER(designation) IN ('senior designer', 'graphic designer')`
+      ).all();
+
+      if (designers.length === 0) {
+        console.log('[DesignTasks] No designers found — skipping auto-seed. Will retry next hour.');
+        return;
+      }
+
+      const stmt = db.prepare(
+        `INSERT INTO design_tasks (event_name, event_date, bs_year, category, assigned_to, created_by) VALUES (?, ?, ?, ?, ?, NULL)`
+      );
+
+      const seedTxn = db.transaction(() => {
+        for (let i = 0; i < EVENT_TEMPLATES_2083.length; i++) {
+          const t = EVENT_TEMPLATES_2083[i];
+          const assignee = designers[i % designers.length].id;
+          stmt.run(t.name, t.ad_date || null, BS_YEAR, t.category, assignee);
+        }
+      });
+
+      seedTxn();
+
+      // Notify designers
+      const designerIds = designers.map(d => d.id);
+      sendPushToEmployees(designerIds, {
+        title: '🎨 Design Tasks Auto-Assigned',
+        body: `${EVENT_TEMPLATES_2083.length} event designs for BS ${BS_YEAR} have been assigned. Check your tasks!`,
+        data: { type: 'design_tasks_seed', year: BS_YEAR },
+      });
+
+      const notifStmt = db.prepare(
+        `INSERT INTO notifications (employee_id, title, body, type, reference_type) VALUES (?, ?, ?, 'design_task', 'design_tasks')`
+      );
+      for (const d of designers) {
+        const count = Math.ceil(EVENT_TEMPLATES_2083.length / designers.length);
+        notifStmt.run(d.id, '🎨 Design Tasks Auto-Assigned', `~${count} event designs for BS ${BS_YEAR} have been assigned to you`);
+      }
+
+      console.log(`[DesignTasks] Auto-seeded ${EVENT_TEMPLATES_2083.length} tasks for BS ${BS_YEAR}, assigned to ${designers.length} designer(s)`);
+    } catch (err) {
+      console.error('[DesignTasks] Auto-seed error:', err.message);
+    }
+  };
+
+  const checkUpcoming = () => {
+    try {
+      const db = getDB();
+      const today = new Date();
+      const futureDate = new Date(today);
+      futureDate.setDate(today.getDate() + NOTIFY_DAYS_BEFORE);
+      const todayStr = today.toISOString().split('T')[0];
+      const futureStr = futureDate.toISOString().split('T')[0];
+
+      const tasks = db.prepare(`
+        SELECT dt.*, e.name as designer_name
+        FROM design_tasks dt
+        LEFT JOIN employees e ON dt.assigned_to = e.id
+        WHERE dt.event_date >= ? AND dt.event_date <= ?
+          AND dt.notification_sent = 0
+          AND dt.assigned_to IS NOT NULL
+          AND dt.status != 'completed'
+      `).all(todayStr, futureStr);
+
+      if (tasks.length === 0) return;
+
+      const notifStmt = db.prepare(
+        `INSERT INTO notifications (employee_id, title, body, type, reference_type, reference_id) VALUES (?, ?, ?, 'design_task', 'design_task', ?)`
+      );
+      const markStmt = db.prepare(
+        `UPDATE design_tasks SET notification_sent = 1, notification_date = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+      );
+
+      const notifyTxn = db.transaction((taskList) => {
+        for (const task of taskList) {
+          const daysUntil = Math.ceil((new Date(task.event_date) - today) / 86400000);
+          const timeText = daysUntil <= 0 ? 'today' : daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`;
+
+          sendPushToEmployees([task.assigned_to], {
+            title: `🎨 Design Needed — ${task.event_name}`,
+            body: `Event is ${timeText} (${formatDate(task.event_date)}). Please prepare the design.`,
+            data: { type: 'design_task_reminder', taskId: task.id },
+          });
+
+          notifStmt.run(
+            task.assigned_to,
+            `🎨 Design Needed — ${task.event_name}`,
+            `Event is ${timeText} (${formatDate(task.event_date)}). Please prepare the design.`,
+            task.id
+          );
+
+          markStmt.run(task.id);
+        }
+      });
+
+      notifyTxn(tasks);
+      console.log(`[DesignTasks] Auto-notified ${tasks.length} designer(s) for upcoming events`);
+    } catch (err) {
+      console.error('[DesignTasks] Notification error:', err.message);
+    }
+  };
+
+  const runAll = () => {
+    autoSeed();
+    checkUpcoming();
+  };
+
+  // Run on startup after a short delay, then every hour
+  setTimeout(runAll, 10000);
+  setInterval(runAll, 60 * 60 * 1000);
+}
+
 module.exports = router;
+module.exports.startDesignTaskScheduler = startDesignTaskScheduler;

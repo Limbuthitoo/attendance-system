@@ -28,17 +28,17 @@ const MenuStack = createNativeStackNavigator();
 
 const navigationRef = React.createRef();
 
-function MenuItem({ icon, label, description, onPress, color = '#2563eb' }) {
+function MenuItem({ icon, label, description, onPress, color = '#1e40af' }) {
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
-      <View style={[styles.menuIcon, { backgroundColor: color + '12' }]}>
-        <Ionicons name={icon} size={24} color={color} />
+      <View style={[styles.menuIcon, { backgroundColor: color + '14' }]}>
+        <Ionicons name={icon} size={22} color={color} />
       </View>
       <View style={styles.menuText}>
         <Text style={styles.menuLabel}>{label}</Text>
         {description && <Text style={styles.menuDesc}>{description}</Text>}
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+      <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
     </TouchableOpacity>
   );
 }
@@ -46,16 +46,18 @@ function MenuItem({ icon, label, description, onPress, color = '#2563eb' }) {
 function MenuScreen({ navigation }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isDesigner = ['senior designer', 'graphic designer'].includes(user?.designation?.toLowerCase());
 
   return (
     <ScrollView style={styles.menuContainer} contentContainerStyle={styles.menuContent}>
       <Text style={styles.menuSection}>General</Text>
       <View style={styles.menuCard}>
         <MenuItem
-          icon="document-text-outline"
-          label="Leaves"
-          description="Apply & track leave requests"
-          onPress={() => navigation.navigate('LeavesPage')}
+          icon="notifications-outline"
+          label="Notifications"
+          description="Alerts & updates"
+          onPress={() => navigation.navigate('NotificationsPage')}
+          color="#dc2626"
         />
         <View style={styles.menuDivider} />
         <MenuItem
@@ -63,24 +65,20 @@ function MenuScreen({ navigation }) {
           label="Notices"
           description="Official notices & announcements"
           onPress={() => navigation.navigate('NoticesPage')}
-          color="#2563eb"
+          color="#1e40af"
         />
-        <View style={styles.menuDivider} />
-        <MenuItem
-          icon="color-palette-outline"
-          label="My Design Tasks"
-          description="Event designs assigned to you"
-          onPress={() => navigation.navigate('DesignTasksPage')}
-          color="#8b5cf6"
-        />
-        <View style={styles.menuDivider} />
-        <MenuItem
-          icon="person-outline"
-          label="Profile"
-          description="Account settings & info"
-          onPress={() => navigation.navigate('ProfilePage')}
-          color="#64748b"
-        />
+        {isDesigner && (
+          <>
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="color-palette-outline"
+              label="My Design Tasks"
+              description="Event designs assigned to you"
+              onPress={() => navigation.navigate('DesignTasksPage')}
+              color="#8b5cf6"
+            />
+          </>
+        )}
       </View>
 
       {isAdmin && (
@@ -114,15 +112,15 @@ function MenuStackScreen() {
   return (
     <MenuStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#ffffff' },
+        headerStyle: { backgroundColor: '#0f172a' },
         headerShadowVisible: false,
-        headerTitleStyle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
         headerBackTitleVisible: false,
-        headerTintColor: '#2563eb',
+        headerTintColor: '#94a3b8',
       }}
     >
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
-      <MenuStack.Screen name="LeavesPage" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
+      <MenuStack.Screen name="NotificationsPage" component={NotificationsScreen} options={{ headerTitle: 'Notifications' }} />
       <MenuStack.Screen name="NoticesPage" component={NoticesScreen} options={{ headerTitle: 'Notices' }} />
       <MenuStack.Screen name="DesignTasksPage" component={DesignTasksScreen} options={{ headerTitle: 'My Design Tasks' }} />
       <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
@@ -137,23 +135,7 @@ function MenuStackScreen() {
 }
 
 function MainTabs() {
-  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
-
-  const fetchUnread = useCallback(async () => {
-    try {
-      const data = await api.getUnreadCount();
-      setUnreadCount(data.count);
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchUnread();
-      const interval = setInterval(fetchUnread, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user, fetchUnread]);
 
   return (
     <Tab.Navigator
@@ -162,40 +144,47 @@ function MainTabs() {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             Attendance: focused ? 'time' : 'time-outline',
-            Alerts: focused ? 'notifications' : 'notifications-outline',
+            Leaves: focused ? 'document-text' : 'document-text-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
             More: focused ? 'grid' : 'grid-outline',
           };
           return <Ionicons name={icons[route.name]} size={22} color={color} />;
         },
-        tabBarActiveTintColor: '#2563eb',
+        tabBarActiveTintColor: '#1e40af',
         tabBarInactiveTintColor: '#94a3b8',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopColor: '#e2e8f0',
-          paddingBottom: 4,
-          paddingTop: 4,
-          height: 56,
+          paddingBottom: 6,
+          paddingTop: 6,
+          height: 60,
+          shadowColor: '#0f172a',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 8,
         },
-        headerStyle: { backgroundColor: '#ffffff' },
+        headerStyle: { backgroundColor: '#0f172a' },
         headerShadowVisible: false,
-        headerTitleStyle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Attendance System' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
-      <Tab.Screen
-        name="Alerts"
-        component={NotificationsScreen}
-        options={{
-          headerTitle: 'Notifications',
-          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
-          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10, minWidth: 18, height: 18, lineHeight: 18 },
-        }}
-      />
+      <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
-      <Tab.Screen name="More" component={MenuStackScreen} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="More"
+        component={MenuStackScreen}
+        options={{ headerShown: false }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('More', { screen: 'MenuHome' });
+          },
+        })}
+      />
     </Tab.Navigator>
   );
 }
@@ -205,8 +194,8 @@ function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' }}>
+        <ActivityIndicator size="large" color="#1e40af" />
       </View>
     );
   }
@@ -217,7 +206,23 @@ function AppNavigator() {
         user.must_change_password ? (
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
         ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="ProfileModal"
+              component={ProfileScreen}
+              options={{
+                headerShown: true,
+                headerTitle: 'My Profile',
+                headerStyle: { backgroundColor: '#0f172a' },
+                headerShadowVisible: false,
+                headerTitleStyle: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
+                headerBackTitleVisible: false,
+                headerTintColor: '#94a3b8',
+                animation: 'slide_from_right',
+              }}
+            />
+          </>
         )
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -229,29 +234,32 @@ function AppNavigator() {
 const styles = StyleSheet.create({
   menuContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   menuContent: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 40,
   },
   menuSection: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     marginBottom: 8,
-    marginTop: 8,
+    marginTop: 12,
     marginLeft: 4,
   },
   menuCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   menuItem: {
     flexDirection: 'row',
@@ -272,7 +280,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#0f172a',
   },
   menuDesc: {
@@ -318,7 +326,7 @@ export default function App() {
     <AuthProvider>
       <UpdateChecker>
         <NavigationContainer ref={navigationRef}>
-          <StatusBar style="dark" />
+          <StatusBar style="light" />
           <AppNavigator />
         </NavigationContainer>
       </UpdateChecker>

@@ -4,12 +4,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
+import { colors, spacing, shadows, radius } from '../theme';
 
 const TYPE_CONFIG = {
-  notice: { icon: 'megaphone-outline', color: '#2563eb', bg: '#eff6ff' },
-  leave: { icon: 'document-text-outline', color: '#f59e0b', bg: '#fffbeb' },
-  design_task: { icon: 'color-palette-outline', color: '#8b5cf6', bg: '#f5f3ff' },
-  system: { icon: 'settings-outline', color: '#64748b', bg: '#f8fafc' },
+  notice: { icon: 'megaphone-outline', color: colors.primary, bg: colors.primaryLight },
+  leave: { icon: 'document-text-outline', color: colors.warningMuted, bg: colors.warningLight },
+  design_task: { icon: 'color-palette-outline', color: colors.purple, bg: colors.purpleLight },
+  system: { icon: 'settings-outline', color: colors.textSecondary, bg: colors.background },
 };
 
 function timeAgo(dateStr) {
@@ -116,7 +117,7 @@ export default function NotificationsScreen({ navigation }) {
           <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
         </View>
         <TouchableOpacity style={styles.clearBtn} onPress={() => handleClear(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="close" size={16} color="#cbd5e1" />
+          <Ionicons name="close" size={16} color={colors.textTertiary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -125,7 +126,7 @@ export default function NotificationsScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -135,13 +136,19 @@ export default function NotificationsScreen({ navigation }) {
       {/* Actions bar */}
       {notifications.length > 0 && (
         <View style={styles.actions}>
+          {unreadCount > 0 && (
+            <View style={styles.unreadPill}>
+              <Text style={styles.unreadPillText}>{unreadCount} unread</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.actionBtn}>
-            <Ionicons name="checkmark-done-outline" size={16} color="#2563eb" />
+            <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
             <Text style={styles.actionText}>Read all</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleClearAll} style={styles.actionBtn}>
-            <Ionicons name="trash-outline" size={16} color="#ef4444" />
-            <Text style={[styles.actionText, { color: '#ef4444' }]}>Clear all</Text>
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            <Text style={[styles.actionText, { color: colors.danger }]}>Clear all</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -150,13 +157,15 @@ export default function NotificationsScreen({ navigation }) {
         data={notifications}
         keyExtractor={item => String(item.id)}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         contentContainerStyle={notifications.length === 0 ? styles.emptyContainer : { paddingBottom: 20 }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="notifications-off-outline" size={48} color="#cbd5e1" />
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptyDesc}>You're all caught up!</Text>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="notifications-off-outline" size={40} color={colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyTitle}>All Caught Up</Text>
+            <Text style={styles.emptyDesc}>No new notifications</Text>
           </View>
         }
       />
@@ -165,32 +174,46 @@ export default function NotificationsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   actions: {
-    flexDirection: 'row', justifyContent: 'flex-end', gap: 16,
-    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
-    backgroundColor: '#ffffff',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.lg,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    backgroundColor: colors.white,
   },
+  unreadPill: {
+    backgroundColor: colors.primary, paddingHorizontal: 10,
+    paddingVertical: 3, borderRadius: radius.full,
+  },
+  unreadPillText: { fontSize: 11, fontWeight: '700', color: colors.textInverse },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionText: { fontSize: 12, fontWeight: '600', color: '#2563eb' },
+  actionText: { fontSize: 12, fontWeight: '600', color: colors.primary },
   item: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.lg,
+    backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  itemUnread: { backgroundColor: '#eff6ff40' },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  itemUnread: { backgroundColor: colors.primaryLight + '40' },
+  iconWrap: {
+    width: 40, height: 40, borderRadius: radius.sm,
+    alignItems: 'center', justifyContent: 'center', marginTop: 2,
+  },
   content: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2563eb' },
-  title: { fontSize: 14, color: '#334155', flex: 1 },
-  titleBold: { fontWeight: '700', color: '#0f172a' },
-  body: { fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 17 },
-  time: { fontSize: 10, color: '#94a3b8', marginTop: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primary },
+  title: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  titleBold: { fontWeight: '700', color: colors.text },
+  body: { fontSize: 13, color: colors.textSecondary, marginTop: 3, lineHeight: 18 },
+  time: { fontSize: 11, color: colors.textTertiary, marginTop: 4, fontWeight: '500' },
   clearBtn: { padding: 4, marginTop: 2 },
   emptyContainer: { flex: 1, justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#94a3b8', marginTop: 12 },
-  emptyDesc: { fontSize: 13, color: '#cbd5e1', marginTop: 4 },
+  emptyIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.background, alignItems: 'center',
+    justifyContent: 'center', marginBottom: spacing.md,
+  },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textTertiary },
+  emptyDesc: { fontSize: 13, color: colors.textTertiary, marginTop: spacing.xs },
 });
