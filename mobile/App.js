@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -19,22 +19,108 @@ import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const MenuStack = createNativeStackNavigator();
+
+function MenuItem({ icon, label, description, onPress, color = '#2563eb' }) {
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
+      <View style={[styles.menuIcon, { backgroundColor: color + '12' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <View style={styles.menuText}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        {description && <Text style={styles.menuDesc}>{description}</Text>}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+    </TouchableOpacity>
+  );
+}
+
+function MenuScreen({ navigation }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  return (
+    <ScrollView style={styles.menuContainer} contentContainerStyle={styles.menuContent}>
+      <Text style={styles.menuSection}>General</Text>
+      <View style={styles.menuCard}>
+        <MenuItem
+          icon="document-text-outline"
+          label="Leaves"
+          description="Apply & track leave requests"
+          onPress={() => navigation.navigate('LeavesPage')}
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
+          icon="person-outline"
+          label="Profile"
+          description="Account settings & info"
+          onPress={() => navigation.navigate('ProfilePage')}
+          color="#8b5cf6"
+        />
+      </View>
+
+      {isAdmin && (
+        <>
+          <Text style={styles.menuSection}>Administration</Text>
+          <View style={styles.menuCard}>
+            <MenuItem
+              icon="mail-outline"
+              label="Leave Requests"
+              description="Approve or reject requests"
+              onPress={() => navigation.navigate('RequestsPage')}
+              color="#f59e0b"
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="people-outline"
+              label="Employees"
+              description="Manage staff & accounts"
+              onPress={() => navigation.navigate('EmployeesPage')}
+              color="#10b981"
+            />
+          </View>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+function MenuStackScreen() {
+  const { user } = useAuth();
+  return (
+    <MenuStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerShadowVisible: false,
+        headerTitleStyle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
+        headerBackTitleVisible: false,
+        headerTintColor: '#2563eb',
+      }}
+    >
+      <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
+      <MenuStack.Screen name="LeavesPage" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
+      <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
+      {user?.role === 'admin' && (
+        <MenuStack.Screen name="RequestsPage" component={LeaveRequestsScreen} options={{ headerTitle: 'Leave Requests' }} />
+      )}
+      {user?.role === 'admin' && (
+        <MenuStack.Screen name="EmployeesPage" component={EmployeesScreen} options={{ headerTitle: 'Employees' }} />
+      )}
+    </MenuStack.Navigator>
+  );
+}
 
 function MainTabs() {
-  const { user } = useAuth();
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             Attendance: focused ? 'time' : 'time-outline',
-            Leaves: focused ? 'document-text' : 'document-text-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
-            Requests: focused ? 'mail' : 'mail-outline',
-            Employees: focused ? 'people' : 'people-outline',
-            Profile: focused ? 'person' : 'person-outline',
+            More: focused ? 'grid' : 'grid-outline',
           };
           return <Ionicons name={icons[route.name]} size={22} color={color} />;
         },
@@ -55,15 +141,8 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Attendance System' }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: 'Attendance History' }} />
-      <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
-      {user?.role === 'admin' && (
-        <Tab.Screen name="Requests" component={LeaveRequestsScreen} options={{ headerTitle: 'Leave Requests' }} />
-      )}
-      {user?.role === 'admin' && (
-        <Tab.Screen name="Employees" component={EmployeesScreen} options={{ headerTitle: 'Employees' }} />
-      )}
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
+      <Tab.Screen name="More" component={MenuStackScreen} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }
@@ -93,6 +172,67 @@ function AppNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  menuContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  menuContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  menuSection: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 8,
+    marginLeft: 4,
+  },
+  menuCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  menuLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  menuDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginLeft: 68,
+  },
+});
 
 export default function App() {
   return (
