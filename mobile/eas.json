@@ -17,6 +17,15 @@
         "ANDROID_HOME": "/opt/homebrew/share/android-commandlinetools"
       }
     },
+    "local": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "ANDROID_HOME": "/opt/homebrew/share/android-commandlinetools"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {

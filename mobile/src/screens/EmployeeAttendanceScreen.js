@@ -27,6 +27,7 @@ export default function EmployeeAttendanceScreen() {
   const [date, setDate] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const defaultSummary = { total: 0, present: 0, late: 0, halfDay: 0, absent: 0 };
 
   const loadData = async () => {

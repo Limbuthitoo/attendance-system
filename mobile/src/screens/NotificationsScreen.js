@@ -34,8 +34,8 @@ export default function NotificationsScreen({ navigation }) {
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await api.getNotifications(50);
-      setNotifications(data.notifications);
-      setUnreadCount(data.unreadCount);
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
     } catch (err) {
       console.error('Fetch notifications error:', err);
     } finally {

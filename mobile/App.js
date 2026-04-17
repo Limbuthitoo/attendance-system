@@ -340,7 +340,7 @@ export default function App() {
         } else if (data?.type === 'design_task_reminder') {
           nav.navigate('Main', { screen: 'Calendar' });
         } else {
-          nav.navigate('Main', { screen: 'Alerts' });
+          nav.navigate('Main', { screen: 'More', params: { screen: 'NotificationsPage' } });
         }
       }, 500);
     });

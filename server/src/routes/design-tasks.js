@@ -491,11 +491,11 @@ function formatDate(dateStr) {
 
 // ── Auto-notification scheduler ──
 // Auto-seeds tasks for the current BS year if not already created,
-// assigns round-robin to designers, then checks every hour for
-// events coming up in the next 7 days and notifies assigned designers.
+// assigns round-robin to designers, then checks daily at 10:30 AM NPT for
+// events coming up in the next 3 days and notifies assigned designers.
 function startDesignTaskScheduler() {
   const BS_YEAR = 2083;
-  const NOTIFY_DAYS_BEFORE = 7;
+  const NOTIFY_DAYS_BEFORE = 3;
 
   const autoSeed = () => {
     try {
@@ -610,9 +610,32 @@ function startDesignTaskScheduler() {
     checkUpcoming();
   };
 
-  // Run on startup after a short delay, then every hour
-  setTimeout(runAll, 10000);
-  setInterval(runAll, 60 * 60 * 1000);
+  // Run auto-seed on startup after a short delay
+  setTimeout(autoSeed, 10000);
+
+  // Schedule checkUpcoming to run daily at 10:30 AM NPT (UTC+5:45)
+  const scheduleAt1030 = () => {
+    const now = new Date();
+    // NPT is UTC+5:45
+    const nptOffset = 5 * 60 + 45; // minutes
+    const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const nptMinutes = utcMinutes + nptOffset;
+    const targetNptMinutes = 10 * 60 + 30; // 10:30 AM
+
+    let delayMinutes = targetNptMinutes - (nptMinutes % 1440);
+    if (delayMinutes <= 0) delayMinutes += 1440; // next day
+
+    const delayMs = delayMinutes * 60 * 1000;
+    console.log(`[DesignTasks] Next notification check in ${Math.round(delayMinutes / 60)}h ${delayMinutes % 60}m (10:30 AM NPT)`);
+
+    setTimeout(() => {
+      checkUpcoming();
+      // Then repeat every 24 hours
+      setInterval(checkUpcoming, 24 * 60 * 60 * 1000);
+    }, delayMs);
+  };
+
+  scheduleAt1030();
 }
 
 module.exports = router;

@@ -45,7 +45,7 @@ export default function NoticesScreen() {
   const fetchNotices = useCallback(async () => {
     try {
       const data = await api.getNotices(100);
-      setNotices(data.notices);
+      setNotices(data.notices || []);
     } catch (err) {
       console.error('Fetch notices error:', err);
     } finally {
