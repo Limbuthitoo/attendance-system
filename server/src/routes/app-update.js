@@ -141,7 +141,7 @@ router.post('/upload', authenticate, requireAdmin, (req, res) => {
       req.file.filename,
       req.file.size,
       release_notes || '',
-      is_mandatory ? 1 : 0,
+      is_mandatory === '1' || is_mandatory === true ? 1 : 0,
       req.user.id
     );
 
