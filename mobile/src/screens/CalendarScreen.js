@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
-import { colors, spacing } from '../theme';
+import { colors, spacing, shadows } from '../theme';
 import {
   getTodayBs, getBsMonthDays, getBsDayOfWeek, bsToAd, toNepaliNumeral,
   BS_MONTHS, BS_MONTHS_NP, WEEKDAYS_SHORT_NP,
 } from '../bs-date';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = Math.floor((SCREEN_WIDTH - 32) / 7);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CELL_W = Math.floor((SCREEN_WIDTH - 32) / 7);
+const CELL_H = 62;
 
 export default function CalendarScreen() {
   const todayBs = getTodayBs();
@@ -24,59 +25,44 @@ export default function CalendarScreen() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [viewMode, setViewMode] = useState('monthly');
 
-  const loadHolidays = async () => {
-    try {
-      const [hData, dData] = await Promise.all([
-        api.getHolidays(year),
-        api.getDesignEvents(year).catch(() => ({ events: [] })),
-      ]);
-      setHolidays(hData.holidays || []);
-      setDesignEvents(dData.events || []);
-    } catch (err) {
-      console.error('Failed to load holidays:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      loadHolidays();
+      Promise.all([
+        api.getHolidays(year),
+        api.getDesignEvents(year).catch(() => ({ events: [] })),
+      ]).then(([hData, dData]) => {
+        setHolidays(hData.holidays || []);
+        setDesignEvents(dData.events || []);
+      }).catch(err => {
+        console.error('Failed to load holidays:', err);
+      }).finally(() => setLoading(false));
     }, [year])
   );
 
-  // Build holiday lookup for current month
+  // Holiday lookup for current month
   const holidayMap = {};
   holidays.forEach(h => {
     if (h.bs_month === month) {
-      const startDay = h.bs_day;
       const endDay = (h.bs_month_end === month || !h.bs_month_end) ? (h.bs_day_end || h.bs_day) : getBsMonthDays(year, month);
-      for (let d = startDay; d <= endDay; d++) {
-        holidayMap[d] = h;
-      }
+      for (let d = h.bs_day; d <= endDay; d++) holidayMap[d] = h;
     }
-    // Handle holidays that span from previous month into current
     if (h.bs_month_end === month && h.bs_month !== month) {
-      for (let d = 1; d <= (h.bs_day_end || 1); d++) {
-        holidayMap[d] = h;
-      }
+      for (let d = 1; d <= (h.bs_day_end || 1); d++) holidayMap[d] = h;
     }
   });
 
   const daysInMonth = getBsMonthDays(year, month);
   const startDow = getBsDayOfWeek(year, month, 1);
 
-  // Build calendar grid
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isToday = (d) => d === todayBs.day && month === todayBs.month && year === todayBs.year;
-  const isSaturday = (d) => {
+  const isToday = d => d === todayBs.day && month === todayBs.month && year === todayBs.year;
+  const isSaturday = d => {
     if (!d) return false;
-    const idx = cells.indexOf(d);
-    return idx % 7 === 6;
+    return cells.indexOf(d) % 7 === 6;
   };
 
   const prevMonth = () => {
@@ -97,18 +83,13 @@ export default function CalendarScreen() {
     setMonth(todayBs.month);
   };
 
-  // Get AD date for display
   const firstAd = bsToAd(year, month, 1);
   const lastAd = bsToAd(year, month, daysInMonth);
-  const adRange = `${firstAd.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}${
-    firstAd.getMonth() !== lastAd.getMonth() ? ' – ' + lastAd.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
-  }`;
+  const adRange = firstAd.getMonth() !== lastAd.getMonth()
+    ? `${firstAd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${lastAd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : `${firstAd.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
 
-  // Selected day info
-  const selectedHoliday = selectedDay ? holidayMap[selectedDay] : null;
-  const selectedAdDate = selectedDay ? bsToAd(year, month, selectedDay) : null;
-
-  // Build design event lookup by AD date
+  // Design event map by AD date string
   const designEventMap = {};
   designEvents.forEach(e => {
     if (e.event_date) {
@@ -117,39 +98,39 @@ export default function CalendarScreen() {
     }
   });
 
-  // Get design events for a given BS day
-  const getDesignEventsForDay = (d) => {
+  const getDesignEventsForDay = d => {
     if (!d) return [];
-    const adDate = bsToAd(year, month, d);
-    const adStr = adDate.toISOString().split('T')[0];
+    const adStr = bsToAd(year, month, d).toISOString().split('T')[0];
     return designEventMap[adStr] || [];
   };
 
+  const selectedHoliday = selectedDay ? holidayMap[selectedDay] : null;
+  const selectedAdDate = selectedDay ? bsToAd(year, month, selectedDay) : null;
   const selectedDesignEvents = selectedDay ? getDesignEventsForDay(selectedDay) : [];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
       {/* Tab switcher */}
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'monthly' && styles.tabActive]}
           onPress={() => setViewMode('monthly')}
         >
-          <Ionicons name="calendar-outline" size={16} color={viewMode === 'monthly' ? '#fff' : colors.textSecondary} />
+          <Ionicons name="calendar-outline" size={15} color={viewMode === 'monthly' ? '#fff' : colors.textSecondary} />
           <Text style={[styles.tabText, viewMode === 'monthly' && styles.tabTextActive]}>Monthly</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'notice' && styles.tabActive]}
           onPress={() => setViewMode('notice')}
         >
-          <Ionicons name="document-text-outline" size={16} color={viewMode === 'notice' ? '#fff' : colors.textSecondary} />
+          <Ionicons name="document-text-outline" size={15} color={viewMode === 'notice' ? '#fff' : colors.textSecondary} />
           <Text style={[styles.tabText, viewMode === 'notice' && styles.tabTextActive]}>Holiday Notice</Text>
         </TouchableOpacity>
       </View>
 
       {viewMode === 'notice' ? (
-        /* Holiday Notice View */
-        <View style={styles.noticeContainer}>
+        <View style={styles.noticeCard}>
           <View style={styles.noticeHeader}>
             <Text style={styles.noticeCompany}>ARCHISYS INNOVATIONS</Text>
             <Text style={styles.noticeSubtitle}>Attendance Management System</Text>
@@ -157,55 +138,58 @@ export default function CalendarScreen() {
           <Text style={styles.noticeTitle}>OFFICIAL NOTICE</Text>
           <Text style={styles.noticeSubject}>
             <Text style={{ fontWeight: '700' }}>Subject: </Text>
-            Public Holiday Schedule for Fiscal Year {year} B.S.
+            Public Holiday Schedule for {year} B.S.
           </Text>
           <Text style={styles.noticeBody}>
-            This is to inform all employees that the following public holidays have been approved for the fiscal year {year} B.S. The schedule reflects major national, cultural, and religious observances while ensuring continuity of business operations.
+            This is to inform all employees that the following public holidays have been approved for {year} B.S.
+            The schedule reflects major national, cultural, and religious observances.
           </Text>
 
           {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 24 }} />
           ) : (
             <>
-              {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderText, { width: 36 }]}>S.N.</Text>
-                <Text style={[styles.tableHeaderText, { flex: 1 }]}>Holiday</Text>
-                <Text style={[styles.tableHeaderText, { width: 90 }]}>BS Date</Text>
-                <Text style={[styles.tableHeaderText, { width: 90 }]}>AD Date</Text>
+                <Text style={[styles.thText, { width: 32 }]}>S.N.</Text>
+                <Text style={[styles.thText, { flex: 1 }]}>Holiday</Text>
+                <Text style={[styles.thText, { width: 88 }]}>BS Date</Text>
+                <Text style={[styles.thText, { width: 80 }]}>AD Date</Text>
               </View>
 
-              {/* Table Rows */}
               {holidays.map((h, i) => {
+                const monthName = BS_MONTHS[h.bs_month - 1] || '';
                 const bsDate = h.bs_day_end
-                  ? `${h.bs_month}/${h.bs_day}-${h.bs_day_end}`
-                  : `${h.bs_month}/${h.bs_day}`;
+                  ? `${monthName} ${h.bs_day}–${h.bs_day_end}`
+                  : `${monthName} ${h.bs_day}`;
                 const adDate = h.ad_date_end
-                  ? `${h.ad_date.slice(5)} – ${h.ad_date_end.slice(5)}`
+                  ? `${h.ad_date ? h.ad_date.slice(5) : '—'} – ${h.ad_date_end.slice(5)}`
                   : h.ad_date ? h.ad_date.slice(5) : '—';
                 return (
                   <View key={h.id} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>
-                    <Text style={[styles.tableCell, { width: 36, textAlign: 'center' }]}>{i + 1}</Text>
+                    <Text style={[styles.tdText, { width: 32, textAlign: 'center', color: colors.textTertiary }]}>{i + 1}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.tableCell, { fontWeight: '600' }]}>{h.name}</Text>
+                      <Text style={[styles.tdText, { fontWeight: '600' }]}>{h.name}</Text>
+                      {h.name_np ? <Text style={styles.tdNp}>{h.name_np}</Text> : null}
                       {h.women_only ? <Text style={styles.womenTag}>Women Only</Text> : null}
                     </View>
-                    <Text style={[styles.tableCell, { width: 90, textAlign: 'center' }]}>{bsDate}</Text>
-                    <Text style={[styles.tableCell, { width: 90, textAlign: 'center' }]}>{adDate}</Text>
+                    <Text style={[styles.tdText, { width: 88, textAlign: 'center', fontSize: 11 }]}>{bsDate}</Text>
+                    <Text style={[styles.tdText, { width: 80, textAlign: 'center', fontSize: 11 }]}>{adDate}</Text>
                   </View>
                 );
               })}
 
-              {/* Notes */}
               <View style={styles.noticeNotes}>
                 <Text style={styles.noticeNotesTitle}>Notes:</Text>
-                <Text style={styles.noticeNote}>• Saturdays shall remain weekly holidays.</Text>
-                <Text style={styles.noticeNote}>• Holidays falling on weekends shall not be substituted unless otherwise notified.</Text>
-                <Text style={styles.noticeNote}>• Festival dates are subject to change as per official lunar calendar confirmations.</Text>
-                <Text style={styles.noticeNote}>• The management reserves the right to make necessary amendments if required.</Text>
+                {[
+                  'Saturdays shall remain weekly holidays.',
+                  'Holidays falling on weekends shall not be substituted unless otherwise notified.',
+                  'Festival dates are subject to change per official lunar calendar confirmations.',
+                  'The management reserves the right to make necessary amendments.',
+                ].map((note, i) => (
+                  <Text key={i} style={styles.noticeNote}>• {note}</Text>
+                ))}
               </View>
 
-              {/* Signature */}
               <View style={styles.noticeSignature}>
                 <View style={styles.signatureLine} />
                 <Text style={styles.signatureName}>Authorized Signatory</Text>
@@ -215,192 +199,216 @@ export default function CalendarScreen() {
           )}
         </View>
       ) : (
-      <>
-      {/* Month navigation */}
-      <View style={styles.navRow}>
-        <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={goToToday} style={styles.monthInfo}>
-          <Text style={styles.monthNp}>{BS_MONTHS_NP[month - 1]}</Text>
-          <Text style={styles.monthEn}>{BS_MONTHS[month - 1]} {year}</Text>
-          <Text style={styles.adRange}>{adRange}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-          <Ionicons name="chevron-forward" size={22} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-      ) : (
         <>
-          {/* Weekday headers */}
-          <View style={styles.weekRow}>
-            {WEEKDAYS_SHORT_NP.map((d, i) => (
-              <View key={i} style={styles.weekCell}>
-                <Text style={[styles.weekText, i === 6 && styles.satText]}>{d}</Text>
+          {/* Month navigation */}
+          <View style={styles.navRow}>
+            <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={goToToday} style={styles.monthCenter} activeOpacity={0.7}>
+              <Text style={styles.monthNp}>{BS_MONTHS_NP[month - 1]}</Text>
+              <Text style={styles.monthEn}>{BS_MONTHS[month - 1]} {year}</Text>
+              <View style={styles.adRangePill}>
+                <Text style={styles.adRangeText}>{adRange}</Text>
               </View>
-            ))}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+            </TouchableOpacity>
           </View>
 
-          {/* Calendar grid */}
-          <View style={styles.grid}>
-            {cells.map((day, idx) => {
-              if (day === null) {
-                return <View key={`e-${idx}`} style={styles.cell} />;
-              }
-              const holiday = holidayMap[day];
-              const today = isToday(day);
-              const sat = isSaturday(day);
-              const isSelected = selectedDay === day;
-              const dayDesignEvents = getDesignEventsForDay(day);
-
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[
-                    styles.cell,
-                    today && styles.todayCell,
-                    isSelected && styles.selectedCell,
-                  ]}
-                  onPress={() => setSelectedDay(day === selectedDay ? null : day)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.dayNp,
-                    today && styles.todayText,
-                    sat && styles.satText,
-                    holiday && styles.holidayText,
-                    isSelected && styles.selectedText,
-                  ]}>
-                    {toNepaliNumeral(day)}
-                  </Text>
-                  <Text style={[
-                    styles.dayEn,
-                    today && styles.todayTextSm,
-                    sat && { color: '#ef4444' },
-                    holiday && { color: '#ef4444' },
-                    isSelected && styles.selectedTextSm,
-                  ]}>
-                    {day}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 2, justifyContent: 'center' }}>
-                    {holiday && (
-                      <View style={[styles.dot, holiday.women_only ? styles.dotPurple : styles.dotRed]} />
-                    )}
-                    {dayDesignEvents.length > 0 && (
-                      <View style={[styles.dot, { backgroundColor: '#7c3aed' }]} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Selected day info */}
-          {selectedDay && (
-            <View style={styles.infoCard}>
-              <Text style={styles.infoDate}>
-                {toNepaliNumeral(year)}/{toNepaliNumeral(String(month).padStart(2, '0'))}/{toNepaliNumeral(String(selectedDay).padStart(2, '0'))}
-              </Text>
-              <Text style={styles.infoAdDate}>
-                {selectedAdDate?.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </Text>
-              {selectedHoliday ? (
-                <View style={[styles.holidayBadge, selectedHoliday.women_only && styles.holidayBadgePurple]}>
-                  <Ionicons name="flag" size={14} color="#fff" />
-                  <Text style={styles.holidayBadgeText}>
-                    {selectedHoliday.name}{selectedHoliday.name_np ? ` (${selectedHoliday.name_np})` : ''}
-                  </Text>
-                </View>
-              ) : selectedDesignEvents.length === 0 ? (
-                <Text style={styles.infoNormal}>Regular working day</Text>
-              ) : null}
-              {selectedDesignEvents.length > 0 && selectedDesignEvents.map(dt => (
-                <View key={dt.id} style={{ backgroundColor: '#f5f3ff', borderRadius: 8, padding: 10, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 18 }}>🎨</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#6d28d9' }}>{dt.event_name}</Text>
-                    <Text style={{ fontSize: 11, color: '#7c3aed', textTransform: 'capitalize' }}>{dt.category} • {dt.status || 'pending'}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Holidays this month */}
-          {holidays.filter(h => h.bs_month === month).length > 0 && (
-            <View style={styles.holidayList}>
-              <Text style={styles.holidayListTitle}>Holidays this month</Text>
-              {holidays.filter(h => h.bs_month === month).map(h => (
-                <View key={h.id} style={styles.holidayItem}>
-                  <View style={[styles.holidayDot, h.women_only && { backgroundColor: '#7c3aed' }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.holidayName}>{h.name}</Text>
-                    {h.name_np ? <Text style={styles.holidayNameNp}>{h.name_np}</Text> : null}
-                    <Text style={styles.holidayDate}>
-                      {BS_MONTHS_NP[month - 1]} {toNepaliNumeral(h.bs_day)}
-                      {h.bs_day_end ? ` - ${toNepaliNumeral(h.bs_day_end)}` : ''}
-                      {h.ad_date ? `  •  ${h.ad_date}` : ''}
-                    </Text>
-                  </View>
-                  {h.women_only ? (
-                    <View style={styles.womenBadge}>
-                      <Text style={styles.womenBadgeText}>Women</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 48 }} />
+          ) : (
+            <>
+              {/* Calendar card */}
+              <View style={styles.calendarCard}>
+                {/* Weekday header row */}
+                <View style={styles.weekRow}>
+                  {WEEKDAYS_SHORT_NP.map((d, i) => (
+                    <View key={i} style={[styles.weekCell, i === 6 && styles.weekCellSat]}>
+                      <Text style={[styles.weekText, i === 6 && styles.satLabel]}>{d}</Text>
                     </View>
-                  ) : null}
+                  ))}
                 </View>
-              ))}
-            </View>
-          )}
 
-          {/* Design events this month */}
-          {(() => {
-            const monthFirstAd = bsToAd(year, month, 1).toISOString().split('T')[0];
-            const monthLastAd = bsToAd(year, month, daysInMonth).toISOString().split('T')[0];
-            const monthDesignEvents = designEvents.filter(e => e.event_date >= monthFirstAd && e.event_date <= monthLastAd);
-            if (monthDesignEvents.length === 0) return null;
-            return (
-              <View style={[styles.holidayList, { borderLeftColor: '#7c3aed' }]}>
-                <Text style={[styles.holidayListTitle, { color: '#6d28d9' }]}>🎨 Design Events this month</Text>
-                {monthDesignEvents.map(dt => (
-                  <View key={dt.id} style={styles.holidayItem}>
-                    <View style={[styles.holidayDot, { backgroundColor: '#7c3aed' }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.holidayName}>{dt.event_name}</Text>
-                      <Text style={styles.holidayDate}>{dt.event_date} • {dt.category}</Text>
+                {/* Grid */}
+                <View style={styles.grid}>
+                  {cells.map((day, idx) => {
+                    if (day === null) return <View key={`e-${idx}`} style={styles.cell} />;
+
+                    const holiday = holidayMap[day];
+                    const today = isToday(day);
+                    const sat = isSaturday(day);
+                    const isSelected = selectedDay === day;
+                    const dayDesignEvents = getDesignEventsForDay(day);
+                    const hasEvents = dayDesignEvents.length > 0;
+
+                    return (
+                      <TouchableOpacity
+                        key={day}
+                        style={[styles.cell, isSelected && styles.selectedCell]}
+                        onPress={() => setSelectedDay(day === selectedDay ? null : day)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.dayCircle, today && styles.todayCircle]}>
+                          <Text style={[
+                            styles.dayNp,
+                            today && styles.todayDayNp,
+                            isSelected && styles.selectedDayNp,
+                            !today && !isSelected && holiday && styles.holidayDayNp,
+                            !today && !isSelected && !holiday && sat && styles.satDayNp,
+                          ]}>
+                            {toNepaliNumeral(day)}
+                          </Text>
+                        </View>
+                        <Text style={[
+                          styles.dayEn,
+                          today && styles.todayDayEn,
+                          isSelected && styles.selectedDayEn,
+                          !today && !isSelected && (holiday || sat) && styles.redDayEn,
+                        ]}>
+                          {day}
+                        </Text>
+                        <View style={styles.dotRow}>
+                          {holiday && (
+                            <View style={[styles.dot, holiday.women_only ? styles.dotPurple : styles.dotRed]} />
+                          )}
+                          {hasEvents && <View style={[styles.dot, styles.dotBlue]} />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Selected day info */}
+              {selectedDay && (
+                <View style={styles.infoCard}>
+                  <View style={styles.infoDateRow}>
+                    <View style={styles.infoBsBlock}>
+                      <Text style={styles.infoBsLabel}>BS</Text>
+                      <Text style={styles.infoBsDate}>
+                        {toNepaliNumeral(year)}/{toNepaliNumeral(String(month).padStart(2, '0'))}/{toNepaliNumeral(String(selectedDay).padStart(2, '0'))}
+                      </Text>
+                      <Text style={styles.infoBsMonthName}>
+                        {BS_MONTHS_NP[month - 1]} {toNepaliNumeral(selectedDay)}, {toNepaliNumeral(year)}
+                      </Text>
+                    </View>
+                    <View style={styles.infoSep} />
+                    <View style={styles.infoAdBlock}>
+                      <Text style={styles.infoAdLabel}>AD</Text>
+                      <Text style={styles.infoAdDate}>
+                        {selectedAdDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </Text>
+                      <Text style={styles.infoAdDay}>
+                        {selectedAdDate?.toLocaleDateString('en-US', { weekday: 'long' })}
+                      </Text>
                     </View>
                   </View>
-                ))}
-              </View>
-            );
-          })()}
 
-          {/* Legend */}
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-              <Text style={styles.legendText}>Today</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
-              <Text style={styles.legendText}>Holiday</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#7c3aed' }]} />
-              <Text style={styles.legendText}>Women Only</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <Text style={[styles.legendText, { color: '#ef4444', fontWeight: '600' }]}>शनि</Text>
-              <Text style={styles.legendText}>Saturday</Text>
-            </View>
-          </View>
+                  {selectedHoliday && (
+                    <View style={[styles.holidayBadge, selectedHoliday.women_only && styles.holidayBadgePurple]}>
+                      <Ionicons name="flag" size={13} color="#fff" />
+                      <Text style={styles.holidayBadgeText}>
+                        {selectedHoliday.name}{selectedHoliday.name_np ? ` · ${selectedHoliday.name_np}` : ''}
+                      </Text>
+                    </View>
+                  )}
+
+                  {!selectedHoliday && selectedDesignEvents.length === 0 && (
+                    <Text style={styles.infoNormal}>Regular working day</Text>
+                  )}
+
+                  {selectedDesignEvents.map(dt => (
+                    <View key={dt.id} style={styles.designEventRow}>
+                      <Text style={styles.designEventEmoji}>🎨</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.designEventName}>{dt.event_name}</Text>
+                        <Text style={styles.designEventMeta}>{dt.category} · {dt.status || 'pending'}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Holidays this month */}
+              {holidays.filter(h => h.bs_month === month).length > 0 && (
+                <View style={styles.listCard}>
+                  <Text style={styles.listCardTitle}>
+                    <Ionicons name="flag-outline" size={14} color={colors.danger} /> Holidays this month
+                  </Text>
+                  {holidays.filter(h => h.bs_month === month).map((h, i, arr) => (
+                    <View key={h.id} style={[styles.listItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                      <View style={[styles.listDot, h.women_only && { backgroundColor: colors.purple }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.listItemName}>{h.name}</Text>
+                        {h.name_np ? <Text style={styles.listItemNp}>{h.name_np}</Text> : null}
+                        <Text style={styles.listItemDate}>
+                          {BS_MONTHS_NP[month - 1]} {toNepaliNumeral(h.bs_day)}
+                          {h.bs_day_end ? `–${toNepaliNumeral(h.bs_day_end)}` : ''}
+                          {h.ad_date ? `  ·  ${h.ad_date}` : ''}
+                        </Text>
+                      </View>
+                      {h.women_only && (
+                        <View style={styles.womenBadge}>
+                          <Text style={styles.womenBadgeText}>Women</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Design events this month */}
+              {(() => {
+                const firstStr = bsToAd(year, month, 1).toISOString().split('T')[0];
+                const lastStr = bsToAd(year, month, daysInMonth).toISOString().split('T')[0];
+                const monthDesign = designEvents.filter(e => e.event_date >= firstStr && e.event_date <= lastStr);
+                if (!monthDesign.length) return null;
+                return (
+                  <View style={[styles.listCard, { borderLeftColor: colors.purple }]}>
+                    <Text style={[styles.listCardTitle, { color: colors.purple }]}>🎨 Design Events this month</Text>
+                    {monthDesign.map((dt, i, arr) => (
+                      <View key={dt.id} style={[styles.listItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={[styles.listDot, { backgroundColor: colors.purple }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.listItemName}>{dt.event_name}</Text>
+                          <Text style={styles.listItemDate}>{dt.event_date} · {dt.category}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+
+              {/* Legend */}
+              <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendCircle, { backgroundColor: colors.primary }]} />
+                  <Text style={styles.legendText}>Today</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                  <Text style={styles.legendText}>Holiday</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.purple }]} />
+                  <Text style={styles.legendText}>Women only</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <Text style={[styles.legendText, { color: colors.danger, fontWeight: '700', marginRight: 2 }]}>शनि</Text>
+                  <Text style={styles.legendText}>Saturday</Text>
+                </View>
+              </View>
+            </>
+          )}
         </>
       )}
-      </>
-      )}
-      <View style={{ height: 20 }} />
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
@@ -411,11 +419,38 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
   },
+
+  // Tabs
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 4,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    borderRadius: 9,
+  },
+  tabActive: { backgroundColor: colors.primary },
+  tabText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  tabTextActive: { color: '#fff' },
+
+  // Navigation
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   navBtn: {
     width: 40,
@@ -426,61 +461,89 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
-  monthInfo: {
-    alignItems: 'center',
+  monthCenter: {
     flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
   },
   monthNp: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.text,
+    letterSpacing: -0.3,
   },
   monthEn: {
     fontSize: 13,
+    fontWeight: '500',
     color: colors.textSecondary,
     marginTop: 2,
   },
-  adRange: {
+  adRangePill: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    marginTop: 4,
+  },
+  adRangeText: {
     fontSize: 11,
-    color: colors.textTertiary,
-    marginTop: 1,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Calendar card
+  calendarCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.md,
   },
   weekRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   weekCell: {
-    width: CELL_SIZE,
+    width: CELL_W,
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 9,
   },
+  weekCellSat: {},
   weekText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textSecondary,
   },
-  satText: {
-    color: '#ef4444',
-  },
+  satLabel: { color: colors.danger },
+
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingVertical: 4,
   },
   cell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
+    width: CELL_W,
+    height: CELL_H,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    position: 'relative',
-  },
-  todayCell: {
-    backgroundColor: colors.primaryLight,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    paddingVertical: 4,
   },
   selectedCell: {
+    backgroundColor: colors.primaryLight,
+  },
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayCircle: {
     backgroundColor: colors.primary,
   },
   dayNp: {
@@ -488,150 +551,221 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  dayEn: {
-    fontSize: 9,
-    color: colors.textTertiary,
-    marginTop: -1,
-  },
-  todayText: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
-  todayTextSm: {
-    color: colors.primary,
-  },
-  selectedText: {
+  todayDayNp: {
     color: '#fff',
     fontWeight: '800',
   },
-  selectedTextSm: {
-    color: 'rgba(255,255,255,0.8)',
+  selectedDayNp: {
+    color: colors.primary,
+    fontWeight: '800',
   },
-  holidayText: {
-    color: '#ef4444',
+  holidayDayNp: {
+    color: colors.danger,
     fontWeight: '700',
   },
+  satDayNp: {
+    color: colors.danger,
+  },
+  dayEn: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 1,
+  },
+  todayDayEn: { color: colors.primary },
+  selectedDayEn: { color: colors.primary },
+  redDayEn: { color: colors.dangerMuted },
+
+  // Dots — flex layout, no absolute positioning
+  dotRow: {
+    flexDirection: 'row',
+    gap: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 6,
+    marginTop: 2,
+  },
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    position: 'absolute',
-    bottom: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
-  dotRed: {
-    backgroundColor: '#ef4444',
-  },
-  dotPurple: {
-    backgroundColor: '#7c3aed',
-  },
+  dotRed: { backgroundColor: colors.danger },
+  dotPurple: { backgroundColor: colors.purple },
+  dotBlue: { backgroundColor: colors.primary },
+
+  // Selected day info card
   infoCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: spacing.lg,
     marginTop: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
-  infoDate: {
+  infoDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  infoBsBlock: { flex: 1, alignItems: 'center' },
+  infoBsLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  infoBsDate: {
     fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  infoBsMonthName: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  infoSep: {
+    width: 1,
+    height: 48,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  infoAdBlock: { flex: 1, alignItems: 'center' },
+  infoAdLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textTertiary,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  infoAdDate: {
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
-  infoAdDate: {
-    fontSize: 13,
+  infoAdDay: {
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
   },
   infoNormal: {
     fontSize: 13,
     color: colors.textTertiary,
-    marginTop: 8,
+    textAlign: 'center',
+    marginTop: 4,
   },
   holidayBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 8,
-    marginTop: 10,
-    alignSelf: 'flex-start',
+    marginTop: 8,
+    alignSelf: 'stretch',
   },
-  holidayBadgePurple: {
-    backgroundColor: '#7c3aed',
-  },
+  holidayBadgePurple: { backgroundColor: colors.purple },
   holidayBadgeText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    flex: 1,
   },
-  holidayList: {
+  designEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.purpleLight,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  designEventEmoji: { fontSize: 18 },
+  designEventName: { fontSize: 13, fontWeight: '600', color: colors.purple },
+  designEventMeta: { fontSize: 11, color: '#7c3aed', textTransform: 'capitalize', marginTop: 1 },
+
+  // List cards (holidays, design events)
+  listCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: spacing.lg,
     marginTop: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+    ...shadows.sm,
   },
-  holidayListTitle: {
-    fontSize: 15,
+  listCardTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
-  holidayItem: {
+  listItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderLight,
   },
-  holidayDot: {
+  listDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
     marginTop: 5,
   },
-  holidayName: {
-    fontSize: 14,
+  listItemName: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
   },
-  holidayNameNp: {
-    fontSize: 13,
+  listItemNp: {
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 1,
   },
-  holidayDate: {
-    fontSize: 12,
+  listItemDate: {
+    fontSize: 11,
     color: colors.textTertiary,
-    marginTop: 2,
+    marginTop: 3,
   },
   womenBadge: {
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.purpleLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   womenBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#7c3aed',
+    fontWeight: '700',
+    color: colors.purple,
   },
+
+  // Legend
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 14,
     marginTop: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+  },
+  legendCircle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
   legendDot: {
     width: 8,
@@ -639,47 +773,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
   },
-  // Tab switcher
-  tabRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 4,
-    marginVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
+
   // Holiday Notice
-  noticeContainer: {
+  noticeCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: spacing.lg,
     marginTop: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
   noticeHeader: {
     alignItems: 'center',
@@ -689,19 +795,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   noticeCompany: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: 1,
   },
   noticeSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textTertiary,
     marginTop: 2,
   },
   noticeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.text,
     textAlign: 'center',
     letterSpacing: 1,
@@ -711,6 +817,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     marginBottom: spacing.sm,
+    lineHeight: 19,
   },
   noticeBody: {
     fontSize: 12,
@@ -720,13 +827,13 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    backgroundColor: colors.text,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
   },
-  tableHeaderText: {
+  thText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
@@ -735,27 +842,21 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  tableRowEven: {
-    backgroundColor: '#f8fafc',
-  },
-  tableCell: {
-    fontSize: 12,
-    color: colors.text,
-  },
+  tableRowEven: { backgroundColor: colors.background },
+  tdText: { fontSize: 12, color: colors.text },
+  tdNp: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
   womenTag: {
     fontSize: 9,
-    color: '#7c3aed',
-    fontWeight: '600',
-    marginTop: 1,
+    color: colors.purple,
+    fontWeight: '700',
+    marginTop: 2,
   },
-  noticeNotes: {
-    marginTop: spacing.lg,
-  },
+  noticeNotes: { marginTop: spacing.lg },
   noticeNotesTitle: {
     fontSize: 13,
     fontWeight: '700',
@@ -765,12 +866,12 @@ const styles = StyleSheet.create({
   noticeNote: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 3,
+    marginBottom: 4,
     lineHeight: 17,
   },
   noticeSignature: {
     alignItems: 'flex-end',
-    marginTop: spacing.xxl,
+    marginTop: spacing.xxl + spacing.lg,
   },
   signatureLine: {
     width: 160,
@@ -786,5 +887,6 @@ const styles = StyleSheet.create({
   signatureDept: {
     fontSize: 11,
     color: colors.textTertiary,
+    marginTop: 2,
   },
 });

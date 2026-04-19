@@ -26,7 +26,7 @@ const BS_CALENDAR_DATA = {
 };
 
 const BS_REF = { year: 2070, month: 1, day: 1 };
-const AD_REF = new Date(2013, 3, 14);
+const AD_REF = new Date(2013, 3, 14); // 2013-04-14
 
 const BS_MONTHS = [
   'Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
@@ -92,12 +92,22 @@ export function adToBs(adDate) {
 }
 
 export function bsToAd(bsYear, bsMonth, bsDay) {
+  // Same reference date
+  if (bsYear === BS_REF.year && bsMonth === BS_REF.month && bsDay === BS_REF.day) {
+    return new Date(AD_REF);
+  }
+
+  // Same month as reference — direct offset avoids algorithm quirk
+  if (bsYear === BS_REF.year && bsMonth === BS_REF.month) {
+    const result = new Date(AD_REF);
+    result.setDate(result.getDate() + (bsDay - BS_REF.day));
+    return result;
+  }
+
   let totalDays = 0;
   let y = BS_REF.year;
   let m = BS_REF.month;
-  let d = BS_REF.day;
-
-  if (y === bsYear && m === bsMonth && d === bsDay) return new Date(AD_REF);
+  const d = BS_REF.day;
 
   totalDays += getBsMonthDays(y, m) - d;
   m++;
