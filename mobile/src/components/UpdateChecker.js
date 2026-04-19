@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Linking, Platform, BackHandler } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.3:3001/api';
 const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+const DISMISSED_KEY = 'update_dismissed_version';
 
 export default function UpdateChecker({ children }) {
   const [updateInfo, setUpdateInfo] = useState(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     checkForUpdate();
@@ -15,19 +17,25 @@ export default function UpdateChecker({ children }) {
 
   // Block back button for mandatory updates
   useEffect(() => {
-    if (updateInfo?.is_mandatory && !dismissed) {
+    if (updateInfo?.is_mandatory && showModal) {
       const handler = BackHandler.addEventListener('hardwareBackPress', () => true);
       return () => handler.remove();
     }
-  }, [updateInfo, dismissed]);
+  }, [updateInfo, showModal]);
 
   async function checkForUpdate() {
     try {
       const res = await fetch(`${API_BASE}/app-update/check?current_version=${APP_VERSION}`);
       const data = await res.json();
-      if (data.update_available) {
-        setUpdateInfo(data);
+      if (!data.update_available) return;
+
+      if (!data.is_mandatory) {
+        const dismissedVersion = await AsyncStorage.getItem(DISMISSED_KEY);
+        if (dismissedVersion === data.version) return;
       }
+
+      setUpdateInfo(data);
+      setShowModal(true);
     } catch {
       // Silently fail — don't block app usage if server unreachable
     }
@@ -38,13 +46,12 @@ export default function UpdateChecker({ children }) {
     Linking.openURL(downloadUrl);
   }
 
-  function handleDismiss() {
+  async function handleDismiss() {
     if (!updateInfo?.is_mandatory) {
-      setDismissed(true);
+      await AsyncStorage.setItem(DISMISSED_KEY, updateInfo.version);
+      setShowModal(false);
     }
   }
-
-  const showModal = updateInfo && !dismissed;
 
   return (
     <>

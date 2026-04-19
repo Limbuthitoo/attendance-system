@@ -60,7 +60,7 @@ router.get('/check', (req, res) => {
   }
 
   const currentVersion = req.query.current_version;
-  let updateAvailable = true;
+  let updateAvailable = false;
   if (currentVersion) {
     updateAvailable = isVersionGreater(latest.version, currentVersion);
   }
