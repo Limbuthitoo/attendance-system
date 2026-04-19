@@ -35,8 +35,14 @@ function ForcePasswordChange() {
     e.preventDefault();
     setError('');
 
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters');
+    const failures = [];
+    if (newPassword.length < 8) failures.push('at least 8 characters');
+    if (!/[A-Z]/.test(newPassword)) failures.push('one uppercase letter');
+    if (!/[a-z]/.test(newPassword)) failures.push('one lowercase letter');
+    if (!/[0-9]/.test(newPassword)) failures.push('one digit');
+    if (!/[^A-Za-z0-9]/.test(newPassword)) failures.push('one special character (!@#$%^&*)');
+    if (failures.length > 0) {
+      setError(`Password must contain: ${failures.join(', ')}`);
       return;
     }
     if (newPassword !== confirmPassword) {

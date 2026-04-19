@@ -15,6 +15,7 @@ router.get('/stats', authenticate, (req, res) => {
     const totalEmployees = db.prepare('SELECT COUNT(*) as count FROM employees WHERE is_active = 1').get().count;
     const presentToday = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status IN ('present', 'late')").get(today).count;
     const onLeaveToday = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'absent'").get(today).count;
+    const halfDayToday = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'half-day'").get(today).count;
     const pendingLeaves = db.prepare("SELECT COUNT(*) as count FROM leaves WHERE status = 'pending'").get().count;
     const lateToday = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'late'").get(today).count;
 
@@ -32,7 +33,7 @@ router.get('/stats', authenticate, (req, res) => {
       onLeaveToday,
       pendingLeaves,
       lateToday,
-      absentToday: totalEmployees - presentToday - onLeaveToday,
+      absentToday: totalEmployees - presentToday - onLeaveToday - halfDayToday,
       monthlyStats
     });
   } else {

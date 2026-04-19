@@ -52,7 +52,8 @@ router.post('/check-out', authenticate, (req, res) => {
   const checkOutTime = new Date(now);
   const workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2);
 
-  const status = parseFloat(workHours) < getHalfDayHours() ? 'half-day' : existing.status;
+  const isHalfDay = parseFloat(workHours) < getHalfDayHours();
+  const status = isHalfDay && existing.status !== 'late' ? 'half-day' : existing.status;
 
   db.prepare('UPDATE attendance SET check_out = ?, work_hours = ?, status = ? WHERE id = ?')
     .run(now, parseFloat(workHours), status, existing.id);

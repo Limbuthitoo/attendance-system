@@ -178,14 +178,15 @@ router.post('/tap', authenticateDevice, (req, res) => {
       eventBus.emit('nfc:tap', { status: 'DUPLICATE_IGNORED', employee: card.name, empCode: card.emp_code, message: `${card.name} — too soon to check out`, time: tapTime, deviceId });
       return res.json({
         status: 'DUPLICATE_IGNORED',
-        message: `${card.name} already checked in — wait at least 2 min to check out`,
+        message: `${card.name} already checked in — wait at least ${getMinCheckoutMinutes()} min to check out`,
         employee: card.name,
         empCode: card.emp_code,
       });
     }
 
     const workHours = (minutesSinceCheckIn / 60).toFixed(2);
-    const attendanceStatus = parseFloat(workHours) < getHalfDayHours() ? 'half-day' : existing.status;
+    const isHalfDay = parseFloat(workHours) < getHalfDayHours();
+    const attendanceStatus = isHalfDay && existing.status !== 'late' ? 'half-day' : existing.status;
 
     db.prepare('UPDATE attendance SET check_out = ?, work_hours = ?, status = ?, notes = COALESCE(notes, \'\') || ? WHERE id = ?')
       .run(tapTime, parseFloat(workHours), attendanceStatus, ' [NFC]', existing.id);
