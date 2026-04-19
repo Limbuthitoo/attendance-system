@@ -3,7 +3,7 @@ const { getDB } = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { getOfficeSettings } = require('../settings');
 const { sendLeaveApplicationEmail } = require('../mailer');
-const { sendPushToAdmins } = require('../push');
+const { sendPushToAdmins, sendPushToEmployees } = require('../push');
 
 const router = express.Router();
 
@@ -188,6 +188,17 @@ router.put('/:id/review', authenticate, requireAdmin, (req, res) => {
     JOIN employees e ON l.employee_id = e.id
     WHERE l.id = ?
   `).get(req.params.id);
+
+  // Push notification to the employee
+  const emoji = status === 'approved' ? '✅' : '❌';
+  const statusText = status === 'approved' ? 'Approved' : 'Rejected';
+  sendPushToEmployees([leave.employee_id], {
+    title: `${emoji} Leave ${statusText}`,
+    body: review_note
+      ? `Your ${leave.leave_type} leave (${leave.start_date} to ${leave.end_date}) was ${status}: ${review_note}`
+      : `Your ${leave.leave_type} leave (${leave.start_date} to ${leave.end_date}) was ${status}.`,
+    data: { type: 'leave_review', leaveId: leave.id, status },
+  });
 
   res.json({ message: `Leave ${status}`, leave: updated });
 });

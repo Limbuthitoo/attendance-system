@@ -343,6 +343,11 @@ export default function App() {
   const responseListener = useRef();
 
   useEffect(() => {
+    // Handle notification received while app is in foreground
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+      // Notification arrived in foreground — no navigation, just let the banner show
+    });
+
     // Handle notification tapped (when app is in background/killed)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
@@ -361,6 +366,7 @@ export default function App() {
     });
 
     return () => {
+      if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
       if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
     };
   }, []);
