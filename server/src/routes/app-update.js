@@ -35,6 +35,20 @@ const upload = multer({
 });
 
 // Check for app update (no auth required — mobile app calls this on launch)
+// Semantic version comparison helper
+function isVersionGreater(v1, v2) {
+  if (!v1 || !v2) return false;
+  const a = v1.split('.').map(Number);
+  const b = v2.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
+
 router.get('/check', (req, res) => {
   const db = getDB();
   const latest = db.prepare(
@@ -46,7 +60,10 @@ router.get('/check', (req, res) => {
   }
 
   const currentVersion = req.query.current_version;
-  const updateAvailable = currentVersion ? latest.version !== currentVersion : true;
+  let updateAvailable = true;
+  if (currentVersion) {
+    updateAvailable = isVersionGreater(latest.version, currentVersion);
+  }
 
   res.json({
     update_available: updateAvailable,

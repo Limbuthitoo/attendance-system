@@ -1,6 +1,6 @@
 // Notable events for BS 2083 — extracted from hamropatro.com
 // Only includes major festivals, national days, and culturally significant events
-// Minor vrats/fasts and international awareness days are omitted for clarity
+// Minor vrats/fasts and international awareness days are omitted for clarities
 
 const EVENTS_2083 = {
   // BAISAKH (month 1)
