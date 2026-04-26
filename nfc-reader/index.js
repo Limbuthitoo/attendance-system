@@ -79,12 +79,29 @@ function logProcessError(label, err) {
   console.error(`[PROCESS] ${label}: ${formatError(err)}`);
 }
 
+let shuttingDown = false;
+
+function exitForSupervisor(reason, err) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logProcessError(reason, err);
+  setTimeout(() => process.exit(1), 50);
+}
+
 process.on('unhandledRejection', (reason) => {
-  logProcessError('Unhandled promise rejection', reason);
+  exitForSupervisor('Unhandled promise rejection', reason);
 });
 
 process.on('uncaughtException', (err) => {
-  logProcessError('Uncaught exception', err);
+  exitForSupervisor('Uncaught exception', err);
+});
+
+process.on('SIGINT', () => {
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  process.exit(0);
 });
 
 // ─── Debounce: prevent rapid duplicate taps ────────────────────────────────

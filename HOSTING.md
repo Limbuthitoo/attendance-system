@@ -391,6 +391,10 @@ chmod +x install-autostart.sh
 
 This installs a `systemd` service named `archisys-nfc-reader.service`, starts it immediately, and enables it for future reboots.
 
+This is the recommended Linux setup because `systemd` will also restart the reader automatically if the Node process crashes.
+
+The installer also adds a PolicyKit rule for the chosen Linux user so the reader can talk to `pcscd` after a full reboot, even before any desktop session is active.
+
 Useful commands:
 ```
 sudo systemctl status archisys-nfc-reader.service
@@ -412,6 +416,8 @@ chmod +x start.sh install-login-autostart.sh
 ```
 
 This creates a desktop autostart entry in `~/.config/autostart/` and launches the reader automatically on each login.
+
+The login autostart wrapper now also relaunches the reader after a crash and writes logs to `~/.local/state/archisys-nfc-reader/reader.log`, but `systemd` is still the more reliable option for unattended machines.
 
 To remove it later:
 ```
