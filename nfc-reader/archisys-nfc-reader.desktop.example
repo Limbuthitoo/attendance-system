@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Archisys NFC Reader
+Comment=Start the Archisys NFC reader service on login
+Exec=__WORKDIR__/start.sh
+Path=__WORKDIR__
+Terminal=false
+X-GNOME-Autostart-enabled=true

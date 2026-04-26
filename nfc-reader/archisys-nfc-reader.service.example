@@ -1,0 +1,18 @@
+[Unit]
+Description=Archisys NFC Reader
+Wants=network-online.target pcscd.socket
+After=network-online.target pcscd.socket pcscd.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__WORKDIR__
+Environment=NODE_ENV=production
+EnvironmentFile=__WORKDIR__/.env
+ExecStart=__NODE_BINARY__ index.js
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

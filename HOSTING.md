@@ -376,6 +376,48 @@ You should see:
 [NFC] Waiting for cards...
 ```
 
+You can also use the included executable launcher:
+```
+./start.sh
+```
+
+### Start the Reader Automatically on Reboot (Linux)
+
+From the `nfc-reader` folder, run:
+```
+chmod +x install-autostart.sh
+./install-autostart.sh
+```
+
+This installs a `systemd` service named `archisys-nfc-reader.service`, starts it immediately, and enables it for future reboots.
+
+Useful commands:
+```
+sudo systemctl status archisys-nfc-reader.service
+sudo systemctl restart archisys-nfc-reader.service
+sudo journalctl -u archisys-nfc-reader.service -f
+```
+
+If you change `nfc-reader/.env`, restart the service afterward:
+```
+sudo systemctl restart archisys-nfc-reader.service
+```
+
+### Start the Reader Automatically on User Login (Linux, no sudo)
+
+If you only need the reader to start when this desktop user signs in, run:
+```
+chmod +x start.sh install-login-autostart.sh
+./install-login-autostart.sh
+```
+
+This creates a desktop autostart entry in `~/.config/autostart/` and launches the reader automatically on each login.
+
+To remove it later:
+```
+rm -f ~/.config/autostart/archisys-nfc-reader.desktop
+```
+
 ### How It Works
 
 - Employee taps card → automatically checks in (morning) or checks out (if already checked in)
