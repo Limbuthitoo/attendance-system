@@ -9,6 +9,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import UpdateChecker from './src/components/UpdateChecker';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -372,13 +373,15 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <UpdateChecker>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="light" />
-          <AppNavigator />
-        </NavigationContainer>
-      </UpdateChecker>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <UpdateChecker>
+          <NavigationContainer ref={navigationRef}>
+            <StatusBar style="light" />
+            <AppNavigator />
+          </NavigationContainer>
+        </UpdateChecker>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

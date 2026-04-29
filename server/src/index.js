@@ -34,6 +34,9 @@ if (!fs.existsSync(dataDir)) {
 // Initialize database
 initDB();
 
+// Trust first proxy (nginx) so rate limiter sees real client IPs
+app.set('trust proxy', 1);
+
 // Security & performance middleware
 app.use(helmet());
 app.use(compression());
@@ -81,6 +84,11 @@ const writeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Health check (before rate limiter)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', company: 'Archisys Innovations' });
+});
+
 // Serve branding assets (logo/favicon) without rate limiting
 app.use('/api/settings/branding', settingsRoutes);
 
@@ -101,18 +109,24 @@ app.use('/api/design-tasks', writeLimiter, designTasksRoutes);
 app.use('/api/notices', writeLimiter, noticesRoutes);
 app.use('/api/notifications', writeLimiter, notificationsRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', company: 'Archisys Innovations' });
-});
-
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+// Process-level error handlers
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+  process.exit(1);
+});
+
+const server = app.listen(PORT, () => {
   console.log(`Archisys Attendance Server running on port ${PORT}`);
 
   // Auto-notify designers 7 days before upcoming events
@@ -218,3 +232,15 @@ function startForgotCheckoutScheduler() {
 
   scheduleAt8PM();
 }
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
