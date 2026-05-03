@@ -50,7 +50,7 @@ router.put('/', requireRole('org_admin'), async (req, res, next) => {
   try {
     const settings = await settingsService.updateOrgSettings({
       orgId: req.orgId,
-      settings: req.body,
+      settings: req.body.settings || req.body,
       adminId: req.user.id,
       req,
     });

@@ -83,10 +83,28 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── Serve branding assets (no rate limit, no auth) ──────────────────────────
-// This must come before the rate limiter so the favicon/logo loads on every page
-const settingsRouter = require('./routes/v1/settings');
-app.use('/api/v1/settings', settingsRouter);  // catches GET /branding/:type without auth
-app.use('/api/settings', settingsRouter);      // backward compat for old clients
+// Only branding GET routes are public; full settings router is mounted via v1 with auth
+const { Router } = require('express');
+const brandingPublicRouter = Router();
+const brandingDir = path.join(__dirname, '..', 'data', 'branding');
+brandingPublicRouter.get('/branding/:type', async (req, res) => {
+  const { type } = req.params;
+  if (!['logo', 'favicon'].includes(type)) return res.status(400).json({ error: 'Invalid type' });
+  try {
+    const prisma = require('./lib/prisma').getPrisma();
+    const setting = await prisma.orgSetting.findFirst({
+      where: { key: type === 'logo' ? 'branding_logo' : 'branding_favicon' },
+    });
+    if (!setting) return res.status(404).json({ error: `No ${type} configured` });
+    const filePath = path.join(brandingDir, setting.value);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+    res.sendFile(filePath);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load branding' });
+  }
+});
+app.use('/api/v1/settings', brandingPublicRouter);
+app.use('/api/settings', brandingPublicRouter);  // backward compat for old clients
 
 // ── NFC routes — exempt from general rate limiter (high-frequency device) ───
 const nfcRouter = require('./routes/v1/nfc');

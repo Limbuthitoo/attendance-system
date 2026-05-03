@@ -12,6 +12,8 @@ const router = Router();
 // Transform attendance record for backward compat
 function transformAtt(r) {
   if (!r) return r;
+  // Convert Prisma Decimal to plain number before addSnakeCase strips prototype
+  if (r.workHours != null) r.workHours = parseFloat(r.workHours);
   const t = addSnakeCase(r);
   if (t.status) {
     t.status = lowercaseEnum(t.status);
