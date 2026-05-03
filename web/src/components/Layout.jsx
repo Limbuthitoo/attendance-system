@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, Radio, BarChart3, DollarSign, Navigation
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
@@ -54,22 +54,63 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/attendance', icon: Clock, label: 'My Attendance' },
-    { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
-    { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
-    { to: '/notices', icon: Megaphone, label: 'Notices' },
-    { to: '/activity-log', icon: Activity, label: 'Activity Log' },
-    { to: '/profile', icon: UserCircle, label: 'My Profile' },
-    ...(user?.role === 'admin'
+  const isAdmin = user?.role === 'admin';
+
+  const navSections = [
+    {
+      label: 'Main',
+      items: [
+        { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
+        { to: '/activity-log', icon: Activity, label: 'Activity Log' },
+        { to: '/notices', icon: Megaphone, label: 'Notices' },
+      ],
+    },
+    {
+      label: 'My Space',
+      items: [
+        { to: '/attendance', icon: Clock, label: 'My Attendance' },
+        { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
+        { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
+        { to: '/profile', icon: UserCircle, label: 'My Profile' },
+      ],
+    },
+    ...(isAdmin
       ? [
-          { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
-          { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance' },
-          { to: '/employees', icon: Users, label: 'Employees' },
-          { to: '/settings', icon: Settings, label: 'General Settings' },
-          { to: '/holidays', icon: Star, label: 'Holiday Management' },
-          { to: '/app-update', icon: Smartphone, label: 'App Update' },
+          {
+            label: 'Team',
+            items: [
+              { to: '/employees', icon: Users, label: 'Employees' },
+              { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance' },
+              { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
+            ],
+          },
+          {
+            label: 'Organization',
+            items: [
+              { to: '/branches', icon: MapPin, label: 'Branches' },
+              { to: '/roles', icon: Shield, label: 'Roles' },
+              { to: '/shifts', icon: Clock, label: 'Shifts' },
+              { to: '/schedules', icon: CalendarRange, label: 'Work Schedules' },
+              { to: '/assignments', icon: Users, label: 'Assignments' },
+            ],
+          },
+          {
+            label: 'Reports',
+            items: [
+              { to: '/reports', icon: BarChart3, label: 'Reports' },
+              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime' },
+            ],
+          },
+          {
+            label: 'Configuration',
+            items: [
+              { to: '/settings', icon: Settings, label: 'General Settings' },
+              { to: '/holidays', icon: Star, label: 'Holidays' },
+              { to: '/devices', icon: Radio, label: 'Devices' },
+              { to: '/geofence', icon: Navigation, label: 'Geofence' },
+              { to: '/app-update', icon: Smartphone, label: 'App Update' },
+            ],
+          },
         ]
       : []),
   ];
@@ -99,18 +140,28 @@ export default function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={linkClass}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </NavLink>
+        <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+          {navSections.map((section, idx) => (
+            <div key={section.label}>
+              {idx > 0 && <div className="border-t border-slate-100 mb-3" />}
+              <p className="px-4 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {section.label}
+              </p>
+              <div className="space-y-0.5">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={linkClass}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon size={18} />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

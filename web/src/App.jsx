@@ -14,12 +14,33 @@ import ActivityLog from './pages/ActivityLog';
 import Settings from './pages/Settings';
 import HolidayManager from './pages/HolidayManager';
 import AppUpdate from './pages/AppUpdate';
-import DesignTasks from './pages/DesignTasks';
 import Notices from './pages/Notices';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EmployeeAttendance from './pages/EmployeeAttendance';
 import Profile from './pages/Profile';
+import BranchManagement from './pages/BranchManagement';
+import RoleManagement from './pages/RoleManagement';
+import ShiftManagement from './pages/ShiftManagement';
+import ScheduleManagement from './pages/ScheduleManagement';
+import EmployeeAssignments from './pages/EmployeeAssignments';
+import DeviceManagement from './pages/DeviceManagement';
+import Reports from './pages/Reports';
+import PayrollOvertime from './pages/PayrollOvertime';
+import GeofenceManagement from './pages/GeofenceManagement';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
+
+// Platform portal imports
+import { PlatformAuthProvider, usePlatformAuth } from './platform/PlatformAuthContext';
+import PlatformLayout from './platform/PlatformLayout';
+import PlatformLogin from './platform/pages/PlatformLogin';
+import PlatformDashboard from './platform/pages/PlatformDashboard';
+import Organizations from './platform/pages/Organizations';
+import OrganizationDetail from './platform/pages/OrganizationDetail';
+import CreateOrganization from './platform/pages/CreateOrganization';
+import PlatformModules from './platform/pages/PlatformModules';
+import Plans from './platform/pages/Plans';
+import Billing from './platform/pages/Billing';
+import PlatformUsers from './platform/pages/PlatformUsers';
 
 function ForcePasswordChange() {
   const { user, setUser, logout } = useAuth();
@@ -169,6 +190,19 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function PlatformProtectedRoute({ children }) {
+  const { user, loading } = usePlatformAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/platform/login" replace />;
+  return children;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
 
@@ -183,6 +217,29 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+
+      {/* Platform portal routes */}
+      <Route path="/platform/login" element={
+        <PlatformAuthProvider><PlatformLogin /></PlatformAuthProvider>
+      } />
+      <Route path="/platform" element={
+        <PlatformAuthProvider>
+          <PlatformProtectedRoute>
+            <PlatformLayout />
+          </PlatformProtectedRoute>
+        </PlatformAuthProvider>
+      }>
+        <Route index element={<PlatformDashboard />} />
+        <Route path="organizations" element={<Organizations />} />
+        <Route path="organizations/new" element={<CreateOrganization />} />
+        <Route path="organizations/:id" element={<OrganizationDetail />} />
+        <Route path="modules" element={<PlatformModules />} />
+        <Route path="plans" element={<Plans />} />
+        <Route path="billing" element={<Billing />} />
+        <Route path="users" element={<PlatformUsers />} />
+      </Route>
+
+      {/* Org-level routes */}
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="attendance" element={<Attendance />} />
@@ -198,7 +255,15 @@ export default function App() {
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
         <Route path="holidays" element={<AdminRoute><HolidayManager /></AdminRoute>} />
         <Route path="app-update" element={<AdminRoute><AppUpdate /></AdminRoute>} />
-        <Route path="design-tasks" element={<AdminRoute><DesignTasks /></AdminRoute>} />
+        <Route path="branches" element={<AdminRoute><BranchManagement /></AdminRoute>} />
+        <Route path="roles" element={<AdminRoute><RoleManagement /></AdminRoute>} />
+        <Route path="shifts" element={<AdminRoute><ShiftManagement /></AdminRoute>} />
+        <Route path="schedules" element={<AdminRoute><ScheduleManagement /></AdminRoute>} />
+        <Route path="assignments" element={<AdminRoute><EmployeeAssignments /></AdminRoute>} />
+        <Route path="devices" element={<AdminRoute><DeviceManagement /></AdminRoute>} />
+        <Route path="reports" element={<AdminRoute><Reports /></AdminRoute>} />
+        <Route path="payroll" element={<AdminRoute><PayrollOvertime /></AdminRoute>} />
+        <Route path="geofence" element={<AdminRoute><GeofenceManagement /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

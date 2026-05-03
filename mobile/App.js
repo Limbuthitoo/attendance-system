@@ -19,10 +19,10 @@ import EmployeesScreen from './src/screens/EmployeesScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import LeaveRequestsScreen from './src/screens/LeaveRequestsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import DesignTasksScreen from './src/screens/DesignTasksScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import NoticesScreen from './src/screens/NoticesScreen';
 import EmployeeAttendanceScreen from './src/screens/EmployeeAttendanceScreen';
+import QrCheckInScreen from './src/screens/QrCheckInScreen';
 import { api } from './src/api';
 
 const Stack = createNativeStackNavigator();
@@ -49,7 +49,6 @@ function MenuItem({ icon, label, description, onPress, color = '#1e40af' }) {
 function MenuScreen({ navigation }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const isDesigner = ['senior designer', 'graphic designer'].includes(user?.designation?.toLowerCase());
 
   return (
     <ScrollView style={styles.menuContainer} contentContainerStyle={styles.menuContent}>
@@ -70,18 +69,6 @@ function MenuScreen({ navigation }) {
           onPress={() => navigation.navigate('NoticesPage')}
           color="#1e40af"
         />
-        {isDesigner && (
-          <>
-            <View style={styles.menuDivider} />
-            <MenuItem
-              icon="color-palette-outline"
-              label="My Design Tasks"
-              description="Event designs assigned to you"
-              onPress={() => navigation.navigate('DesignTasksPage')}
-              color="#8b5cf6"
-            />
-          </>
-        )}
       </View>
 
       {isAdmin && (
@@ -138,7 +125,6 @@ function MenuStackScreen() {
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
       <MenuStack.Screen name="NotificationsPage" component={NotificationsScreen} options={{ headerTitle: 'Notifications' }} />
       <MenuStack.Screen name="NoticesPage" component={NoticesScreen} options={{ headerTitle: 'Notices' }} />
-      <MenuStack.Screen name="DesignTasksPage" component={DesignTasksScreen} options={{ headerTitle: 'My Design Tasks' }} />
       <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
       <MenuStack.Screen name="ChangePasswordPage" component={ChangePasswordScreen} options={{ headerTitle: 'Change Password' }} />
       {user?.role === 'admin' && (
@@ -164,6 +150,7 @@ function MainTabs() {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             'My Attendance': focused ? 'time' : 'time-outline',
+            'QR Check-In': focused ? 'qr-code' : 'qr-code-outline',
             Leaves: focused ? 'document-text' : 'document-text-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
             More: focused ? 'grid' : 'grid-outline',
@@ -192,6 +179,15 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="My Attendance" component={AttendanceScreen} options={{ headerTitle: 'My Attendance' }} />
+      <Tab.Screen
+        name="QR Check-In"
+        component={QrCheckInScreen}
+        options={{
+          headerTitle: 'QR Check-In',
+          headerStyle: { backgroundColor: '#0f172a' },
+          headerTitleStyle: { color: '#ffffff', fontWeight: '700' },
+        }}
+      />
       <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
       <Tab.Screen
@@ -358,8 +354,6 @@ export default function App() {
         if (!nav) return;
         if (data?.type === 'notice') {
           nav.navigate('Main', { screen: 'More', params: { screen: 'NoticesPage' } });
-        } else if (data?.type === 'design_task_reminder') {
-          nav.navigate('Main', { screen: 'Calendar' });
         } else {
           nav.navigate('Main', { screen: 'More', params: { screen: 'NotificationsPage' } });
         }

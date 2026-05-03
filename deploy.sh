@@ -12,6 +12,19 @@ log "=== Deployment started ==="
 
 cd "$PROJECT_DIR"
 
+# ── Pre-deploy database backup ──────────────────────────────────────────────
+BACKUP_DIR="$PROJECT_DIR/backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz"
+log "Creating pre-deploy database backup..."
+if pg_dump -h localhost -U attendance -d attendance --no-owner --no-privileges | gzip > "$BACKUP_FILE"; then
+  log "Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+else
+  log "WARNING: Pre-deploy backup failed — proceeding with caution"
+fi
+# Keep only last 10 pre-deploy backups
+ls -t "$BACKUP_DIR"/pre_deploy_*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+
 # Pull latest code
 log "Pulling latest code..."
 if ! git pull origin main 2>&1 | tee -a "$LOG_FILE"; then
@@ -23,6 +36,10 @@ fi
 log "Installing server dependencies..."
 cd "$PROJECT_DIR/server"
 npm install --production 2>&1 | tee -a "$LOG_FILE"
+
+# Run database migrations
+log "Running database migrations..."
+npx prisma migrate deploy 2>&1 | tee -a "$LOG_FILE"
 
 # Restart backend
 log "Restarting backend server..."

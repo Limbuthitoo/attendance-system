@@ -18,7 +18,6 @@ const nfcRoutes = require('./routes/nfc');
 const settingsRoutes = require('./routes/settings');
 const holidaysRoutes = require('./routes/holidays');
 const appUpdateRoutes = require('./routes/app-update');
-const designTasksRoutes = require('./routes/design-tasks');
 const noticesRoutes = require('./routes/notices');
 const notificationsRoutes = require('./routes/notifications');
 
@@ -56,6 +55,10 @@ app.use(cors({
 
 // Request body limit
 app.use(express.json({ limit: '1mb' }));
+
+// XSS sanitization
+const sanitizeInput = require('./middleware/sanitize');
+app.use(sanitizeInput);
 
 // Rate limiting — auth routes (strict: prevent brute force)
 const authLimiter = rateLimit({
@@ -107,7 +110,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', writeLimiter, settingsRoutes);
 app.use('/api/holidays', writeLimiter, holidaysRoutes);
 app.use('/api/app-update', appUpdateRoutes);
-app.use('/api/design-tasks', writeLimiter, designTasksRoutes);
 app.use('/api/notices', writeLimiter, noticesRoutes);
 app.use('/api/notifications', writeLimiter, notificationsRoutes);
 
@@ -130,10 +132,6 @@ process.on('unhandledRejection', (reason) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Archisys Attendance Server running on port ${PORT}`);
-
-  // Auto-notify designers 7 days before upcoming events
-  const { startDesignTaskScheduler } = require('./routes/design-tasks');
-  startDesignTaskScheduler();
 
   // Auto-notify employees who forgot to check out (daily at 8:00 PM NPT)
   startForgotCheckoutScheduler();

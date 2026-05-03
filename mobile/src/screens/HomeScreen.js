@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  ScrollView, RefreshControl, Platform, Animated, StatusBar
+  ScrollView, RefreshControl, Platform, Animated, StatusBar, Alert
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import { colors, spacing, shadows, radius } from '../theme';
@@ -14,6 +15,7 @@ export default function HomeScreen({ navigation }) {
   const [today, setToday] = useState(null);
   const [stats, setStats] = useState(null);
   const [notices, setNotices] = useState([]);
+  const [myAssignment, setMyAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -46,10 +48,12 @@ export default function HomeScreen({ navigation }) {
     try {
       const promises = [api.getToday(), api.getStats()];
       promises.push(api.getNotices(3).catch(() => ({ notices: [] })));
-      const [todayData, statsData, noticesData] = await Promise.all(promises);
+      promises.push(api.getMyAssignment().catch(() => ({ assignment: null })));
+      const [todayData, statsData, noticesData, assignData] = await Promise.all(promises);
       setToday(todayData.attendance);
       setStats(statsData);
       setNotices(noticesData.notices || []);
+      setMyAssignment(assignData.assignment || null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -67,11 +71,20 @@ export default function HomeScreen({ navigation }) {
   const handleCheckIn = async () => {
     setActionLoading(true);
     try {
-      const data = await api.checkIn();
+      let latitude, longitude;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          latitude = loc.coords.latitude;
+          longitude = loc.coords.longitude;
+        }
+      } catch { /* location optional */ }
+      const data = await api.checkIn(latitude, longitude);
       setToday(data.attendance);
       loadData();
     } catch (err) {
-      alert(err.message);
+      Alert.alert('Check-in Failed', err.message);
     } finally {
       setActionLoading(false);
     }
@@ -308,6 +321,40 @@ export default function HomeScreen({ navigation }) {
             bg={colors.primaryLight}
           />
         </View>
+
+        {/* ── My Shift & Schedule Info ────────────── */}
+        {myAssignment && (
+          <View style={styles.shiftCard}>
+            <View style={styles.shiftCardHeader}>
+              <Ionicons name="briefcase-outline" size={16} color={colors.primary} />
+              <Text style={styles.shiftCardTitle}>My Assignment</Text>
+            </View>
+            <View style={styles.shiftCardGrid}>
+              {myAssignment.branch && (
+                <View style={styles.shiftCardItem}>
+                  <Ionicons name="location-outline" size={14} color={colors.textTertiary} />
+                  <Text style={styles.shiftCardLabel}>{myAssignment.branch.name}</Text>
+                </View>
+              )}
+              {myAssignment.shift && (
+                <View style={styles.shiftCardItem}>
+                  <Ionicons name="time-outline" size={14} color={colors.textTertiary} />
+                  <Text style={styles.shiftCardLabel}>
+                    {myAssignment.shift.name} ({myAssignment.shift.startTime}–{myAssignment.shift.endTime})
+                  </Text>
+                </View>
+              )}
+              {myAssignment.workSchedule && (
+                <View style={styles.shiftCardItem}>
+                  <Ionicons name="calendar-outline" size={14} color={colors.textTertiary} />
+                  <Text style={styles.shiftCardLabel}>
+                    {myAssignment.workSchedule.name} ({(myAssignment.workSchedule.workingDays || []).length}d/week)
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* ── Admin Overview (admin only) ─────────── */}
         {isAdmin && stats && (
@@ -644,4 +691,23 @@ const styles = StyleSheet.create({
   leaveInfoLabel: { fontSize: 11, color: colors.textTertiary, fontWeight: '500' },
   leaveInfoValue: { fontSize: 20, fontWeight: '800', color: colors.text },
   leaveInfoDivider: { width: 1, height: 36, backgroundColor: colors.border },
+
+  // ─ Shift card ─
+  shiftCard: {
+    backgroundColor: colors.white, borderRadius: radius.md,
+    padding: spacing.lg, marginTop: spacing.md, ...shadows.sm,
+  },
+  shiftCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10,
+  },
+  shiftCardTitle: {
+    fontSize: 13, fontWeight: '700', color: colors.text, letterSpacing: 0.3,
+  },
+  shiftCardGrid: { gap: 8 },
+  shiftCardItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  shiftCardLabel: {
+    fontSize: 13, color: colors.textSecondary, fontWeight: '500',
+  },
 });

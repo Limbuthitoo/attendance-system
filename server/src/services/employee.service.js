@@ -1,0 +1,295 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Employee Service — CRUD, profile management
+// ─────────────────────────────────────────────────────────────────────────────
+const bcrypt = require('bcryptjs');
+const { getPrisma } = require('../lib/prisma');
+const { auditLog } = require('../lib/audit');
+const { validatePassword, validateEmail } = require('../lib/validation');
+const { requireActiveSubscription } = require('../lib/subscription');
+const { SALT_ROUNDS } = require('./auth.service');
+
+/**
+ * List employees for an org (with optional filters)
+ */
+async function listEmployees({ orgId, search, department, isActive, page = 1, limit = 50 }) {
+  const prisma = getPrisma();
+
+  const where = { orgId };
+
+  if (typeof isActive === 'boolean') where.isActive = isActive;
+  if (department) where.department = department;
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { employeeCode: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const [employees, total] = await Promise.all([
+    prisma.employee.findMany({
+      where,
+      select: {
+        id: true,
+        employeeCode: true,
+        name: true,
+        email: true,
+        department: true,
+        designation: true,
+        phone: true,
+        avatarUrl: true,
+        isActive: true,
+        createdAt: true,
+        employeeRoles: {
+          select: { role: { select: { name: true } } },
+        },
+        assignments: {
+          where: { isCurrent: true },
+          select: {
+            branch: { select: { id: true, name: true } },
+            shift: { select: { id: true, name: true } },
+            workSchedule: { select: { id: true, name: true } },
+          },
+          take: 1,
+        },
+      },
+      orderBy: { name: 'asc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.employee.count({ where }),
+  ]);
+
+  return {
+    employees: employees.map((e) => {
+      const roles = e.employeeRoles.map((er) => er.role.name);
+      const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
+        ? 'admin'
+        : 'employee';
+      return {
+        ...e,
+        roles,
+        role,                               // backward compat
+        employee_id: e.employeeCode,        // backward compat
+        is_active: e.isActive ? 1 : 0,     // backward compat (integer)
+        currentAssignment: e.assignments[0] || null,
+        employeeRoles: undefined,
+        assignments: undefined,
+      };
+    }),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Get a single employee by ID
+ */
+async function getEmployee(employeeId, orgId) {
+  const prisma = getPrisma();
+
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, orgId },
+    select: {
+      id: true,
+      employeeCode: true,
+      name: true,
+      email: true,
+      department: true,
+      designation: true,
+      phone: true,
+      avatarUrl: true,
+      isActive: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      employeeRoles: {
+        select: {
+          branchId: true,
+          role: { select: { id: true, name: true, permissions: true } },
+        },
+      },
+      assignments: {
+        where: { isCurrent: true },
+        select: {
+          branch: { select: { id: true, name: true, code: true } },
+          shift: { select: { id: true, name: true, startTime: true, endTime: true } },
+          workSchedule: { select: { id: true, name: true, workingDays: true } },
+        },
+        take: 1,
+      },
+      credentials: {
+        where: { isActive: true },
+        select: { id: true, credentialType: true, label: true, assignedAt: true },
+      },
+    },
+  });
+
+  if (!employee) return null;
+
+  const roles = employee.employeeRoles.map((er) => er.role.name);
+  const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
+    ? 'admin'
+    : 'employee';
+
+  return {
+    ...employee,
+    roles,
+    role,                                   // backward compat
+    employee_id: employee.employeeCode,     // backward compat
+    is_active: employee.isActive ? 1 : 0,  // backward compat
+    currentAssignment: employee.assignments[0] || null,
+    employeeRoles: undefined,
+    assignments: undefined,
+  };
+}
+
+/**
+ * Create a new employee
+ */
+async function createEmployee({ orgId, data, adminId, req }) {
+  const prisma = getPrisma();
+
+  // Block if org subscription is not active
+  await requireActiveSubscription(orgId);
+
+  if (!validateEmail(data.email)) {
+    throw Object.assign(new Error('Invalid email format'), { status: 400 });
+  }
+
+  const validation = validatePassword(data.password);
+  if (!validation.valid) {
+    throw Object.assign(new Error(validation.error), { status: 400 });
+  }
+
+  // Check org employee limit
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { maxEmployees: true },
+  });
+  const currentCount = await prisma.employee.count({ where: { orgId } });
+  if (currentCount >= org.maxEmployees) {
+    throw Object.assign(new Error(`Employee limit reached (${org.maxEmployees}). Upgrade your plan.`), { status: 403 });
+  }
+
+  const hash = await bcrypt.hash(data.password, SALT_ROUNDS);
+
+  const employee = await prisma.employee.create({
+    data: {
+      orgId,
+      employeeCode: data.employeeCode,
+      name: data.name,
+      email: data.email,
+      password: hash,
+      department: data.department || 'General',
+      designation: data.designation || 'Employee',
+      phone: data.phone || null,
+      mustChangePassword: true,
+    },
+  });
+
+  // Assign default role if specified
+  if (data.roleId) {
+    await prisma.employeeRole.create({
+      data: {
+        employeeId: employee.id,
+        roleId: data.roleId,
+        branchId: data.branchId || null,
+        grantedBy: adminId,
+      },
+    });
+  }
+
+  // Create assignment if branch + shift specified
+  if (data.branchId && data.shiftId && data.workScheduleId) {
+    await prisma.employeeAssignment.create({
+      data: {
+        employeeId: employee.id,
+        branchId: data.branchId,
+        shiftId: data.shiftId,
+        workScheduleId: data.workScheduleId,
+        effectiveFrom: new Date(),
+        isCurrent: true,
+      },
+    });
+  }
+
+  await auditLog({
+    orgId,
+    actorId: adminId,
+    action: 'employee.create',
+    resource: 'employee',
+    resourceId: employee.id,
+    newData: { employeeCode: data.employeeCode, name: data.name, email: data.email },
+    req,
+  });
+
+  return employee;
+}
+
+/**
+ * Update an employee
+ */
+async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
+  const prisma = getPrisma();
+
+  const existing = await prisma.employee.findFirst({
+    where: { id: employeeId, orgId },
+  });
+  if (!existing) {
+    throw Object.assign(new Error('Employee not found'), { status: 404 });
+  }
+
+  const updateData = {};
+  if (data.name) updateData.name = data.name;
+  if (data.email) {
+    if (!validateEmail(data.email)) {
+      throw Object.assign(new Error('Invalid email format'), { status: 400 });
+    }
+    updateData.email = data.email;
+  }
+  if (data.department) updateData.department = data.department;
+  if (data.designation) updateData.designation = data.designation;
+  if (data.phone !== undefined) updateData.phone = data.phone || null;
+  if (typeof data.isActive === 'boolean') updateData.isActive = data.isActive;
+
+  const employee = await prisma.employee.update({
+    where: { id: employeeId },
+    data: updateData,
+  });
+
+  await auditLog({
+    orgId,
+    actorId: adminId,
+    action: 'employee.update',
+    resource: 'employee',
+    resourceId: employeeId,
+    oldData: { name: existing.name, email: existing.email, department: existing.department },
+    newData: updateData,
+    req,
+  });
+
+  return employee;
+}
+
+/**
+ * Deactivate an employee (soft delete)
+ */
+async function deactivateEmployee({ employeeId, orgId, adminId, req }) {
+  return updateEmployee({
+    employeeId,
+    orgId,
+    data: { isActive: false },
+    adminId,
+    req,
+  });
+}
+
+module.exports = {
+  listEmployees,
+  getEmployee,
+  createEmployee,
+  updateEmployee,
+  deactivateEmployee,
+};

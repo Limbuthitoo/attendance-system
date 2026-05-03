@@ -166,29 +166,6 @@ function initDB() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Design tasks for event-based creative work
-    CREATE TABLE IF NOT EXISTS design_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_name TEXT NOT NULL,
-      event_date TEXT,
-      bs_year INTEGER NOT NULL DEFAULT 2083,
-      description TEXT DEFAULT '',
-      category TEXT DEFAULT 'festival',
-      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed')),
-      assigned_to INTEGER,
-      notification_sent INTEGER NOT NULL DEFAULT 0,
-      notification_date TEXT,
-      created_by INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (assigned_to) REFERENCES employees(id),
-      FOREIGN KEY (created_by) REFERENCES employees(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_design_tasks_year ON design_tasks(bs_year);
-    CREATE INDEX IF NOT EXISTS idx_design_tasks_assigned ON design_tasks(assigned_to);
-    CREATE INDEX IF NOT EXISTS idx_design_tasks_status ON design_tasks(status);
-
     -- Push notification tokens (Expo)
     CREATE TABLE IF NOT EXISTS push_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,7 +200,7 @@ function initDB() {
       employee_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       body TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'notice' CHECK(type IN ('notice', 'leave', 'design_task', 'system', 'checkout_reminder')),
+      type TEXT NOT NULL DEFAULT 'notice' CHECK(type IN ('notice', 'leave', 'system', 'checkout_reminder')),
       reference_type TEXT,
       reference_id INTEGER,
       is_read INTEGER NOT NULL DEFAULT 0,

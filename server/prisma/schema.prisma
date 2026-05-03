@@ -1,0 +1,896 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendance SaaS — Prisma Schema (Phase 1)
+// Multi-tenant ready: every tenant-scoped table has orgId
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLATFORM LEVEL — Super-admin managed
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PlatformUser {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  password  String
+  name      String
+  role      PlatformRole @default(SUPER_ADMIN)
+  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
+  lockedUntil DateTime? @map("locked_until")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_users")
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  PLATFORM_SUPPORT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORGANIZATION (TENANT)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Organization {
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String   @unique
+  domain             String?  @unique
+  logoUrl            String?  @map("logo_url")
+  faviconUrl         String?  @map("favicon_url")
+  planId             String?  @map("plan_id") @db.Uuid
+  subscriptionStatus SubscriptionStatus @default(TRIAL) @map("subscription_status")
+  trialEndsAt        DateTime? @map("trial_ends_at")
+  maxEmployees       Int      @default(50) @map("max_employees")
+  maxBranches        Int      @default(5) @map("max_branches")
+  maxDevices         Int      @default(10) @map("max_devices")
+  settings           Json?    @default("{}")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  plan               Plan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
+  branches           Branch[]
+  employees          Employee[]
+  roles              Role[]
+  shifts             Shift[]
+  workSchedules      WorkSchedule[]
+  devices            Device[]
+  attendance         Attendance[]
+  leaves             Leave[]
+  holidays           Holiday[]
+  notices            Notice[]
+  notifications      Notification[]
+  orgSettings        OrgSetting[]
+  orgModules         OrgModule[]
+  appReleases        AppRelease[]
+  auditLogs          AuditLog[]
+  deviceEvents       DeviceEvent[]
+  employeeCredentials EmployeeCredential[]
+  overtimePolicies    OvertimePolicy[]
+  overtimeRecords     OvertimeRecord[]
+  payrollSummaries    PayrollSummary[]
+  leaveQuotas         LeaveQuota[]
+  invoices            Invoice[]
+
+  @@map("organizations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION PLANS (platform-managed, customizable)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Plan {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @unique
+  code           String   @unique
+  description    String   @default("")
+  price          Int      @default(0)               // price in smallest currency unit (paisa for NPR)
+  currency       String   @default("NPR")
+  billingCycle   String   @default("monthly") @map("billing_cycle") // monthly | yearly
+  maxEmployees   Int      @default(10) @map("max_employees")
+  maxBranches    Int      @default(1) @map("max_branches")
+  maxDevices     Int      @default(2) @map("max_devices")
+  trialDays      Int      @default(0) @map("trial_days")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  features       Json?    @default("[]")            // array of feature strings
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organizations  Organization[]
+  invoices       Invoice[]
+
+  @@map("plans")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVOICES (billing & payment tracking)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  invoiceNumber  String        @unique @map("invoice_number")
+  orgId          String        @map("org_id") @db.Uuid
+  planId         String?       @map("plan_id") @db.Uuid
+  amount         Int           @default(0)               // in paisa
+  currency       String        @default("NPR")
+  status         InvoiceStatus @default(PENDING)
+  billingPeriodStart DateTime  @map("billing_period_start")
+  billingPeriodEnd   DateTime  @map("billing_period_end")
+  dueDate        DateTime      @map("due_date")
+  paidAt         DateTime?     @map("paid_at")
+  paymentMethod  String?       @map("payment_method")    // bank_transfer, esewa, khalti, cash, etc.
+  paymentRef     String?       @map("payment_ref")       // transaction reference
+  notes          String        @default("")
+  createdBy      String?       @map("created_by") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization   Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan           Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BRANCH (sub-tenant within an organization)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  name      String
+  code      String
+  address   String?
+  city      String?
+  country   String   @default("Nepal")
+  timezone  String   @default("Asia/Kathmandu")
+  // Geofencing
+  latitude  Decimal? @db.Decimal(10,7)
+  longitude Decimal? @db.Decimal(10,7)
+  geofenceRadius Int? @map("geofence_radius")  // meters
+  geofenceEnabled Boolean @default(false) @map("geofence_enabled")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  org                 Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeAssignments EmployeeAssignment[]
+  devices             Device[]
+  shifts              Shift[]
+  attendance          Attendance[]
+  deviceEvents        DeviceEvent[]
+
+  @@unique([orgId, code])
+  @@map("branches")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE / FEATURE LICENSING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Module {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  orgModules  OrgModule[]
+
+  @@map("modules")
+}
+
+model OrgModule {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  moduleId  String   @map("module_id") @db.Uuid
+  config    Json?    @default("{}")
+  isActive  Boolean  @default(true) @map("is_active")
+  enabledAt DateTime @default(now()) @map("enabled_at")
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  module    Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, moduleId])
+  @@map("org_modules")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPLOYEE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Employee {
+  id                 String   @id @default(uuid()) @db.Uuid
+  orgId              String   @map("org_id") @db.Uuid
+  employeeCode       String   @map("employee_code")
+  name               String
+  email              String
+  password           String
+  department         String   @default("General")
+  designation        String   @default("Employee")
+  phone              String?
+  avatarUrl          String?  @map("avatar_url")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  failedLoginAttempts Int     @default(0) @map("failed_login_attempts")
+  lockedUntil        DateTime? @map("locked_until")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  org                Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeRoles      EmployeeRole[]
+  assignments        EmployeeAssignment[]
+  credentials        EmployeeCredential[]
+  attendance         Attendance[]
+  leaves             Leave[]              @relation("employee_leaves")
+  reviewedLeaves     Leave[]              @relation("reviewed_leaves")
+  pushTokens         PushToken[]
+  notifications      Notification[]
+  refreshTokens      RefreshToken[]
+  appReleases        AppRelease[]
+  noticesPublished    Notice[]
+  deviceEvents        DeviceEvent[]
+  overtimeRecords     OvertimeRecord[]
+  overtimeApprovals   OvertimeRecord[] @relation("overtime_approver")
+  payrollSummaries    PayrollSummary[]
+  leaveQuotas         LeaveQuota[]
+
+  @@unique([orgId, email])
+  @@unique([orgId, employeeCode])
+  @@index([orgId, isActive])
+  @@map("employees")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RBAC — Roles & Permissions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String?  @map("org_id") @db.Uuid
+  name        String
+  description String?
+  permissions Json     @default("[]")
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org           Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeRoles EmployeeRole[]
+
+  @@unique([orgId, name])
+  @@map("roles")
+}
+
+model EmployeeRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  branchId   String?  @map("branch_id") @db.Uuid
+  grantedAt  DateTime @default(now()) @map("granted_at")
+  grantedBy  String?  @map("granted_by") @db.Uuid
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, roleId, branchId])
+  @@map("employee_roles")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHIFT & WORK SCHEDULE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Shift {
+  id                  String   @id @default(uuid()) @db.Uuid
+  orgId               String   @map("org_id") @db.Uuid
+  branchId            String?  @map("branch_id") @db.Uuid
+  name                String
+  startTime           String   @map("start_time")       // "09:00"
+  endTime             String   @map("end_time")         // "18:00"
+  lateThresholdMinutes Int     @default(30) @map("late_threshold_minutes")
+  halfDayHours        Decimal  @default(4) @map("half_day_hours") @db.Decimal(4,2)
+  fullDayHours        Decimal  @default(8) @map("full_day_hours") @db.Decimal(4,2)
+  minCheckoutMinutes  Int      @default(2) @map("min_checkout_minutes")
+  isDefault           Boolean  @default(false) @map("is_default")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  org                 Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  branch              Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  employeeAssignments EmployeeAssignment[]
+
+  @@map("shifts")
+}
+
+model WorkSchedule {
+  id            String   @id @default(uuid()) @db.Uuid
+  orgId         String   @map("org_id") @db.Uuid
+  name          String                              // "5-Day Week", "6-Day Week"
+  workingDays   Json     @map("working_days")       // ["mon","tue","wed","thu","fri"]
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  org                 Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeAssignments EmployeeAssignment[]
+
+  @@map("work_schedules")
+}
+
+model EmployeeAssignment {
+  id             String    @id @default(uuid()) @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  shiftId        String    @map("shift_id") @db.Uuid
+  workScheduleId String    @map("work_schedule_id") @db.Uuid
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+  isCurrent      Boolean   @default(true) @map("is_current")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  shift          Shift        @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, isCurrent])
+  @@map("employee_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEVICES — Unified (NFC, Fingerprint, QR, Face, etc.)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Device {
+  id              String     @id @default(uuid()) @db.Uuid
+  orgId           String     @map("org_id") @db.Uuid
+  branchId        String?    @map("branch_id") @db.Uuid
+  deviceType      DeviceType @map("device_type")
+  deviceSerial    String     @unique @map("device_serial")
+  name            String?
+  location        String?
+  apiKeyHash      String     @map("api_key_hash")   // bcrypt hashed per-device key
+  firmwareVersion String?    @map("firmware_version")
+  lastHeartbeatAt DateTime?  @map("last_heartbeat_at")
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  org             Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  branch          Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  deviceEvents    DeviceEvent[]
+  writeJobs       DeviceWriteJob[]
+
+  @@index([orgId, deviceType])
+  @@map("devices")
+}
+
+enum DeviceType {
+  NFC_READER
+  FINGERPRINT
+  QR_TERMINAL
+  FACE_RECOGNITION
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPLOYEE CREDENTIALS — Unified (NFC card, fingerprint, QR, face, PIN)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model EmployeeCredential {
+  id             String         @id @default(uuid()) @db.Uuid
+  orgId          String         @map("org_id") @db.Uuid
+  employeeId     String         @map("employee_id") @db.Uuid
+  credentialType CredentialType @map("credential_type")
+  credentialData String         @map("credential_data") // card UID, fingerprint hash, QR token, etc.
+  label          String?
+  isActive       Boolean        @default(true) @map("is_active")
+  assignedAt     DateTime       @default(now()) @map("assigned_at")
+  deactivatedAt  DateTime?      @map("deactivated_at")
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([credentialType, credentialData])
+  @@index([employeeId])
+  @@map("employee_credentials")
+}
+
+enum CredentialType {
+  NFC_CARD
+  FINGERPRINT
+  QR_CODE
+  FACE_ID
+  PIN
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEVICE EVENTS — Unified tap/scan audit log
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DeviceEvent {
+  id             String          @id @default(uuid()) @db.Uuid
+  orgId          String          @map("org_id") @db.Uuid
+  branchId       String?         @map("branch_id") @db.Uuid
+  deviceId       String          @map("device_id") @db.Uuid
+  credentialType CredentialType? @map("credential_type")
+  credentialData String?         @map("credential_data")
+  employeeId     String?         @map("employee_id") @db.Uuid
+  eventType      DeviceEventType @map("event_type")
+  result         String
+  attendanceId   String?         @map("attendance_id") @db.Uuid
+  eventTime      DateTime        @default(now()) @map("event_time")
+  metadata       Json?
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  device         Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  employee       Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  attendance     Attendance?  @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, eventTime])
+  @@index([orgId, eventTime])
+  @@index([employeeId, eventTime])
+  @@map("device_events")
+}
+
+enum DeviceEventType {
+  CHECK_IN
+  CHECK_OUT
+  REJECTED
+  UNKNOWN
+  HEARTBEAT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEVICE WRITE JOBS — Provisioning queue (NFC card writing, etc.)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DeviceWriteJob {
+  id             String         @id @default(uuid()) @db.Uuid
+  employeeId     String         @map("employee_id") @db.Uuid
+  deviceId       String?        @map("device_id") @db.Uuid
+  dataToWrite    String         @map("data_to_write")
+  status         WriteJobStatus @default(PENDING)
+  resultData     String?        @map("result_data")      // e.g. card UID after write
+  errorMessage   String?        @map("error_message")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  completedAt    DateTime?      @map("completed_at")
+
+  device         Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("device_write_jobs")
+}
+
+enum WriteJobStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ATTENDANCE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Attendance {
+  id         String           @id @default(uuid()) @db.Uuid
+  orgId      String           @map("org_id") @db.Uuid
+  employeeId String           @map("employee_id") @db.Uuid
+  branchId   String?          @map("branch_id") @db.Uuid
+  date       DateTime         @db.Date
+  checkIn    DateTime?        @map("check_in")
+  checkOut   DateTime?        @map("check_out")
+  status     AttendanceStatus @default(PRESENT)
+  source     AttendanceSource @default(MANUAL)
+  workHours  Decimal?         @default(0) @map("work_hours") @db.Decimal(5,2)
+  notes      String?
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  org        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch     Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  deviceEvents DeviceEvent[]
+
+  @@unique([employeeId, date])
+  @@index([orgId, date])
+  @@index([employeeId, date])
+  @@map("attendance")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+}
+
+enum AttendanceSource {
+  MANUAL
+  NFC
+  FINGERPRINT
+  QR_CODE
+  FACE_ID
+  SYSTEM   // e.g. auto-marked absent from leave approval
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEAVES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Leave {
+  id          String      @id @default(uuid()) @db.Uuid
+  orgId       String      @map("org_id") @db.Uuid
+  employeeId  String      @map("employee_id") @db.Uuid
+  leaveType   LeaveType   @map("leave_type")
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime    @map("end_date") @db.Date
+  days        Int
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  reviewedBy  String?     @map("reviewed_by") @db.Uuid
+  reviewNote  String?     @map("review_note")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee    Employee     @relation("employee_leaves", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    Employee?    @relation("reviewed_leaves", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([orgId, status])
+  @@index([employeeId, status])
+  @@map("leaves")
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  EARNED
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOLIDAYS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Holiday {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  bsYear     Int      @map("bs_year")
+  bsMonth    Int      @map("bs_month")
+  bsDay      Int      @map("bs_day")
+  bsDayEnd   Int?     @map("bs_day_end")
+  bsMonthEnd Int?     @map("bs_month_end")
+  name       String
+  nameNp     String?  @map("name_np")
+  adDate     DateTime? @map("ad_date") @db.Date
+  adDateEnd  DateTime? @map("ad_date_end") @db.Date
+  womenOnly  Boolean  @default(false) @map("women_only")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, bsYear])
+  @@index([orgId, bsYear, bsMonth])
+  @@map("holidays")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORG SETTINGS (key-value per organization)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model OrgSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, key])
+  @@map("org_settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEAVE QUOTAS (per organization, overridable per employee)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model LeaveQuota {
+  id          String    @id @default(uuid()) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  employeeId  String?   @map("employee_id") @db.Uuid  // null = org default
+  leaveType   LeaveType @map("leave_type")
+  year        Int
+  totalDays   Int       @map("total_days")
+  usedDays    Int       @default(0) @map("used_days")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee    Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, employeeId, leaveType, year])
+  @@map("leave_quotas")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTICES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Notice {
+  id          String     @id @default(uuid()) @db.Uuid
+  orgId       String     @map("org_id") @db.Uuid
+  title       String
+  body        String
+  type        NoticeType @default(GENERAL)
+  target      String     @default("all")
+  publishedBy String     @map("published_by") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  publisher   Employee     @relation(fields: [publishedBy], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@map("notices")
+}
+
+enum NoticeType {
+  GENERAL
+  OFFICIAL
+  EVENT
+  URGENT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS (per-employee in-app)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id            String           @id @default(uuid()) @db.Uuid
+  orgId         String           @map("org_id") @db.Uuid
+  employeeId    String           @map("employee_id") @db.Uuid
+  title         String
+  body          String
+  type          NotificationType @default(NOTICE)
+  referenceType String?          @map("reference_type")
+  referenceId   String?          @map("reference_id")
+  isRead        Boolean          @default(false) @map("is_read")
+  isCleared     Boolean          @default(false) @map("is_cleared")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, isRead, isCleared])
+  @@index([orgId, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NOTICE
+  LEAVE
+  SYSTEM
+  CHECKOUT_REMINDER
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUSH TOKENS (Expo push notification tokens)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PushToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  token      String
+  deviceName String?  @map("device_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, token])
+  @@map("push_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REFRESH TOKENS (revocable)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  userAgent  String?  @map("user_agent")
+  ipAddress  String?  @map("ip_address")
+  expiresAt  DateTime @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("refresh_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP RELEASES (APK distribution)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model AppRelease {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  version      String
+  filename     String
+  fileSize     Int      @map("file_size")
+  releaseNotes String   @default("") @map("release_notes")
+  isMandatory  Boolean  @default(false) @map("is_mandatory")
+  uploadedBy   String?  @map("uploaded_by") @db.Uuid
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  uploader     Employee?    @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@map("app_releases")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT LOG
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  actorId    String?  @map("actor_id")           // employee or platform user ID
+  actorType  String   @default("employee") @map("actor_type") // "employee" | "platform_user" | "device" | "system"
+  action     String                               // "employee.create", "leave.approve", "settings.update"
+  resource   String                               // "employee", "leave", "attendance"
+  resourceId String?  @map("resource_id")
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, resource, resourceId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OVERTIME POLICY (per organization, optionally per branch)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model OvertimePolicy {
+  id                    String   @id @default(uuid()) @db.Uuid
+  orgId                 String   @map("org_id") @db.Uuid
+  name                  String
+  overtimeAfterHours    Decimal  @map("overtime_after_hours") @db.Decimal(4,2) // e.g. 8.00
+  maxOvertimeHoursDaily Decimal  @default(4) @map("max_overtime_hours_daily") @db.Decimal(4,2)
+  overtimeRateMultiplier Decimal @default(1.5) @map("overtime_rate_multiplier") @db.Decimal(3,2) // 1.5x, 2x
+  weekendRateMultiplier  Decimal @default(2.0) @map("weekend_rate_multiplier") @db.Decimal(3,2)
+  holidayRateMultiplier  Decimal @default(2.0) @map("holiday_rate_multiplier") @db.Decimal(3,2)
+  requiresApproval      Boolean @default(true) @map("requires_approval")
+  isActive              Boolean @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  org                   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  overtimeRecords       OvertimeRecord[]
+
+  @@map("overtime_policies")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OVERTIME RECORDS (per employee per day)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model OvertimeRecord {
+  id              String          @id @default(uuid()) @db.Uuid
+  orgId           String          @map("org_id") @db.Uuid
+  employeeId      String          @map("employee_id") @db.Uuid
+  policyId        String          @map("policy_id") @db.Uuid
+  date            DateTime        @db.Date
+  regularHours    Decimal         @map("regular_hours") @db.Decimal(5,2)
+  overtimeHours   Decimal         @map("overtime_hours") @db.Decimal(5,2)
+  rateMultiplier  Decimal         @map("rate_multiplier") @db.Decimal(3,2)
+  status          OvertimeStatus  @default(PENDING)
+  approvedBy      String?         @map("approved_by") @db.Uuid
+  approvedAt      DateTime?       @map("approved_at")
+  notes           String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  org             Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policy          OvertimePolicy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  approver        Employee?       @relation("overtime_approver", fields: [approvedBy], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, date])
+  @@index([orgId, date])
+  @@index([employeeId, status])
+  @@map("overtime_records")
+}
+
+enum OvertimeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  AUTO_APPROVED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYROLL SUMMARY (monthly per employee)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PayrollSummary {
+  id               String   @id @default(uuid()) @db.Uuid
+  orgId            String   @map("org_id") @db.Uuid
+  employeeId       String   @map("employee_id") @db.Uuid
+  year             Int
+  month            Int
+  totalWorkDays    Int      @map("total_work_days")       // scheduled working days
+  presentDays      Int      @map("present_days")
+  absentDays       Int      @map("absent_days")
+  lateDays         Int      @map("late_days")
+  halfDays         Int      @map("half_days")
+  leaveDays        Int      @map("leave_days")
+  holidayDays      Int      @map("holiday_days")
+  totalWorkHours   Decimal  @map("total_work_hours") @db.Decimal(7,2)
+  overtimeHours    Decimal  @default(0) @map("overtime_hours") @db.Decimal(7,2)
+  effectiveDays    Decimal  @map("effective_days") @db.Decimal(5,2)  // presentDays + leaves - halfDay*0.5
+  generatedAt      DateTime @default(now()) @map("generated_at")
+
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, employeeId, year, month])
+  @@index([orgId, year, month])
+  @@map("payroll_summaries")
+}

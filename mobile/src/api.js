@@ -93,7 +93,8 @@ export const api = {
   removePushToken: (token) =>
     request('/auth/push-token', { method: 'DELETE', body: JSON.stringify({ token }) }),
 
-  checkIn: () => request('/attendance/check-in', { method: 'POST' }),
+  checkIn: (latitude, longitude) =>
+    request('/attendance/check-in', { method: 'POST', body: JSON.stringify({ latitude, longitude }) }),
   checkOut: () => request('/attendance/check-out', { method: 'POST' }),
   getToday: () => request('/attendance/today'),
   getHistory: (params = {}) => {
@@ -132,12 +133,6 @@ export const api = {
   // Holidays
   getHolidays: (year) => request(`/holidays?year=${year}`),
 
-  // Design tasks (for designer)
-  getMyDesignTasks: (year) => request(`/design-tasks/my${year ? `?year=${year}` : ''}`),
-  getDesignEvents: (year) => request(`/design-tasks/calendar-events?year=${year || 2083}`),
-  updateDesignTaskStatus: (id, status) =>
-    request(`/design-tasks/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-
   // Notices
   getNotices: (limit, offset) => request(`/notices?limit=${limit || 50}&offset=${offset || 0}`),
   getNotice: (id) => request(`/notices/${id}`),
@@ -152,4 +147,31 @@ export const api = {
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
   clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
   clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
+
+  // Shift & Schedule
+  getMyAssignment: () => request('/settings/assignments/employee/me'),
+  getShifts: () => request('/settings/shifts'),
+  getWorkSchedules: () => request('/settings/work-schedules'),
+  getBranches: () => request('/branches'),
+
+  // QR Attendance
+  getMyQrCode: () => request('/qr/my-code', { method: 'POST' }),
+  scanLocationQr: (qrToken, latitude, longitude) =>
+    request('/qr/scan', { method: 'POST', body: JSON.stringify({ qrToken, latitude, longitude }) }),
+
+  // Geofence
+  validateGeofence: (latitude, longitude) =>
+    request('/geofence/validate', { method: 'POST', body: JSON.stringify({ latitude, longitude }) }),
+
+  // Reports (admin)
+  getAttendanceSummary: (startDate, endDate, branchId) => {
+    const q = new URLSearchParams({ startDate, endDate });
+    if (branchId) q.append('branchId', branchId);
+    return request(`/reports/attendance-summary?${q}`);
+  },
+
+  // Overtime
+  getMyOvertime: (page = 1) => request(`/overtime/my?page=${page}`),
+  getOvertimeSummary: (startDate, endDate) =>
+    request(`/overtime/summary?startDate=${startDate}&endDate=${endDate}`),
 };

@@ -9,7 +9,6 @@ import { colors, spacing, shadows, radius } from '../theme';
 const TYPE_CONFIG = {
   notice: { icon: 'megaphone-outline', color: colors.primary, bg: colors.primaryLight },
   leave: { icon: 'document-text-outline', color: colors.warningMuted, bg: colors.warningLight },
-  design_task: { icon: 'color-palette-outline', color: colors.purple, bg: colors.purpleLight },
   system: { icon: 'settings-outline', color: colors.textSecondary, bg: colors.background },
 };
 

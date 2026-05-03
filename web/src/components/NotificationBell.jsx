@@ -1,19 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, CheckCheck, Megaphone, ClipboardCheck, Calendar, Settings2 } from 'lucide-react';
+import { Bell, X, CheckCheck, Megaphone, ClipboardCheck, Settings2 } from 'lucide-react';
 import { api } from '../lib/api';
 
 const TYPE_ICON = {
   notice: Megaphone,
   leave: ClipboardCheck,
-  design_task: Calendar,
   system: Settings2,
 };
 
 const TYPE_COLOR = {
   notice: { text: 'text-blue-600', bg: 'bg-blue-50' },
   leave: { text: 'text-amber-600', bg: 'bg-amber-50' },
-  design_task: { text: 'text-purple-600', bg: 'bg-purple-50' },
   system: { text: 'text-slate-600', bg: 'bg-slate-50' },
 };
 
@@ -96,9 +94,7 @@ export default function NotificationBell() {
       navigate('/notices');
     } else if (notif.type === 'leave') {
       navigate('/leaves');
-    } else if (notif.type === 'design_task') {
-      navigate('/leave-calendar');
-    }
+}
     setOpen(false);
   };
 
