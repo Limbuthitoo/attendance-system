@@ -13,17 +13,12 @@ log "=== Deployment started ==="
 cd "$PROJECT_DIR"
 
 # ── Pre-deploy database backup ──────────────────────────────────────────────
-BACKUP_DIR="$PROJECT_DIR/backups"
-mkdir -p "$BACKUP_DIR"
-BACKUP_FILE="$BACKUP_DIR/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz"
 log "Creating pre-deploy database backup..."
-if pg_dump -h localhost -U attendance -d attendance --no-owner --no-privileges | gzip > "$BACKUP_FILE"; then
-  log "Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+if sudo docker exec attendance-system-backup-1 /scripts/backup-db.sh 2>&1 | tee -a "$LOG_FILE"; then
+  log "Pre-deploy backup completed"
 else
   log "WARNING: Pre-deploy backup failed — proceeding with caution"
 fi
-# Keep only last 10 pre-deploy backups
-ls -t "$BACKUP_DIR"/pre_deploy_*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
 
 # Pull latest code
 log "Pulling latest code..."
@@ -32,22 +27,17 @@ if ! git pull origin main 2>&1 | tee -a "$LOG_FILE"; then
   exit 1
 fi
 
-# Install server dependencies
-log "Installing server dependencies..."
-cd "$PROJECT_DIR/server"
-npm install --production 2>&1 | tee -a "$LOG_FILE"
-
-# Run database migrations
+# Run database migrations inside the API container
 log "Running database migrations..."
-npx prisma migrate deploy 2>&1 | tee -a "$LOG_FILE"
+sudo docker compose exec -T api npx prisma migrate deploy 2>&1 | tee -a "$LOG_FILE"
 
-# Restart backend
-log "Restarting backend server..."
-export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"
-pm2 restart attendance-server
-sleep 3
+# Rebuild and restart backend
+log "Rebuilding and restarting backend..."
+sudo docker compose build api --quiet 2>&1 | tee -a "$LOG_FILE"
+sudo docker compose up -d api worker 2>&1 | tee -a "$LOG_FILE"
 
-# Verify backend is up
+# Wait for health check
+sleep 10
 if curl -s http://localhost:3001/api/health | grep -q ok; then
   log "Backend restarted successfully"
 else
@@ -61,7 +51,7 @@ npm install --legacy-peer-deps 2>&1 | tee -a "$LOG_FILE"
 npm run build 2>&1 | tee -a "$LOG_FILE"
 
 log "Deploying frontend to nginx..."
-cp -r dist/* /var/www/html/
+sudo cp -r dist/* /var/www/html/
 sudo systemctl reload nginx
 
 log "=== Deployment completed ==="

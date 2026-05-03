@@ -286,10 +286,59 @@ async function deactivateEmployee({ employeeId, orgId, adminId, req }) {
   });
 }
 
+/**
+ * Hard delete an employee and all related data
+ */
+async function deleteEmployee({ employeeId, orgId, adminId, req }) {
+  const prisma = getPrisma();
+
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, orgId },
+    include: { employeeRoles: { include: { role: true } } },
+  });
+
+  if (!employee) {
+    throw Object.assign(new Error('Employee not found'), { status: 404 });
+  }
+
+  // Prevent deleting the last org_admin
+  const isAdmin = employee.employeeRoles.some((er) => er.role.name === 'org_admin');
+  if (isAdmin) {
+    const adminCount = await prisma.employeeRole.count({
+      where: {
+        role: { name: 'org_admin' },
+        employee: { orgId, isActive: true },
+      },
+    });
+    if (adminCount <= 1) {
+      throw Object.assign(new Error('Cannot delete the last admin account'), { status: 400 });
+    }
+  }
+
+  // Prevent self-deletion
+  if (employeeId === adminId) {
+    throw Object.assign(new Error('Cannot delete your own account'), { status: 400 });
+  }
+
+  // Cascade delete (Prisma onDelete: Cascade handles most relations)
+  await prisma.employee.delete({ where: { id: employeeId } });
+
+  await auditLog({
+    orgId,
+    actorId: adminId,
+    action: 'employee.delete',
+    resource: 'employee',
+    resourceId: employeeId,
+    oldData: { name: employee.name, email: employee.email },
+    req,
+  });
+}
+
 module.exports = {
   listEmployees,
   getEmployee,
   createEmployee,
   updateEmployee,
   deactivateEmployee,
+  deleteEmployee,
 };

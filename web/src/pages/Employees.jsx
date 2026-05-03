@@ -53,6 +53,8 @@ export default function Employees() {
   const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', department: '', designation: '', role: '', phone: '' });
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(null); // employee object or null
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [form, setForm] = useState({
     employee_id: '', name: '', email: '', password: '',
     department: '', designation: '', role: 'employee', phone: ''
@@ -458,15 +460,7 @@ export default function Employees() {
                         </button>
                         <span className="w-px h-4 bg-slate-200" />
                         <button
-                          onClick={async () => {
-                            if (!confirm(`Are you sure you want to permanently delete ${emp.name}? This will remove all their attendance records, leaves, and NFC cards.`)) return;
-                            try {
-                              await api.deleteEmployee(emp.id);
-                              loadEmployees();
-                            } catch (err) {
-                              alert(err.message);
-                            }
-                          }}
+                          onClick={() => setDeleteModal(emp)}
                           className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                           title="Delete Employee"
                         >
@@ -712,6 +706,53 @@ export default function Employees() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <UserX size={20} className="text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Delete Employee</h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">
+              Are you sure you want to permanently delete <span className="font-semibold text-slate-900">{deleteModal.name}</span>?
+            </p>
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
+              This action cannot be undone. All attendance records, leaves, NFC cards, and other data associated with this employee will be permanently removed.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                disabled={deleteSubmitting}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setDeleteSubmitting(true);
+                  try {
+                    await api.deleteEmployee(deleteModal.id);
+                    setDeleteModal(null);
+                    loadEmployees();
+                  } catch (err) {
+                    alert(err.message);
+                  } finally {
+                    setDeleteSubmitting(false);
+                  }
+                }}
+                disabled={deleteSubmitting}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {deleteSubmitting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
           </div>
         </div>
       )}

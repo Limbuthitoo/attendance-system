@@ -122,7 +122,20 @@ router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next
       orderBy: { checkIn: 'asc' },
     });
 
-    res.json({ attendance: records.map(transformAtt) });
+    const attendance = records.map(transformAtt);
+
+    // Compute summary and departments for the frontend
+    const summary = { total: attendance.length, present: 0, late: 0, halfDay: 0, absent: 0 };
+    const deptSet = new Set();
+    for (const a of attendance) {
+      if (a.status === 'present') summary.present++;
+      else if (a.status === 'late') summary.late++;
+      else if (a.status === 'half-day' || a.status === 'half_day') summary.halfDay++;
+      else if (a.status === 'absent') summary.absent++;
+      if (a.department) deptSet.add(a.department);
+    }
+
+    res.json({ attendance, summary, departments: [...deptSet].sort() });
   } catch (err) {
     next(err);
   }

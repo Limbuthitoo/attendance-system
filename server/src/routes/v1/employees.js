@@ -94,16 +94,16 @@ router.post('/:id/reset-password', requireRole('org_admin'), async (req, res, ne
   }
 });
 
-// DELETE /api/v1/employees/:id — Deactivate employee (admin)
+// DELETE /api/v1/employees/:id — Permanently delete employee (admin)
 router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
   try {
-    await employeeService.deactivateEmployee({
+    await employeeService.deleteEmployee({
       employeeId: req.params.id,
       orgId: req.orgId,
       adminId: req.user.id,
       req,
     });
-    res.json({ message: 'Employee deactivated' });
+    res.json({ message: 'Employee deleted successfully' });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
