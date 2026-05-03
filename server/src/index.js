@@ -92,6 +92,9 @@ app.get('/api/health', (req, res) => {
 // Serve branding assets (logo/favicon) without rate limiting
 app.use('/api/settings/branding', settingsRoutes);
 
+// NFC routes — exempt from general rate limiter (high-frequency device polling)
+app.use('/api/nfc', nfcRoutes);
+
 // Apply general rate limiter to all /api routes
 app.use('/api', apiLimiter);
 
@@ -101,7 +104,6 @@ app.use('/api/attendance', writeLimiter, attendanceRoutes);
 app.use('/api/leaves', writeLimiter, leaveRoutes);
 app.use('/api/employees', writeLimiter, employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/nfc', nfcRoutes);
 app.use('/api/settings', writeLimiter, settingsRoutes);
 app.use('/api/holidays', writeLimiter, holidaysRoutes);
 app.use('/api/app-update', appUpdateRoutes);
@@ -220,7 +222,7 @@ function startForgotCheckoutScheduler() {
             emp.employee_id,
             'Forgot to Check Out?',
             'You checked in today but haven\'t checked out yet. Please check out before leaving.',
-            'checkout_reminder'
+            'system'
           );
         }
       });

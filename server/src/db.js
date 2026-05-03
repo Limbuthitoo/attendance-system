@@ -223,7 +223,7 @@ function initDB() {
       employee_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       body TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'notice' CHECK(type IN ('notice', 'leave', 'design_task', 'system')),
+      type TEXT NOT NULL DEFAULT 'notice' CHECK(type IN ('notice', 'leave', 'design_task', 'system', 'checkout_reminder')),
       reference_type TEXT,
       reference_id INTEGER,
       is_read INTEGER NOT NULL DEFAULT 0,
