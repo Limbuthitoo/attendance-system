@@ -42,8 +42,8 @@ async function login({ email, password, orgSlug, userAgent, ipAddress }) {
       },
     });
   } else {
-    // Single-tenant fallback — find first active employee with this email
-    employee = await prisma.employee.findFirst({
+    // No orgSlug — find by email; if multiple active matches exist, require orgSlug
+    const matches = await prisma.employee.findMany({
       where: { email, isActive: true },
       include: {
         employeeRoles: {
@@ -51,6 +51,14 @@ async function login({ email, password, orgSlug, userAgent, ipAddress }) {
         },
       },
     });
+
+    if (matches.length > 1) {
+      throw Object.assign(
+        new Error('Multiple organizations found for this email. Please contact your administrator.'),
+        { status: 409 }
+      );
+    }
+    employee = matches[0] || null;
   }
 
   if (!employee) {

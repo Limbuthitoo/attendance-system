@@ -1,46 +1,70 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { api } from './lib/api';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Attendance from './pages/Attendance';
-import Leaves from './pages/Leaves';
-import Employees from './pages/Employees';
-import LeaveManagement from './pages/LeaveManagement';
-import LeaveCalendar from './pages/LeaveCalendar';
-import ActivityLog from './pages/ActivityLog';
-import Settings from './pages/Settings';
-import HolidayManager from './pages/HolidayManager';
-import AppUpdate from './pages/AppUpdate';
-import Notices from './pages/Notices';
-import EmployeeProfile from './pages/EmployeeProfile';
-import EmployeeAttendance from './pages/EmployeeAttendance';
-import Profile from './pages/Profile';
-import BranchManagement from './pages/BranchManagement';
-import RoleManagement from './pages/RoleManagement';
-import ShiftManagement from './pages/ShiftManagement';
-import ScheduleManagement from './pages/ScheduleManagement';
-import EmployeeAssignments from './pages/EmployeeAssignments';
-import DeviceManagement from './pages/DeviceManagement';
-import Reports from './pages/Reports';
-import PayrollOvertime from './pages/PayrollOvertime';
-import GeofenceManagement from './pages/GeofenceManagement';
 import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
-// Platform portal imports
+// ── Lazy-loaded org pages (each becomes its own chunk) ──────────────────────
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const Leaves = lazy(() => import('./pages/Leaves'));
+const Employees = lazy(() => import('./pages/Employees'));
+const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
+const LeaveCalendar = lazy(() => import('./pages/LeaveCalendar'));
+const ActivityLog = lazy(() => import('./pages/ActivityLog'));
+const Settings = lazy(() => import('./pages/Settings'));
+const HolidayManager = lazy(() => import('./pages/HolidayManager'));
+const Notices = lazy(() => import('./pages/Notices'));
+const EmployeeProfile = lazy(() => import('./pages/EmployeeProfile'));
+const EmployeeAttendance = lazy(() => import('./pages/EmployeeAttendance'));
+const Profile = lazy(() => import('./pages/Profile'));
+const BranchManagement = lazy(() => import('./pages/BranchManagement'));
+const RoleManagement = lazy(() => import('./pages/RoleManagement'));
+const ShiftManagement = lazy(() => import('./pages/ShiftManagement'));
+const ScheduleManagement = lazy(() => import('./pages/ScheduleManagement'));
+const EmployeeAssignments = lazy(() => import('./pages/EmployeeAssignments'));
+const Reports = lazy(() => import('./pages/Reports'));
+const PayrollOvertime = lazy(() => import('./pages/PayrollOvertime'));
+const GeofenceManagement = lazy(() => import('./pages/GeofenceManagement'));
+const NfcManagement = lazy(() => import('./pages/NfcManagement'));
+
+// ── Lazy-loaded platform portal (entire sub-app) ───────────────────────────
+const PlatformLogin = lazy(() => import('./platform/pages/PlatformLogin'));
+const PlatformDashboard = lazy(() => import('./platform/pages/PlatformDashboard'));
+const Organizations = lazy(() => import('./platform/pages/Organizations'));
+const OrganizationDetail = lazy(() => import('./platform/pages/OrganizationDetail'));
+const CreateOrganization = lazy(() => import('./platform/pages/CreateOrganization'));
+const PlatformModules = lazy(() => import('./platform/pages/PlatformModules'));
+const Plans = lazy(() => import('./platform/pages/Plans'));
+const Billing = lazy(() => import('./platform/pages/Billing'));
+const PlatformUsers = lazy(() => import('./platform/pages/PlatformUsers'));
+const AppUpdateManager = lazy(() => import('./platform/pages/AppUpdateManager'));
+const PlatformDevices = lazy(() => import('./platform/pages/PlatformDevices'));
+
+// Platform auth — eagerly loaded (small, needed for route guards)
 import { PlatformAuthProvider, usePlatformAuth } from './platform/PlatformAuthContext';
 import PlatformLayout from './platform/PlatformLayout';
-import PlatformLogin from './platform/pages/PlatformLogin';
-import PlatformDashboard from './platform/pages/PlatformDashboard';
-import Organizations from './platform/pages/Organizations';
-import OrganizationDetail from './platform/pages/OrganizationDetail';
-import CreateOrganization from './platform/pages/CreateOrganization';
-import PlatformModules from './platform/pages/PlatformModules';
-import Plans from './platform/pages/Plans';
-import Billing from './platform/pages/Billing';
-import PlatformUsers from './platform/pages/PlatformUsers';
+
+function PageSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-[300px]">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent" />
+    </div>
+  );
+}
+
+function LazyPage({ name, children }) {
+  return (
+    <ErrorBoundary name={name}>
+      <Suspense fallback={<PageSpinner />}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
 
 function ForcePasswordChange() {
   const { user, setUser, logout } = useAuth();
@@ -220,7 +244,9 @@ export default function App() {
 
       {/* Platform portal routes */}
       <Route path="/platform/login" element={
-        <PlatformAuthProvider><PlatformLogin /></PlatformAuthProvider>
+        <PlatformAuthProvider>
+          <LazyPage name="Platform Login"><PlatformLogin /></LazyPage>
+        </PlatformAuthProvider>
       } />
       <Route path="/platform" element={
         <PlatformAuthProvider>
@@ -229,41 +255,42 @@ export default function App() {
           </PlatformProtectedRoute>
         </PlatformAuthProvider>
       }>
-        <Route index element={<PlatformDashboard />} />
-        <Route path="organizations" element={<Organizations />} />
-        <Route path="organizations/new" element={<CreateOrganization />} />
-        <Route path="organizations/:id" element={<OrganizationDetail />} />
-        <Route path="modules" element={<PlatformModules />} />
-        <Route path="plans" element={<Plans />} />
-        <Route path="billing" element={<Billing />} />
-        <Route path="users" element={<PlatformUsers />} />
+        <Route index element={<LazyPage name="Platform Dashboard"><PlatformDashboard /></LazyPage>} />
+        <Route path="organizations" element={<LazyPage name="Organizations"><Organizations /></LazyPage>} />
+        <Route path="organizations/new" element={<LazyPage name="Create Organization"><CreateOrganization /></LazyPage>} />
+        <Route path="organizations/:id" element={<LazyPage name="Organization Detail"><OrganizationDetail /></LazyPage>} />
+        <Route path="modules" element={<LazyPage name="Modules"><PlatformModules /></LazyPage>} />
+        <Route path="plans" element={<LazyPage name="Plans"><Plans /></LazyPage>} />
+        <Route path="billing" element={<LazyPage name="Billing"><Billing /></LazyPage>} />
+        <Route path="users" element={<LazyPage name="Users"><PlatformUsers /></LazyPage>} />
+        <Route path="app-update" element={<LazyPage name="App Update"><AppUpdateManager /></LazyPage>} />
+        <Route path="devices" element={<LazyPage name="Devices"><PlatformDevices /></LazyPage>} />
       </Route>
 
       {/* Org-level routes */}
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="attendance" element={<Attendance />} />
-        <Route path="leaves" element={<Leaves />} />
-        <Route path="leave-management" element={<AdminRoute><LeaveManagement /></AdminRoute>} />
-        <Route path="leave-calendar" element={<LeaveCalendar />} />
-        <Route path="notices" element={<Notices />} />
-        <Route path="employees" element={<AdminRoute><Employees /></AdminRoute>} />
-        <Route path="employees/:id" element={<AdminRoute><EmployeeProfile /></AdminRoute>} />
-        <Route path="employee-attendance" element={<AdminRoute><EmployeeAttendance /></AdminRoute>} />
-        <Route path="activity-log" element={<ActivityLog />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
-        <Route path="holidays" element={<AdminRoute><HolidayManager /></AdminRoute>} />
-        <Route path="app-update" element={<AdminRoute><AppUpdate /></AdminRoute>} />
-        <Route path="branches" element={<AdminRoute><BranchManagement /></AdminRoute>} />
-        <Route path="roles" element={<AdminRoute><RoleManagement /></AdminRoute>} />
-        <Route path="shifts" element={<AdminRoute><ShiftManagement /></AdminRoute>} />
-        <Route path="schedules" element={<AdminRoute><ScheduleManagement /></AdminRoute>} />
-        <Route path="assignments" element={<AdminRoute><EmployeeAssignments /></AdminRoute>} />
-        <Route path="devices" element={<AdminRoute><DeviceManagement /></AdminRoute>} />
-        <Route path="reports" element={<AdminRoute><Reports /></AdminRoute>} />
-        <Route path="payroll" element={<AdminRoute><PayrollOvertime /></AdminRoute>} />
-        <Route path="geofence" element={<AdminRoute><GeofenceManagement /></AdminRoute>} />
+        <Route index element={<LazyPage name="Dashboard"><Dashboard /></LazyPage>} />
+        <Route path="attendance" element={<LazyPage name="Attendance"><Attendance /></LazyPage>} />
+        <Route path="leaves" element={<LazyPage name="Leaves"><Leaves /></LazyPage>} />
+        <Route path="leave-management" element={<AdminRoute><LazyPage name="Leave Management"><LeaveManagement /></LazyPage></AdminRoute>} />
+        <Route path="leave-calendar" element={<LazyPage name="Leave Calendar"><LeaveCalendar /></LazyPage>} />
+        <Route path="notices" element={<LazyPage name="Notices"><Notices /></LazyPage>} />
+        <Route path="employees" element={<AdminRoute><LazyPage name="Employees"><Employees /></LazyPage></AdminRoute>} />
+        <Route path="employees/:id" element={<AdminRoute><LazyPage name="Employee Profile"><EmployeeProfile /></LazyPage></AdminRoute>} />
+        <Route path="employee-attendance" element={<AdminRoute><LazyPage name="Employee Attendance"><EmployeeAttendance /></LazyPage></AdminRoute>} />
+        <Route path="activity-log" element={<LazyPage name="Activity Log"><ActivityLog /></LazyPage>} />
+        <Route path="profile" element={<LazyPage name="Profile"><Profile /></LazyPage>} />
+        <Route path="settings" element={<AdminRoute><LazyPage name="Settings"><Settings /></LazyPage></AdminRoute>} />
+        <Route path="holidays" element={<AdminRoute><LazyPage name="Holidays"><HolidayManager /></LazyPage></AdminRoute>} />
+        <Route path="branches" element={<AdminRoute><LazyPage name="Branches"><BranchManagement /></LazyPage></AdminRoute>} />
+        <Route path="roles" element={<AdminRoute><LazyPage name="Roles"><RoleManagement /></LazyPage></AdminRoute>} />
+        <Route path="shifts" element={<AdminRoute><LazyPage name="Shifts"><ShiftManagement /></LazyPage></AdminRoute>} />
+        <Route path="schedules" element={<AdminRoute><LazyPage name="Schedules"><ScheduleManagement /></LazyPage></AdminRoute>} />
+        <Route path="assignments" element={<AdminRoute><LazyPage name="Assignments"><EmployeeAssignments /></LazyPage></AdminRoute>} />
+        <Route path="reports" element={<AdminRoute><LazyPage name="Reports"><Reports /></LazyPage></AdminRoute>} />
+        <Route path="payroll" element={<AdminRoute><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
+        <Route path="geofence" element={<AdminRoute><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
+        <Route path="nfc" element={<AdminRoute><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

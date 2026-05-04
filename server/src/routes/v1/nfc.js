@@ -23,10 +23,7 @@ router.post('/heartbeat', authenticateDevice, async (req, res, next) => {
     const { device_id, reader_connected } = req.body;
     if (!device_id) return res.status(400).json({ error: 'device_id required' });
 
-    await deviceService.recordHeartbeat({
-      deviceId: req.device.id,
-      metadata: { reader_connected: !!reader_connected },
-    });
+    await deviceService.recordHeartbeat(req.device.id);
 
     res.json({ ok: true });
   } catch (err) { next(err); }
@@ -43,20 +40,20 @@ router.get('/reader-status', authenticate, tenantContext, requireRole('org_admin
         deviceSerial: true,
         name: true,
         location: true,
-        lastHeartbeat: true,
+        lastHeartbeatAt: true,
       },
     });
 
     const now = Date.now();
     const STALE_MS = 15000;
     const readers = devices.map(d => {
-      const online = d.lastHeartbeat && (now - d.lastHeartbeat.getTime()) < STALE_MS;
+      const online = d.lastHeartbeatAt && (now - d.lastHeartbeatAt.getTime()) < STALE_MS;
       return {
         device_id: d.deviceSerial,
         name: d.name,
         online,
         reader_connected: online,
-        last_seen: d.lastHeartbeat?.toISOString() || null,
+        last_seen: d.lastHeartbeatAt?.toISOString() || null,
       };
     });
 
@@ -368,13 +365,14 @@ router.post('/write-jobs', authenticate, tenantContext, requireRole('org_admin')
 
 router.get('/write-jobs', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
   try {
-    const where = {};
+    const where = { employee: { orgId: req.orgId } };
     if (req.query.status) where.status = req.query.status.toUpperCase();
 
     const jobs = await prisma.deviceWriteJob.findMany({
       where,
       include: {
         device: { select: { name: true, deviceSerial: true } },
+        employee: { select: { name: true, employeeCode: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -387,7 +385,7 @@ router.get('/write-jobs', authenticate, tenantContext, requireRole('org_admin'),
 router.put('/write-jobs/:id/cancel', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
   try {
     const job = await prisma.deviceWriteJob.findFirst({
-      where: { id: req.params.id, status: 'PENDING' },
+      where: { id: req.params.id, status: 'PENDING', employee: { orgId: req.orgId } },
     });
     if (!job) return res.status(404).json({ error: 'Pending write job not found' });
 

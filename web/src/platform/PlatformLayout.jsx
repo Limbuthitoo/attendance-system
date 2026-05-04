@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { usePlatformAuth } from './PlatformAuthContext';
-import { LayoutDashboard, Building2, Boxes, CreditCard, Receipt, Users, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Building2, Boxes, CreditCard, Receipt, Users, LogOut, Shield, Smartphone, Radio } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/platform', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { path: '/platform/billing', icon: Receipt, label: 'Billing' },
   { path: '/platform/modules', icon: Boxes, label: 'Modules' },
   { path: '/platform/users', icon: Users, label: 'Users' },
+  { path: '/platform/app-update', icon: Smartphone, label: 'App Update' },
+  { path: '/platform/devices', icon: Radio, label: 'Devices' },
 ];
 
 export default function PlatformLayout() {
@@ -79,7 +81,7 @@ export default function PlatformLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto p-6">
         <Outlet />
       </main>
     </div>

@@ -129,7 +129,7 @@ export default function Billing() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Billing & Invoices</h1>

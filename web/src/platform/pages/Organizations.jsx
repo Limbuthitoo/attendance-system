@@ -62,9 +62,12 @@ export default function Organizations() {
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Organizations</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Organizations</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage tenant organizations</p>
+        </div>
         <Link
           to="/platform/organizations/new"
           className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

@@ -19,12 +19,18 @@ function getToken() {
 }
 
 async function request(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const headers = { ...options.headers };
+  if (!options.isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers, credentials: 'include' });
+  const fetchOpts = { ...options, headers, credentials: 'include' };
+  delete fetchOpts.isFormData;
+
+  const res = await fetch(`${BASE}${path}`, fetchOpts);
 
   // Auto-refresh on 401
   if (res.status === 401 && !options._retried) {
@@ -230,5 +236,24 @@ export async function createOrgBranch(orgId, data) {
     body: JSON.stringify(data),
   });
 }
+
+// ── App Update ──────────────────────────────────────────────────────────────
+export async function getAppRelease() {
+  return request('/app-update/current');
+}
+
+export async function uploadAppRelease(formData) {
+  return request('/app-update/upload', { method: 'POST', body: formData, isFormData: true });
+}
+
+export async function deleteAppRelease() {
+  return request('/app-update/current', { method: 'DELETE' });
+}
+
+export const platformApi = {
+  getAppRelease,
+  uploadAppRelease,
+  deleteAppRelease,
+};
 
 export { getToken, setToken };

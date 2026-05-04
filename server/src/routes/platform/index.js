@@ -12,6 +12,8 @@ const dashboardRoutes = require('./dashboard');
 const planRoutes = require('./plans');
 const billingRoutes = require('./billing');
 const userRoutes = require('./users');
+const appUpdateRoutes = require('./app-update');
+const deviceRoutes = require('./devices');
 
 const router = Router();
 
@@ -25,5 +27,7 @@ router.use('/plans', authenticatePlatform, planRoutes);
 router.use('/billing', authenticatePlatform, billingRoutes);
 router.use('/users', authenticatePlatform, userRoutes);
 router.use('/dashboard', authenticatePlatform, dashboardRoutes);
+router.use('/app-update', authenticatePlatform, appUpdateRoutes);
+router.use('/devices', authenticatePlatform, deviceRoutes);
 
 module.exports = router;

@@ -27,8 +27,9 @@ export default function PlatformModules() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Available Modules</h1>
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Available Modules</h1>
+      <p className="text-sm text-gray-500 mb-6">Manage feature modules for organizations</p>
       <p className="text-gray-500 mb-6">
         These are the modules available on the platform. Modules can be enabled or disabled per organization.
       </p>

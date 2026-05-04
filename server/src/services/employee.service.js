@@ -158,6 +158,18 @@ async function createEmployee({ orgId, data, adminId, req }) {
     throw Object.assign(new Error('Invalid email format'), { status: 400 });
   }
 
+  // Ensure email is unique across all active employees (all orgs)
+  const existingActive = await prisma.employee.findFirst({
+    where: { email: data.email, isActive: true },
+    select: { id: true, orgId: true },
+  });
+  if (existingActive) {
+    if (existingActive.orgId === orgId) {
+      throw Object.assign(new Error('An employee with this email already exists'), { status: 409 });
+    }
+    throw Object.assign(new Error('This email is already in use by another organization. The employee must be deactivated there first.'), { status: 409 });
+  }
+
   const validation = validatePassword(data.password);
   if (!validation.valid) {
     throw Object.assign(new Error(validation.error), { status: 400 });

@@ -38,8 +38,9 @@ export default function PlatformDashboard() {
   ];
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Platform Dashboard</h1>
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Platform Dashboard</h1>
+      <p className="text-sm text-gray-500 mb-6">Overview of your SaaS platform</p>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

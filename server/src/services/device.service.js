@@ -11,7 +11,7 @@ const { cacheInvalidate } = require('../config/redis');
  * Register a new device
  * Returns the plaintext API key (shown once, then only hash stored).
  */
-async function registerDevice({ orgId, branchId, deviceType, deviceSerial, name, location, adminId, req }) {
+async function registerDevice({ orgId, branchId, deviceType, deviceSerial, name, brand, model, location, adminId, req }) {
   const prisma = getPrisma();
 
   // Block if org subscription is not active
@@ -39,6 +39,8 @@ async function registerDevice({ orgId, branchId, deviceType, deviceSerial, name,
       deviceType,
       deviceSerial,
       name: name || null,
+      brand: brand || null,
+      model: model || null,
       location: location || null,
       apiKeyHash,
     },
@@ -149,6 +151,8 @@ async function listDevices({ orgId, branchId, deviceType }) {
       deviceType: true,
       deviceSerial: true,
       name: true,
+      brand: true,
+      model: true,
       location: true,
       firmwareVersion: true,
       lastHeartbeatAt: true,

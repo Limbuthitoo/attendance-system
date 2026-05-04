@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,19 +11,53 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import UpdateChecker from './src/components/UpdateChecker';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
-import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import AttendanceScreen from './src/screens/AttendanceScreen';
-import LeavesScreen from './src/screens/LeavesScreen';
-import EmployeesScreen from './src/screens/EmployeesScreen';
-import CalendarScreen from './src/screens/CalendarScreen';
-import LeaveRequestsScreen from './src/screens/LeaveRequestsScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
-import NoticesScreen from './src/screens/NoticesScreen';
-import EmployeeAttendanceScreen from './src/screens/EmployeeAttendanceScreen';
-import QrCheckInScreen from './src/screens/QrCheckInScreen';
 import { api } from './src/api';
+
+// ── Lazy-loaded screens ─────────────────────────────────────────────────────
+const ChangePasswordScreen = lazy(() => import('./src/screens/ChangePasswordScreen'));
+const AttendanceScreen = lazy(() => import('./src/screens/AttendanceScreen'));
+const LeavesScreen = lazy(() => import('./src/screens/LeavesScreen'));
+const EmployeesScreen = lazy(() => import('./src/screens/EmployeesScreen'));
+const CalendarScreen = lazy(() => import('./src/screens/CalendarScreen'));
+const LeaveRequestsScreen = lazy(() => import('./src/screens/LeaveRequestsScreen'));
+const ProfileScreen = lazy(() => import('./src/screens/ProfileScreen'));
+const NotificationsScreen = lazy(() => import('./src/screens/NotificationsScreen'));
+const NoticesScreen = lazy(() => import('./src/screens/NoticesScreen'));
+const EmployeeAttendanceScreen = lazy(() => import('./src/screens/EmployeeAttendanceScreen'));
+const QrCheckInScreen = lazy(() => import('./src/screens/QrCheckInScreen'));
+
+function ScreenFallback() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' }}>
+      <ActivityIndicator size="large" color="#1e40af" />
+    </View>
+  );
+}
+
+function withLazy(LazyComponent) {
+  return function LazyWrapper(props) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<ScreenFallback />}>
+          <LazyComponent {...props} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  };
+}
+
+const LazyChangePassword = withLazy(ChangePasswordScreen);
+const LazyAttendance = withLazy(AttendanceScreen);
+const LazyLeaves = withLazy(LeavesScreen);
+const LazyEmployees = withLazy(EmployeesScreen);
+const LazyCalendar = withLazy(CalendarScreen);
+const LazyLeaveRequests = withLazy(LeaveRequestsScreen);
+const LazyProfile = withLazy(ProfileScreen);
+const LazyNotifications = withLazy(NotificationsScreen);
+const LazyNotices = withLazy(NoticesScreen);
+const LazyEmployeeAttendance = withLazy(EmployeeAttendanceScreen);
+const LazyQrCheckIn = withLazy(QrCheckInScreen);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -123,18 +157,18 @@ function MenuStackScreen() {
       }}
     >
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
-      <MenuStack.Screen name="NotificationsPage" component={NotificationsScreen} options={{ headerTitle: 'Notifications' }} />
-      <MenuStack.Screen name="NoticesPage" component={NoticesScreen} options={{ headerTitle: 'Notices' }} />
-      <MenuStack.Screen name="ProfilePage" component={ProfileScreen} options={{ headerTitle: 'My Profile' }} />
-      <MenuStack.Screen name="ChangePasswordPage" component={ChangePasswordScreen} options={{ headerTitle: 'Change Password' }} />
+      <MenuStack.Screen name="NotificationsPage" component={LazyNotifications} options={{ headerTitle: 'Notifications' }} />
+      <MenuStack.Screen name="NoticesPage" component={LazyNotices} options={{ headerTitle: 'Notices' }} />
+      <MenuStack.Screen name="ProfilePage" component={LazyProfile} options={{ headerTitle: 'My Profile' }} />
+      <MenuStack.Screen name="ChangePasswordPage" component={LazyChangePassword} options={{ headerTitle: 'Change Password' }} />
       {user?.role === 'admin' && (
-        <MenuStack.Screen name="RequestsPage" component={LeaveRequestsScreen} options={{ headerTitle: 'Leave Requests' }} />
+        <MenuStack.Screen name="RequestsPage" component={LazyLeaveRequests} options={{ headerTitle: 'Leave Requests' }} />
       )}
       {user?.role === 'admin' && (
-        <MenuStack.Screen name="EmployeesPage" component={EmployeesScreen} options={{ headerTitle: 'Employees' }} />
+        <MenuStack.Screen name="EmployeesPage" component={LazyEmployees} options={{ headerTitle: 'Employees' }} />
       )}
       {user?.role === 'admin' && (
-        <MenuStack.Screen name="EmployeeAttendancePage" component={EmployeeAttendanceScreen} options={{ headerTitle: 'Employee Attendance' }} />
+        <MenuStack.Screen name="EmployeeAttendancePage" component={LazyEmployeeAttendance} options={{ headerTitle: 'Employee Attendance' }} />
       )}
     </MenuStack.Navigator>
   );
@@ -178,18 +212,18 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="My Attendance" component={AttendanceScreen} options={{ headerTitle: 'My Attendance' }} />
+      <Tab.Screen name="My Attendance" component={LazyAttendance} options={{ headerTitle: 'My Attendance' }} />
       <Tab.Screen
         name="QR Check-In"
-        component={QrCheckInScreen}
+        component={LazyQrCheckIn}
         options={{
           headerTitle: 'QR Check-In',
           headerStyle: { backgroundColor: '#0f172a' },
           headerTitleStyle: { color: '#ffffff', fontWeight: '700' },
         }}
       />
-      <Tab.Screen name="Leaves" component={LeavesScreen} options={{ headerTitle: 'Leave Management' }} />
-      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: 'Monthly Calendar' }} />
+      <Tab.Screen name="Leaves" component={LazyLeaves} options={{ headerTitle: 'Leave Management' }} />
+      <Tab.Screen name="Calendar" component={LazyCalendar} options={{ headerTitle: 'Monthly Calendar' }} />
       <Tab.Screen
         name="More"
         component={MenuStackScreen}
@@ -220,13 +254,13 @@ function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
         user.must_change_password ? (
-          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+          <Stack.Screen name="ChangePassword" component={LazyChangePassword} />
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
               name="ProfileModal"
-              component={ProfileScreen}
+              component={LazyProfile}
               options={{
                 headerShown: true,
                 headerTitle: 'My Profile',
@@ -240,7 +274,7 @@ function AppNavigator() {
             />
             <Stack.Screen
               name="ChangePasswordPage"
-              component={ChangePasswordScreen}
+              component={LazyChangePassword}
               options={{
                 headerShown: true,
                 headerTitle: 'Change Password',

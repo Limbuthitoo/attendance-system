@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, shadows, radius } from '../theme';
-import api from '../api';
+import { api } from '../api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCANNER_SIZE = SCREEN_WIDTH * 0.7;

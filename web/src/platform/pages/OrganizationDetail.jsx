@@ -130,7 +130,7 @@ export default function OrganizationDetail() {
   ];
 
   return (
-    <div className="p-8">
+    <div>
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button

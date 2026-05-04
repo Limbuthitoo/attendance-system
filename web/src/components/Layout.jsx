@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, Radio, BarChart3, DollarSign, Navigation
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, BarChart3, DollarSign, Navigation, CreditCard
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
@@ -106,9 +106,8 @@ export default function Layout() {
             items: [
               { to: '/settings', icon: Settings, label: 'General Settings' },
               { to: '/holidays', icon: Star, label: 'Holidays' },
-              { to: '/devices', icon: Radio, label: 'Devices' },
               { to: '/geofence', icon: Navigation, label: 'Geofence' },
-              { to: '/app-update', icon: Smartphone, label: 'App Update' },
+              { to: '/nfc', icon: CreditCard, label: 'NFC Management' },
             ],
           },
         ]

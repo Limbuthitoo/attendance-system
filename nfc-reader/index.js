@@ -13,6 +13,7 @@ function sanitizeDeviceId(value) {
 
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 const NFC_API_KEY = process.env.NFC_API_KEY;
+const DEVICE_SERIAL = process.env.DEVICE_SERIAL;
 const DEVICE_ID = sanitizeDeviceId(process.env.DEVICE_ID);
 const DEBOUNCE_SECONDS = parsePositiveInt(process.env.DEBOUNCE_SECONDS, 10);
 const RETRY_QUEUE_MAX = parsePositiveInt(process.env.RETRY_QUEUE_MAX, 100);
@@ -23,6 +24,11 @@ const API_TIMEOUT_MS = parsePositiveInt(process.env.API_TIMEOUT_MS, 10000);
 
 if (!NFC_API_KEY) {
   console.error('ERROR: NFC_API_KEY is required in .env');
+  process.exit(1);
+}
+
+if (!DEVICE_SERIAL) {
+  console.error('ERROR: DEVICE_SERIAL is required in .env (the serial from platform device registration)');
   process.exit(1);
 }
 
@@ -39,6 +45,7 @@ try {
 const apiHeaders = {
   'Content-Type': 'application/json',
   'X-Api-Key': NFC_API_KEY,
+  'X-Device-Serial': DEVICE_SERIAL,
 };
 
 function formatError(err) {
@@ -379,6 +386,7 @@ function renderBanner(statusMessage) {
   console.log('═══════════════════════════════════════════════');
   console.log(' Archisys NFC Reader Service');
   console.log(`  Backend:    ${API_URL}`);
+  console.log(`  Serial:     ${DEVICE_SERIAL}`);
   console.log(`  Device:     ${DEVICE_ID}`);
   console.log(`  Debounce:   ${DEBOUNCE_SECONDS}s`);
   console.log(`  Cooldown:   ${ACTION_COOLDOWN_SECONDS}s after check-in/out`);

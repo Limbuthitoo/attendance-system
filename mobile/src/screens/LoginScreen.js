@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Image, StatusBar
+  Platform, ActivityIndicator, Alert, Image, StatusBar, ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +47,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.formWrapper}
       >
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email Address</Text>
@@ -56,7 +57,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="you@archisys.com"
+                placeholder="you@company.com"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -101,6 +102,7 @@ export default function LoginScreen() {
         </View>
 
         <Text style={styles.footer}>© {new Date().getFullYear()} Archisys Innovations Pvt. Ltd.</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );

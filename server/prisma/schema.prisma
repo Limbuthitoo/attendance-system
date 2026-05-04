@@ -263,6 +263,7 @@ model Employee {
   appReleases        AppRelease[]
   noticesPublished    Notice[]
   deviceEvents        DeviceEvent[]
+  deviceWriteJobs     DeviceWriteJob[]
   overtimeRecords     OvertimeRecord[]
   overtimeApprovals   OvertimeRecord[] @relation("overtime_approver")
   payrollSummaries    PayrollSummary[]
@@ -385,6 +386,8 @@ model Device {
   deviceType      DeviceType @map("device_type")
   deviceSerial    String     @unique @map("device_serial")
   name            String?
+  brand           String?
+  model           String?
   location        String?
   apiKeyHash      String     @map("api_key_hash")   // bcrypt hashed per-device key
   firmwareVersion String?    @map("firmware_version")
@@ -494,6 +497,7 @@ model DeviceWriteJob {
   completedAt    DateTime?      @map("completed_at")
 
   device         Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("device_write_jobs")
 }
