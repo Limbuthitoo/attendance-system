@@ -2,8 +2,8 @@
 // Auth Routes (v1) — Login, refresh, logout, password management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate } = require('../../middleware/auth.new');
-const { setAuthCookies, clearAuthCookies } = require('../../middleware/auth.new');
+const { authenticate } = require('../../middleware/auth');
+const { setAuthCookies, clearAuthCookies } = require('../../middleware/auth');
 const authService = require('../../services/auth.service');
 const { registerPushToken, removePushToken } = require('../../services/notification.service');
 

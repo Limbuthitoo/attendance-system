@@ -2,7 +2,7 @@
 // Employee Routes (v1) — CRUD, profile, assignment
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const employeeService = require('../../services/employee.service');
 const authService = require('../../services/auth.service');
 

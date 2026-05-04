@@ -2,7 +2,7 @@
 // Holiday Routes (v1)
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 const { auditLog } = require('../../lib/audit');
 

@@ -2,8 +2,8 @@
 // QR Attendance Routes (v1) — QR code generation, verification & mobile check-in
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth.new');
-const { authenticateDevice } = require('../../middleware/deviceAuth.new');
+const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const qrService = require('../../services/qr.service');
 const deviceService = require('../../services/device.service');

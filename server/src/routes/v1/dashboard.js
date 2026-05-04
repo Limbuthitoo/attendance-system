@@ -2,7 +2,7 @@
 // Dashboard Routes (v1) — Aggregated data for admin dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 
 const router = Router();

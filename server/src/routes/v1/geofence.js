@@ -2,7 +2,7 @@
 // Geofence Routes (v1) — Branch geofence config & location validation
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const geofenceService = require('../../services/geofence.service');
 
 const router = Router();

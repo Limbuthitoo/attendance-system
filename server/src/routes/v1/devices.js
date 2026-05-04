@@ -2,8 +2,8 @@
 // Device Routes (v1) — Unified device management + event ingestion
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth.new');
-const { authenticateDevice } = require('../../middleware/deviceAuth.new');
+const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const deviceService = require('../../services/device.service');
 const { getAdapter, getAdapterByCredentialType, listAdapters } = require('../../adapters');

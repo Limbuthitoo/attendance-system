@@ -37,11 +37,6 @@ const config = {
   // Platform seed
   platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL || 'admin@attendance.app',
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,
-
-  // Legacy migration
-  legacyDbPath: process.env.LEGACY_DB_PATH || '',
-  legacyOrgName: process.env.LEGACY_ORG_NAME || '',
-  legacyOrgSlug: process.env.LEGACY_ORG_SLUG || '',
 };
 
 // ── Validate required vars ──────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 // Payroll Routes (v1) — Generate summaries, view, export
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const payrollService = require('../../services/payroll.service');
 
 const router = Router();

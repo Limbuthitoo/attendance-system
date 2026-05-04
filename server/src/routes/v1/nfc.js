@@ -3,8 +3,8 @@
 // Bridges the old nfc-reader protocol to the new multi-tenant device service.
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth.new');
-const { authenticateDevice } = require('../../middleware/deviceAuth.new');
+const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const deviceService = require('../../services/device.service');
 const prisma = require('../../lib/prisma').getPrisma();

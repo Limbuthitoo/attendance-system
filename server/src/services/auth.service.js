@@ -9,7 +9,7 @@ const { auditLog } = require('../lib/audit');
 const {
   generateAccessToken,
   generateRefreshToken,
-} = require('../middleware/auth.new');
+} = require('../middleware/auth');
 
 const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;

@@ -2,7 +2,7 @@
 // V1 Branch Routes — Org-admin branch management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const branchService = require('../../services/branch.service');
 
 const router = Router();

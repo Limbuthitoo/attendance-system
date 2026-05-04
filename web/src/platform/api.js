@@ -26,6 +26,11 @@ async function request(path, options = {}) {
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
+  // CSRF token from cookie
+  const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
 
   const fetchOpts = { ...options, headers, credentials: 'include' };
   delete fetchOpts.isFormData;

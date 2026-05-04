@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { getPrisma } = require('../../lib/prisma');
 const {
   authenticatePlatform,
@@ -70,6 +71,13 @@ router.post('/login', async (req, res, next) => {
     const accessToken = generatePlatformAccessToken(user);
     const refreshToken = generatePlatformRefreshToken(user);
 
+    // Store hashed refresh token for revocation support
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await prisma.platformUser.update({
+      where: { id: user.id },
+      data: { refreshTokenHash },
+    });
+
     // Set HttpOnly cookies
     const cookieOpts = {
       httpOnly: true,
@@ -89,7 +97,7 @@ router.post('/login', async (req, res, next) => {
       path: '/api/platform/auth',
     });
 
-    const { password: _, ...safeUser } = user;
+    const { password: _, refreshTokenHash: __, ...safeUser } = user;
     res.json({
       user: safeUser,
       accessToken,
@@ -130,6 +138,12 @@ router.post('/refresh', async (req, res, next) => {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
 
+    // Verify refresh token matches stored hash (revocation check)
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    if (user.refreshTokenHash !== tokenHash) {
+      return res.status(401).json({ error: 'Refresh token has been revoked' });
+    }
+
     const accessToken = generatePlatformAccessToken(user);
 
     res.cookie('platform_access_token', accessToken, {
@@ -147,10 +161,20 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 // POST /api/platform/auth/logout
-router.post('/logout', (req, res) => {
-  res.clearCookie('platform_access_token', { path: '/' });
-  res.clearCookie('platform_refresh_token', { path: '/api/platform/auth' });
-  res.json({ message: 'Logged out' });
+router.post('/logout', authenticatePlatform, async (req, res, next) => {
+  try {
+    const prisma = getPrisma();
+    // Revoke refresh token server-side
+    await prisma.platformUser.update({
+      where: { id: req.platformUser.id },
+      data: { refreshTokenHash: null },
+    });
+    res.clearCookie('platform_access_token', { path: '/' });
+    res.clearCookie('platform_refresh_token', { path: '/api/platform/auth' });
+    res.json({ message: 'Logged out' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/platform/auth/me

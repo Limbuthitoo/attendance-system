@@ -2,7 +2,7 @@
 // Overtime Routes (v1) — Policies, records, approvals
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const overtimeService = require('../../services/overtime.service');
 
 const router = Router();

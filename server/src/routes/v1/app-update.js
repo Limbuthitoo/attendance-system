@@ -5,7 +5,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { authenticate, requireRole } = require('../../middleware/auth.new');
+const { authenticate, requireRole } = require('../../middleware/auth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const prisma = require('../../lib/prisma').getPrisma();
 

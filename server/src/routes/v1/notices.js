@@ -2,7 +2,7 @@
 // Notice Routes (v1)
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 const { enqueuePush } = require('../../config/queue');
 const { createBulkNotifications } = require('../../services/notification.service');

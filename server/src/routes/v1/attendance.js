@@ -2,7 +2,7 @@
 // Attendance Routes (v1) — Check-in, check-out, history
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const attendanceService = require('../../services/attendance.service');
 const { addSnakeCase, lowercaseEnum } = require('../../lib/compat');
 const { getPrisma } = require('../../lib/prisma');

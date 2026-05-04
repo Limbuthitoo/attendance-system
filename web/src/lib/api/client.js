@@ -31,9 +31,11 @@ async function refreshAccessToken() {
 export async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const isFormData = options.body instanceof FormData;
+  const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
   const headers = {
     ...(!isFormData && { 'Content-Type': 'application/json' }),
     ...(token && { Authorization: `Bearer ${token}` }),
+    ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
     ...options.headers,
   };
 

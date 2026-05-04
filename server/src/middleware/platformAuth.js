@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform Authentication Middleware — For super-admin / platform support users
-// Separate from org employee auth (auth.new.js)
+// Separate from org employee auth (auth.js)
 // ─────────────────────────────────────────────────────────────────────────────
 const jwt = require('jsonwebtoken');
 const config = require('../config');

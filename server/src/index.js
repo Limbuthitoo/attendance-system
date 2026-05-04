@@ -40,12 +40,12 @@ app.use(cookieParser());
 // ── CORS ────────────────────────────────────────────────────────────────────
 const corsOrigin = config.corsOrigin;
 if (!corsOrigin && config.isProd) {
-  console.warn('⚠ WARNING: CORS_ORIGIN is not set in production!');
+  console.error('✗ FATAL: CORS_ORIGIN must be set in production! Rejecting all cross-origin requests.');
 }
 app.use(cors({
   origin: corsOrigin
     ? corsOrigin.split(',').map((s) => s.trim())
-    : true,
+    : false,
   credentials: true,
 }));
 
@@ -55,6 +55,11 @@ app.use(express.json({ limit: '1mb' }));
 // ── XSS sanitization ───────────────────────────────────────────────────────
 const sanitizeInput = require('./middleware/sanitize');
 app.use(sanitizeInput);
+
+// ── CSRF protection ────────────────────────────────────────────────────────
+const { csrfSetToken, csrfValidate } = require('./middleware/csrf');
+app.use(csrfSetToken);
+app.use(csrfValidate);
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
 const authLimiter = rateLimit({

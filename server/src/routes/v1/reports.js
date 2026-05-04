@@ -2,7 +2,7 @@
 // Report Routes (v1) — Analytics, attendance reports, exports
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const reportService = require('../../services/report.service');
 
 const router = Router();

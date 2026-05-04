@@ -2,7 +2,7 @@
 // Leave Routes (v1) — Apply, review, cancel, history
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const leaveService = require('../../services/leave.service');
 const { addSnakeCase, lowercaseEnum } = require('../../lib/compat');
 

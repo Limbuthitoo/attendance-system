@@ -2,7 +2,7 @@
 // V1 Role Routes — Org-admin RBAC management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth.new');
+const { requireRole } = require('../../middleware/auth');
 const roleService = require('../../services/role.service');
 
 const router = Router();

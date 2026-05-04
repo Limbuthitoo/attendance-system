@@ -2,7 +2,7 @@
 // API v1 Router Index — Mounts all v1 sub-routers
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate } = require('../../middleware/auth.new');
+const { authenticate } = require('../../middleware/auth');
 const { tenantContext } = require('../../middleware/tenantContext');
 
 const authRoutes = require('./auth');
