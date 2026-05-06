@@ -25,11 +25,14 @@ async function authenticateDevice(req, res, next) {
   try {
     // Check cache first (avoid DB + bcrypt on every request)
     const cacheKey = `device:auth:${deviceSerial}`;
-    let device = await cacheGet(cacheKey);
+    let cachedDevice = null;
+    try {
+      cachedDevice = await cacheGet(cacheKey);
+    } catch (_) { /* Redis unavailable — fall through to DB */ }
 
-    if (!device) {
+    if (!cachedDevice) {
       const prisma = getPrisma();
-      device = await prisma.device.findUnique({
+      cachedDevice = await prisma.device.findUnique({
         where: { deviceSerial },
         select: {
           id: true,
@@ -42,25 +45,24 @@ async function authenticateDevice(req, res, next) {
         },
       });
 
-      if (!device) {
+      if (!cachedDevice) {
         return res.status(401).json({ error: 'Unknown device' });
       }
+
+      try { await cacheSet(cacheKey, cachedDevice, 300); } catch (_) { /* Redis unavailable */ }
     }
 
-    if (!device.isActive) {
+    if (!cachedDevice.isActive) {
       return res.status(403).json({ error: 'Device is deactivated' });
     }
 
     // Verify API key (bcrypt compare)
-    const valid = await bcrypt.compare(apiKey, device.apiKeyHash);
+    const valid = await bcrypt.compare(apiKey, cachedDevice.apiKeyHash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid API key' });
     }
 
-    // Cache the device record (5 min) — excludes apiKeyHash for safety
-    const { apiKeyHash, ...deviceInfo } = device;
-    await cacheSet(cacheKey, deviceInfo, 300);
-
+    const { apiKeyHash, ...deviceInfo } = cachedDevice;
     req.device = deviceInfo;
     next();
   } catch (err) {

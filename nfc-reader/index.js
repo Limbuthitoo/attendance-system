@@ -14,7 +14,7 @@ function sanitizeDeviceId(value) {
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 const NFC_API_KEY = process.env.NFC_API_KEY;
 const DEVICE_SERIAL = process.env.DEVICE_SERIAL;
-const DEVICE_ID = sanitizeDeviceId(process.env.DEVICE_ID);
+const DEVICE_ID = sanitizeDeviceId(process.env.DEVICE_ID || DEVICE_SERIAL);
 const DEBOUNCE_SECONDS = parsePositiveInt(process.env.DEBOUNCE_SECONDS, 10);
 const RETRY_QUEUE_MAX = parsePositiveInt(process.env.RETRY_QUEUE_MAX, 100);
 const WRITE_POLL_SECONDS = parsePositiveInt(process.env.WRITE_POLL_SECONDS, 3);
