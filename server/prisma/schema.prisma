@@ -86,7 +86,7 @@ model Organization {
   policies            Policy[]
   salaryStructures    SalaryStructure[]
   payslips            Payslip[]
-  loanAdvances        LoanAdvance[]
+  advanceSalaries     AdvanceSalary[]
   emergencyContacts   EmergencyContact[]
   employeeDocuments   EmployeeDocument[]
 
@@ -303,7 +303,7 @@ model Employee {
   policiesCreated     Policy[]
   salaryStructures    SalaryStructure[]
   payslips            Payslip[]
-  loanAdvances        LoanAdvance[]
+  advanceSalaries     AdvanceSalary[]
   emergencyContacts   EmergencyContact[]
   documents           EmployeeDocument[]
 
@@ -1055,8 +1055,7 @@ model Payslip {
   tds                 Decimal  @default(0) @db.Decimal(12,2) // Tax Deducted at Source
   unpaidLeaveDeduction Decimal @default(0) @map("unpaid_leave_deduction") @db.Decimal(12,2)
   absenceDeduction    Decimal  @default(0) @map("absence_deduction") @db.Decimal(12,2)
-  loanDeduction       Decimal  @default(0) @map("loan_deduction") @db.Decimal(12,2)
-  advanceDeduction    Decimal  @default(0) @map("advance_deduction") @db.Decimal(12,2)
+  advanceSalaryDeduction Decimal @default(0) @map("advance_salary_deduction") @db.Decimal(12,2)
   otherDeductions     Json     @default("{}") @map("other_deductions") // { insurance: 500, ... }
   totalDeductions     Decimal  @map("total_deductions") @db.Decimal(12,2)
 
@@ -1094,14 +1093,13 @@ enum PayslipStatus {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOAN & ADVANCE (per employee — tracked with monthly deduction)
+// ADVANCE SALARY (per employee — tracked with monthly deduction)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-model LoanAdvance {
+model AdvanceSalary {
   id                String   @id @default(uuid()) @db.Uuid
   orgId             String   @map("org_id") @db.Uuid
   employeeId        String   @map("employee_id") @db.Uuid
-  type              String   // LOAN or ADVANCE
   description       String?
   totalAmount       Decimal  @map("total_amount") @db.Decimal(12,2)
   remainingAmount   Decimal  @map("remaining_amount") @db.Decimal(12,2)
@@ -1116,5 +1114,5 @@ model LoanAdvance {
   employee          Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([orgId, employeeId, isActive])
-  @@map("loan_advances")
+  @@map("advance_salaries")
 }

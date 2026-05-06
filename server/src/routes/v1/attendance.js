@@ -111,11 +111,11 @@ router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next
     const prisma = getPrisma();
     const orgId = req.orgId;
 
-    const dateStart = new Date(date + 'T00:00:00+05:45');
-    const dateEnd = new Date(date + 'T23:59:59+05:45');
+    // The date column is a PostgreSQL DATE type — use a plain date string for exact match
+    const dateFilter = new Date(date + 'T00:00:00.000Z');
 
     const records = await prisma.attendance.findMany({
-      where: { orgId, date: { gte: dateStart, lte: dateEnd } },
+      where: { orgId, date: dateFilter },
       include: {
         employee: { select: { id: true, name: true, employeeCode: true, department: true, designation: true } },
       },

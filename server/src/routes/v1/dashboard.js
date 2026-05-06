@@ -22,16 +22,15 @@ router.get('/stats', async (req, res, next) => {
     const isAdmin = req.user.role === 'admin' || req.user.roles?.some(r => ['org_admin', 'hr_manager'].includes(r));
 
     if (isAdmin) {
-      const todayStart = new Date(today + 'T00:00:00+05:45');
-      const todayEnd = new Date(today + 'T23:59:59+05:45');
-      const monthStart = new Date(currentMonth + '-01T00:00:00+05:45');
+      const todayFilter = new Date(today + 'T00:00:00.000Z');
+      const monthStart = new Date(currentMonth + '-01T00:00:00.000Z');
 
       const [totalEmployees, presentToday, lateToday, halfDayToday, absentToday, pendingLeaves, monthlyRaw] = await Promise.all([
         prisma.employee.count({ where: { orgId, isActive: true } }),
-        prisma.attendance.count({ where: { orgId, date: { gte: todayStart, lte: todayEnd }, status: { in: ['PRESENT', 'LATE'] } } }),
-        prisma.attendance.count({ where: { orgId, date: { gte: todayStart, lte: todayEnd }, status: 'LATE' } }),
-        prisma.attendance.count({ where: { orgId, date: { gte: todayStart, lte: todayEnd }, status: 'HALF_DAY' } }),
-        prisma.attendance.count({ where: { orgId, date: { gte: todayStart, lte: todayEnd }, status: 'ABSENT' } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: { in: ['PRESENT', 'LATE'] } } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'LATE' } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'HALF_DAY' } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'ABSENT' } }),
         prisma.leave.count({ where: { orgId, status: 'PENDING' } }),
         prisma.attendance.groupBy({ by: ['status'], where: { orgId, date: { gte: monthStart } }, _count: true }),
       ]);
@@ -51,13 +50,12 @@ router.get('/stats', async (req, res, next) => {
         monthlyStats,
       });
     } else {
-      const todayStart = new Date(today + 'T00:00:00+05:45');
-      const todayEnd = new Date(today + 'T23:59:59+05:45');
-      const monthStart = new Date(currentMonth + '-01T00:00:00+05:45');
+      const todayFilter = new Date(today + 'T00:00:00.000Z');
+      const monthStart = new Date(currentMonth + '-01T00:00:00.000Z');
       const empId = req.user.id;
 
       const [todayRecord, monthRaw, pendingLeaves, approvedLeaves, workHoursAgg] = await Promise.all([
-        prisma.attendance.findFirst({ where: { employeeId: empId, date: { gte: todayStart, lte: todayEnd } } }),
+        prisma.attendance.findFirst({ where: { employeeId: empId, date: todayFilter } }),
         prisma.attendance.groupBy({ by: ['status'], where: { employeeId: empId, date: { gte: monthStart } }, _count: true }),
         prisma.leave.count({ where: { employeeId: empId, status: 'PENDING' } }),
         prisma.leave.count({ where: { employeeId: empId, status: 'APPROVED', startDate: { gte: new Date(`${new Date().getFullYear()}-01-01`) } } }),
@@ -139,8 +137,7 @@ router.get('/department-stats', async (req, res, next) => {
     const prisma = getPrisma();
     const orgId = req.orgId;
     const today = todayDate();
-    const todayStart = new Date(today + 'T00:00:00+05:45');
-    const todayEnd = new Date(today + 'T23:59:59+05:45');
+    const todayFilter = new Date(today + 'T00:00:00.000Z');
 
     const employees = await prisma.employee.findMany({
       where: { orgId, isActive: true },
@@ -148,7 +145,7 @@ router.get('/department-stats', async (req, res, next) => {
     });
 
     const todayAtt = await prisma.attendance.findMany({
-      where: { orgId, date: { gte: todayStart, lte: todayEnd } },
+      where: { orgId, date: todayFilter },
       select: { employeeId: true, status: true },
     });
 
@@ -232,8 +229,8 @@ router.get('/activity-log', async (req, res, next) => {
 
     const today = todayDate();
     const hasRange = start_date && end_date;
-    const dateFrom = hasRange ? new Date(start_date + 'T00:00:00+05:45') : new Date((date || today) + 'T00:00:00+05:45');
-    const dateTo = hasRange ? new Date(end_date + 'T23:59:59+05:45') : new Date((date || today) + 'T23:59:59+05:45');
+    const dateFrom = new Date((hasRange ? start_date : (date || today)) + 'T00:00:00.000Z');
+    const dateTo = new Date((hasRange ? end_date : (date || today)) + 'T00:00:00.000Z');
 
     const empFilter = isAdmin && employee_id ? employee_id : (isAdmin ? undefined : req.user.id);
 

@@ -136,34 +136,33 @@ router.post('/salary-structures', requireRole('org_admin', 'hr_manager'), async 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOAN & ADVANCE
+// ADVANCE SALARY
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// GET /api/v1/payroll/loans — Get all active loans/advances
-router.get('/loans', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+// GET /api/v1/payroll/advance-salaries — Get all active advance salaries
+router.get('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const { employeeId } = req.query;
     if (employeeId) {
-      const loans = await payrollEngine.getActiveLoanAdvances(req.orgId, employeeId);
-      return res.json({ loans });
+      const advances = await payrollEngine.getActiveAdvanceSalaries(req.orgId, employeeId);
+      return res.json({ advances });
     }
-    const loans = await payrollEngine.getAllLoanAdvances(req.orgId);
-    res.json({ loans });
+    const advances = await payrollEngine.getAllAdvanceSalaries(req.orgId);
+    res.json({ advances });
   } catch (err) { next(err); }
 });
 
-// POST /api/v1/payroll/loans — Create a loan/advance
-router.post('/loans', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+// POST /api/v1/payroll/advance-salaries — Create an advance salary
+router.post('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
-    const { employeeId, type, description, totalAmount, monthlyDeduction, startMonth, startYear } = req.body;
-    if (!employeeId || !type || !totalAmount || !monthlyDeduction) {
-      return res.status(400).json({ error: 'employeeId, type, totalAmount, and monthlyDeduction are required' });
+    const { employeeId, description, totalAmount, monthlyDeduction, startMonth, startYear } = req.body;
+    if (!employeeId || !totalAmount || !monthlyDeduction) {
+      return res.status(400).json({ error: 'employeeId, totalAmount, and monthlyDeduction are required' });
     }
 
-    const loan = await payrollEngine.createLoanAdvance({
+    const advance = await payrollEngine.createAdvanceSalary({
       orgId: req.orgId,
       employeeId,
-      type,
       description,
       totalAmount: parseFloat(totalAmount),
       monthlyDeduction: parseFloat(monthlyDeduction),
@@ -172,7 +171,7 @@ router.post('/loans', requireRole('org_admin', 'hr_manager'), async (req, res, n
       adminId: req.user.id,
       req,
     });
-    res.json(loan);
+    res.json(advance);
   } catch (err) { next(err); }
 });
 

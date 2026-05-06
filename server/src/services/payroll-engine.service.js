@@ -150,16 +150,15 @@ async function getAllSalaryStructures(orgId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOAN / ADVANCE MANAGEMENT
+// ADVANCE SALARY MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function createLoanAdvance({ orgId, employeeId, type, description, totalAmount, monthlyDeduction, startMonth, startYear, adminId, req }) {
+async function createAdvanceSalary({ orgId, employeeId, description, totalAmount, monthlyDeduction, startMonth, startYear, adminId, req }) {
   const prisma = getPrisma();
-  const record = await prisma.loanAdvance.create({
+  const record = await prisma.advanceSalary.create({
     data: {
       orgId,
       employeeId,
-      type, // LOAN or ADVANCE
       description,
       totalAmount,
       remainingAmount: totalAmount,
@@ -173,27 +172,27 @@ async function createLoanAdvance({ orgId, employeeId, type, description, totalAm
   await auditLog({
     orgId,
     actorId: adminId,
-    action: 'loan_advance.create',
-    resource: 'loan_advance',
+    action: 'advance_salary.create',
+    resource: 'advance_salary',
     resourceId: record.id,
-    newData: { type, totalAmount, monthlyDeduction },
+    newData: { totalAmount, monthlyDeduction },
     req,
   });
 
   return record;
 }
 
-async function getActiveLoanAdvances(orgId, employeeId) {
+async function getActiveAdvanceSalaries(orgId, employeeId) {
   const prisma = getPrisma();
-  return prisma.loanAdvance.findMany({
+  return prisma.advanceSalary.findMany({
     where: { orgId, employeeId, isActive: true },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-async function getAllLoanAdvances(orgId) {
+async function getAllAdvanceSalaries(orgId) {
   const prisma = getPrisma();
-  return prisma.loanAdvance.findMany({
+  return prisma.advanceSalary.findMany({
     where: { orgId, isActive: true },
     include: { employee: { select: { name: true, employeeCode: true, department: true } } },
     orderBy: { createdAt: 'desc' },
@@ -262,8 +261,8 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     select: { employeeId: true, overtimeHours: true, rateMultiplier: true },
   });
 
-  // 6. Get active loans/advances
-  const loans = await prisma.loanAdvance.findMany({
+  // 6. Get active advance salaries
+  const advances = await prisma.advanceSalary.findMany({
     where: { orgId, isActive: true },
   });
 
@@ -301,16 +300,15 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     otByEmp[ot.employeeId].hours += Number(ot.overtimeHours);
   }
 
-  const loanByEmp = {};
-  for (const loan of loans) {
-    if (!loanByEmp[loan.employeeId]) loanByEmp[loan.employeeId] = { loan: 0, advance: 0 };
-    if (loan.type === 'LOAN') loanByEmp[loan.employeeId].loan += Number(loan.monthlyDeduction);
-    else loanByEmp[loan.employeeId].advance += Number(loan.monthlyDeduction);
+  const advanceByEmp = {};
+  for (const adv of advances) {
+    if (!advanceByEmp[adv.employeeId]) advanceByEmp[adv.employeeId] = 0;
+    advanceByEmp[adv.employeeId] += Number(adv.monthlyDeduction);
   }
 
   // ─── Calculate payslip for each employee ───────────────────────────────────
   const payslips = [];
-  const loanUpdates = [];
+  const advanceUpdates = [];
 
   for (const emp of employees) {
     const salary = salaryMap[emp.id];
@@ -363,13 +361,11 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     // Absence deduction (unapproved absences)
     const absenceDeduction = r2(absentDays * dailyRate);
 
-    // Loan & Advance deductions
-    const empLoans = loanByEmp[emp.id] || { loan: 0, advance: 0 };
-    const loanDeduction = r2(empLoans.loan);
-    const advanceDeduction = r2(empLoans.advance);
+    // Advance salary deduction
+    const advanceSalaryDeduction = r2(advanceByEmp[emp.id] || 0);
 
     // Total deductions
-    const totalDeductions = r2(employeeSsf + tds + unpaidLeaveDeduction + absenceDeduction + loanDeduction + advanceDeduction);
+    const totalDeductions = r2(employeeSsf + tds + unpaidLeaveDeduction + absenceDeduction + advanceSalaryDeduction);
 
     // Net salary
     const netSalary = r2(grossEarnings - totalDeductions);
@@ -392,8 +388,7 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       tds,
       unpaidLeaveDeduction,
       absenceDeduction,
-      loanDeduction,
-      advanceDeduction,
+      advanceSalaryDeduction,
       otherDeductions: {},
       totalDeductions,
       netSalary,
@@ -406,11 +401,11 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       status: 'DRAFT',
     });
 
-    // Track loan deductions to update remaining
-    for (const loan of loans.filter(l => l.employeeId === emp.id && l.isActive)) {
-      const deduction = Number(loan.monthlyDeduction);
-      const newRemaining = Math.max(0, Number(loan.remainingAmount) - deduction);
-      loanUpdates.push({ id: loan.id, remaining: newRemaining, close: newRemaining <= 0 });
+    // Track advance salary deductions to update remaining
+    for (const adv of advances.filter(a => a.employeeId === emp.id && a.isActive)) {
+      const deduction = Number(adv.monthlyDeduction);
+      const newRemaining = Math.max(0, Number(adv.remainingAmount) - deduction);
+      advanceUpdates.push({ id: adv.id, remaining: newRemaining, close: newRemaining <= 0 });
     }
   }
 
@@ -433,9 +428,9 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
         },
       })
     ),
-    // Update loan remaining amounts
-    ...loanUpdates.map(u =>
-      prisma.loanAdvance.update({
+    // Update advance salary remaining amounts
+    ...advanceUpdates.map(u =>
+      prisma.advanceSalary.update({
         where: { id: u.id },
         data: {
           remainingAmount: u.remaining,
@@ -586,7 +581,7 @@ async function exportPayslips({ orgId, year, month }) {
     'Employee Code', 'Name', 'Department', 'Designation',
     'Basic Salary', 'Allowances', 'Overtime', 'Gross Earnings',
     'SSF (Employee)', 'SSF (Employer)', 'TDS',
-    'Unpaid Leave Ded.', 'Absence Ded.', 'Loan Ded.', 'Advance Ded.',
+    'Unpaid Leave Ded.', 'Absence Ded.', 'Advance Salary Ded.',
     'Total Deductions', 'Net Salary', 'Company Cost',
     'Work Days', 'Present', 'Absent', 'OT Hours', 'Status',
   ];
@@ -605,8 +600,7 @@ async function exportPayslips({ orgId, year, month }) {
     Number(p.tds),
     Number(p.unpaidLeaveDeduction),
     Number(p.absenceDeduction),
-    Number(p.loanDeduction),
-    Number(p.advanceDeduction),
+    Number(p.advanceSalaryDeduction),
     Number(p.totalDeductions),
     Number(p.netSalary),
     Number(p.companyCost),
@@ -659,9 +653,9 @@ module.exports = {
   getSalaryStructure,
   upsertSalaryStructure,
   getAllSalaryStructures,
-  createLoanAdvance,
-  getActiveLoanAdvances,
-  getAllLoanAdvances,
+  createAdvanceSalary,
+  getActiveAdvanceSalaries,
+  getAllAdvanceSalaries,
   generatePayslips,
   getPayslips,
   getEmployeePayslip,

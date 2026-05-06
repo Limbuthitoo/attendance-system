@@ -25,7 +25,8 @@ const STATUS_CONFIG = {
 };
 
 export default function EmployeeAttendance() {
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Use Nepal timezone for "today" to match server behavior
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' });
   const [date, setDate] = useState(todayStr);
   const [data, setData] = useState({ attendance: [], summary: {}, departments: [] });
   const [loading, setLoading] = useState(true);

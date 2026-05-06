@@ -16,7 +16,7 @@ function Tabs({ active, onChange }) {
     { id: 'salary', label: 'Salary Structures', icon: DollarSign },
     { id: 'attendance', label: 'Attendance Summary', icon: Calendar },
     { id: 'overtime', label: 'Overtime', icon: Clock },
-    { id: 'loans', label: 'Loans & Advances', icon: CreditCard },
+    { id: 'loans', label: 'Advance Salary', icon: CreditCard },
     { id: 'config', label: 'Config', icon: Settings },
   ];
   return (
@@ -187,10 +187,10 @@ function SalaryModal({ employees, config, onClose, onSubmit }) {
   );
 }
 
-// ── Loan Modal ──────────────────────────────────────────────────────────────
-function LoanModal({ employees, onClose, onSubmit }) {
+// ── Advance Salary Modal ──────────────────────────────────────────────────────────────
+function AdvanceSalaryModal({ employees, onClose, onSubmit }) {
   const [form, setForm] = useState({
-    employeeId: '', type: 'LOAN', totalAmount: '', monthlyDeduction: '', description: '',
+    employeeId: '', totalAmount: '', monthlyDeduction: '', description: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -204,7 +204,7 @@ function LoanModal({ employees, onClose, onSubmit }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4">Add Loan / Advance</h3>
+        <h3 className="text-lg font-semibold mb-4">Add Advance Salary</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Employee</label>
@@ -214,14 +214,6 @@ function LoanModal({ employees, onClose, onSubmit }) {
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name} ({emp.employeeCode})</option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-              <option value="LOAN">Loan</option>
-              <option value="ADVANCE">Advance</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -241,7 +233,7 @@ function LoanModal({ employees, onClose, onSubmit }) {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description (optional)</label>
             <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Laptop advance" />
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Salary advance for house rent" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
@@ -312,11 +304,8 @@ function PayslipDetailModal({ payslip, onClose }) {
               {Number(p.absenceDeduction) > 0 && (
                 <div className="flex justify-between"><span className="text-slate-600">Absence ({p.absentDays}d)</span><span>Rs. {fmt(p.absenceDeduction)}</span></div>
               )}
-              {Number(p.loanDeduction) > 0 && (
-                <div className="flex justify-between"><span className="text-slate-600">Loan Repayment</span><span>Rs. {fmt(p.loanDeduction)}</span></div>
-              )}
-              {Number(p.advanceDeduction) > 0 && (
-                <div className="flex justify-between"><span className="text-slate-600">Advance Recovery</span><span>Rs. {fmt(p.advanceDeduction)}</span></div>
+              {Number(p.advanceSalaryDeduction) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-600">Advance Salary</span><span>Rs. {fmt(p.advanceSalaryDeduction)}</span></div>
               )}
               <div className="flex justify-between font-bold pt-2 border-t border-red-100">
                 <span>Total Deductions</span><span className="text-red-700">Rs. {fmt(p.totalDeductions)}</span>
@@ -380,8 +369,8 @@ export default function PayrollOvertime() {
   const [otRecords, setOtRecords] = useState({ records: [], pagination: {} });
   const [otFilter, setOtFilter] = useState({ status: '', page: 1 });
 
-  const [loans, setLoans] = useState([]);
-  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [advances, setAdvances] = useState([]);
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
 
   const [config, setConfig] = useState(null);
 
@@ -413,8 +402,8 @@ export default function PayrollOvertime() {
     try { const d = await api.getOvertimeRecords(otFilter); setOtRecords(d); } catch { /* */ }
   }, [otFilter]);
 
-  const loadLoans = useCallback(async () => {
-    try { const d = await api.getLoans(); setLoans(d.loans || []); } catch { /* */ }
+  const loadAdvances = useCallback(async () => {
+    try { const d = await api.getAdvanceSalaries(); setAdvances(d.advances || []); } catch { /* */ }
   }, []);
 
   const loadConfig = useCallback(async () => {
@@ -426,7 +415,7 @@ export default function PayrollOvertime() {
   useEffect(() => { if (tab === 'salary') loadSalary(); }, [tab, loadSalary]);
   useEffect(() => { if (tab === 'attendance') loadAttendance(); }, [tab, loadAttendance]);
   useEffect(() => { if (tab === 'overtime') loadOtRecords(); }, [tab, loadOtRecords]);
-  useEffect(() => { if (tab === 'loans') loadLoans(); }, [tab, loadLoans]);
+  useEffect(() => { if (tab === 'loans') loadAdvances(); }, [tab, loadAdvances]);
 
   const handleGeneratePayslips = async () => {
     setGenerating(true);
@@ -468,9 +457,9 @@ export default function PayrollOvertime() {
     loadSalary();
   };
 
-  const handleCreateLoan = async (form) => {
-    await api.createLoan(form);
-    loadLoans();
+  const handleCreateAdvance = async (form) => {
+    await api.createAdvanceSalary(form);
+    loadAdvances();
   };
 
   const handleSaveConfig = async (e) => {
@@ -508,7 +497,7 @@ export default function PayrollOvertime() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Payroll & Overtime</h1>
-          <p className="text-sm text-slate-500 mt-1">Salary management, payslips, overtime, and loan tracking</p>
+          <p className="text-sm text-slate-500 mt-1">Salary management, payslips, overtime, and advance salary tracking</p>
         </div>
       </div>
 
@@ -827,17 +816,17 @@ export default function PayrollOvertime() {
       {tab === 'loans' && (
         <>
           <div className="flex justify-end">
-            <button onClick={() => setShowLoanModal(true)}
+            <button onClick={() => setShowAdvanceModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">
-              <Plus size={14} />Add Loan/Advance
+              <Plus size={14} />Add Advance Salary
             </button>
           </div>
 
-          {loans.length === 0 ? (
+          {advances.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
               <CreditCard size={48} className="mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-semibold text-slate-700">No active loans or advances</h3>
-              <p className="text-sm text-slate-500 mt-1">Add a loan or advance to automatically deduct from payslips.</p>
+              <h3 className="text-lg font-semibold text-slate-700">No active advance salaries</h3>
+              <p className="text-sm text-slate-500 mt-1">Add an advance salary to automatically deduct from payslips.</p>
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -845,22 +834,17 @@ export default function PayrollOvertime() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">
-                      {['Employee', 'Type', 'Description', 'Total', 'Remaining', 'Monthly Ded.', 'Progress'].map(h => (
+                      {['Employee', 'Description', 'Total', 'Remaining', 'Monthly Ded.', 'Progress'].map(h => (
                         <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-slate-500 uppercase">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {loans.map(l => {
+                    {advances.map(l => {
                       const progress = ((Number(l.totalAmount) - Number(l.remainingAmount)) / Number(l.totalAmount)) * 100;
                       return (
                         <tr key={l.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
                           <td className="py-2.5 px-3 text-sm font-medium">{l.employee?.name}</td>
-                          <td className="py-2.5 px-3">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              l.type === 'LOAN' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
-                            }`}>{l.type}</span>
-                          </td>
                           <td className="py-2.5 px-3 text-sm text-slate-600">{l.description || '—'}</td>
                           <td className="py-2.5 px-3 text-sm">Rs. {fmt(l.totalAmount)}</td>
                           <td className="py-2.5 px-3 text-sm text-red-700">Rs. {fmt(l.remainingAmount)}</td>
@@ -956,8 +940,8 @@ export default function PayrollOvertime() {
       {showSalaryModal && (
         <SalaryModal employees={employees} config={config} onClose={() => setShowSalaryModal(false)} onSubmit={handleSaveSalary} />
       )}
-      {showLoanModal && (
-        <LoanModal employees={employees} onClose={() => setShowLoanModal(false)} onSubmit={handleCreateLoan} />
+      {showAdvanceModal && (
+        <AdvanceSalaryModal employees={employees} onClose={() => setShowAdvanceModal(false)} onSubmit={handleCreateAdvance} />
       )}
       {selectedPayslip && (
         <PayslipDetailModal payslip={selectedPayslip} onClose={() => setSelectedPayslip(null)} />

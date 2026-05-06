@@ -65,12 +65,12 @@ export const payroll = {
   getEmployeeSalary: (employeeId) => request(`/payroll/salary-structures/${employeeId}`),
   saveSalaryStructure: (data) => request('/payroll/salary-structures', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Loans & Advances
-  getLoans: (employeeId) => {
+  // Advance Salary
+  getAdvanceSalaries: (employeeId) => {
     const qs = employeeId ? `?employeeId=${employeeId}` : '';
-    return request(`/payroll/loans${qs}`);
+    return request(`/payroll/advance-salaries${qs}`);
   },
-  createLoan: (data) => request('/payroll/loans', { method: 'POST', body: JSON.stringify(data) }),
+  createAdvanceSalary: (data) => request('/payroll/advance-salaries', { method: 'POST', body: JSON.stringify(data) }),
 
   // Payslips
   generatePayslips: (year, month) => request('/payroll/payslips/generate', { method: 'POST', body: JSON.stringify({ year, month }) }),
