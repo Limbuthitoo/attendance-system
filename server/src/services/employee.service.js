@@ -99,11 +99,33 @@ async function getEmployee(employeeId, orgId) {
       department: true,
       designation: true,
       phone: true,
+      gender: true,
+      joinDate: true,
+      employmentStatus: true,
       avatarUrl: true,
       isActive: true,
       mustChangePassword: true,
       createdAt: true,
       updatedAt: true,
+      // Personal info
+      dateOfBirth: true,
+      bloodGroup: true,
+      maritalStatus: true,
+      address: true,
+      city: true,
+      state: true,
+      country: true,
+      zipCode: true,
+      // Employment info
+      contractType: true,
+      probationEndDate: true,
+      panNumber: true,
+      ssfNumber: true,
+      // Bank details
+      bankName: true,
+      bankBranch: true,
+      bankAccountNumber: true,
+      bankAccountName: true,
       employeeRoles: {
         select: {
           branchId: true,
@@ -122,6 +144,13 @@ async function getEmployee(employeeId, orgId) {
       credentials: {
         where: { isActive: true },
         select: { id: true, credentialType: true, label: true, assignedAt: true },
+      },
+      emergencyContacts: {
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+      },
+      documents: {
+        orderBy: { uploadedAt: 'desc' },
+        select: { id: true, name: true, type: true, fileSize: true, mimeType: true, uploadedAt: true },
       },
     },
   });
@@ -265,6 +294,31 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
   if (data.designation) updateData.designation = data.designation;
   if (data.phone !== undefined) updateData.phone = data.phone || null;
   if (typeof data.isActive === 'boolean') updateData.isActive = data.isActive;
+
+  // Personal info fields
+  if (data.gender !== undefined) updateData.gender = data.gender || null;
+  if (data.dateOfBirth !== undefined) updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+  if (data.bloodGroup !== undefined) updateData.bloodGroup = data.bloodGroup || null;
+  if (data.maritalStatus !== undefined) updateData.maritalStatus = data.maritalStatus || null;
+  if (data.address !== undefined) updateData.address = data.address || null;
+  if (data.city !== undefined) updateData.city = data.city || null;
+  if (data.state !== undefined) updateData.state = data.state || null;
+  if (data.country !== undefined) updateData.country = data.country || null;
+  if (data.zipCode !== undefined) updateData.zipCode = data.zipCode || null;
+
+  // Employment info fields
+  if (data.joinDate !== undefined) updateData.joinDate = data.joinDate ? new Date(data.joinDate) : null;
+  if (data.employmentStatus !== undefined) updateData.employmentStatus = data.employmentStatus;
+  if (data.contractType !== undefined) updateData.contractType = data.contractType || null;
+  if (data.probationEndDate !== undefined) updateData.probationEndDate = data.probationEndDate ? new Date(data.probationEndDate) : null;
+  if (data.panNumber !== undefined) updateData.panNumber = data.panNumber || null;
+  if (data.ssfNumber !== undefined) updateData.ssfNumber = data.ssfNumber || null;
+
+  // Bank details
+  if (data.bankName !== undefined) updateData.bankName = data.bankName || null;
+  if (data.bankBranch !== undefined) updateData.bankBranch = data.bankBranch || null;
+  if (data.bankAccountNumber !== undefined) updateData.bankAccountNumber = data.bankAccountNumber || null;
+  if (data.bankAccountName !== undefined) updateData.bankAccountName = data.bankAccountName || null;
 
   const employee = await prisma.employee.update({
     where: { id: employeeId },

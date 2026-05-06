@@ -87,6 +87,8 @@ model Organization {
   salaryStructures    SalaryStructure[]
   payslips            Payslip[]
   loanAdvances        LoanAdvance[]
+  emergencyContacts   EmergencyContact[]
+  employeeDocuments   EmployeeDocument[]
 
   @@map("organizations")
 }
@@ -257,6 +259,28 @@ model Employee {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
+  // Personal Info
+  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
+  bloodGroup         String?   @map("blood_group")
+  maritalStatus      String?   @map("marital_status") // single, married, divorced, widowed
+  address            String?
+  city               String?
+  state              String?
+  country            String?   @default("Nepal")
+  zipCode            String?   @map("zip_code")
+
+  // Employment Info
+  contractType       String?   @map("contract_type") // permanent, contract, part_time, intern
+  probationEndDate   DateTime? @map("probation_end_date") @db.Date
+  panNumber          String?   @map("pan_number")
+  ssfNumber          String?   @map("ssf_number")
+
+  // Bank Details
+  bankName           String?   @map("bank_name")
+  bankBranch         String?   @map("bank_branch")
+  bankAccountNumber  String?   @map("bank_account_number")
+  bankAccountName    String?   @map("bank_account_name")
+
   // Relations
   org                Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
   employeeRoles      EmployeeRole[]
@@ -280,11 +304,57 @@ model Employee {
   salaryStructures    SalaryStructure[]
   payslips            Payslip[]
   loanAdvances        LoanAdvance[]
+  emergencyContacts   EmergencyContact[]
+  documents           EmployeeDocument[]
 
   @@unique([orgId, email])
   @@unique([orgId, employeeCode])
   @@index([orgId, isActive])
   @@map("employees")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMERGENCY CONTACTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model EmergencyContact {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  name         String
+  relationship String
+  phone        String
+  email        String?
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("emergency_contacts")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPLOYEE DOCUMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model EmployeeDocument {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  name         String
+  type         String   // citizenship, pan_card, contract, certificate, other
+  filePath     String   @map("file_path")
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("employee_documents")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
