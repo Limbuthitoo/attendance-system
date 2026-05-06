@@ -394,4 +394,93 @@ router.delete('/branding/:type', requireRole('org_admin'), async (req, res, next
   } catch (err) { next(err); }
 });
 
+// ── SMTP / Email Configuration ──────────────────────────────────────────────
+
+const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_notify_email'];
+
+// GET /api/v1/settings/smtp — Get SMTP config (password masked)
+router.get('/smtp', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const rows = await prisma.orgSetting.findMany({
+      where: { orgId: req.orgId, key: { in: SMTP_KEYS } },
+    });
+    const smtp = {};
+    for (const r of rows) {
+      smtp[r.key] = r.key === 'smtp_pass' && r.value
+        ? '••••••••'
+        : r.value;
+    }
+    res.json({ smtp });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/v1/settings/smtp — Update SMTP config (admin)
+router.put('/smtp', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const body = req.body;
+    const updates = {};
+
+    for (const key of SMTP_KEYS) {
+      if (body[key] !== undefined) {
+        // Skip masked password (don't overwrite with mask)
+        if (key === 'smtp_pass' && body[key] === '••••••••') continue;
+        updates[key] = String(body[key]);
+      }
+    }
+
+    for (const [key, value] of Object.entries(updates)) {
+      await prisma.orgSetting.upsert({
+        where: { orgId_key: { orgId: req.orgId, key } },
+        create: { orgId: req.orgId, key, value },
+        update: { value },
+      });
+    }
+
+    // Invalidate cached transporter
+    const { invalidateOrgTransporter } = require('../../mailer');
+    invalidateOrgTransporter(req.orgId);
+
+    // Invalidate settings cache
+    const { cacheInvalidate } = require('../../config/redis');
+    await cacheInvalidate(`settings:${req.orgId}`);
+
+    res.json({ message: 'SMTP settings updated' });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/settings/smtp/test — Send a test email
+router.post('/smtp/test', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const { to } = req.body;
+    if (!to) return res.status(400).json({ error: 'Recipient email (to) is required' });
+
+    const { sendMail } = require('../../mailer');
+    const success = await sendMail({
+      to,
+      subject: 'SMTP Test — Configuration Verified ✓',
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 24px; text-align: center;">
+            <p style="font-size: 36px; margin: 0;">✓</p>
+            <h2 style="margin: 12px 0 8px; color: #166534;">SMTP Configuration Verified</h2>
+            <p style="margin: 0; color: #4b5563; font-size: 14px;">
+              Your email settings are working correctly. Notifications will be delivered through this SMTP server.
+            </p>
+          </div>
+          <p style="margin: 24px 0 0; font-size: 12px; color: #9ca3af; text-align: center;">
+            Sent from your HR Management System
+          </p>
+        </div>
+      `,
+      orgId: req.orgId,
+    });
+
+    if (success) {
+      res.json({ message: `Test email sent to ${to}` });
+    } else {
+      res.status(500).json({ error: 'Failed to send test email. Check your SMTP credentials.' });
+    }
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

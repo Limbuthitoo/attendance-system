@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-// SMTP configuration from environment variables
+// SMTP configuration from environment variables (fallback)
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT) || 587;
 const SMTP_USER = process.env.SMTP_USER;
@@ -8,14 +8,17 @@ const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'info@archisysinnovation.com';
 
-let transporter = null;
+let envTransporter = null;
+const orgTransporters = new Map(); // orgId -> { transporter, createdAt }
 
-function getTransporter() {
+const ORG_TRANSPORTER_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+function getEnvTransporter() {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return null;
   }
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
+  if (!envTransporter) {
+    envTransporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
@@ -25,22 +28,99 @@ function getTransporter() {
       },
     });
   }
-  return transporter;
+  return envTransporter;
+}
+
+/**
+ * Get SMTP config for an org from OrgSettings, falling back to env vars.
+ */
+async function getOrgSmtpConfig(orgId) {
+  if (!orgId) return null;
+  try {
+    const { getPrisma } = require('./lib/prisma');
+    const prisma = getPrisma();
+    const rows = await prisma.orgSetting.findMany({
+      where: { orgId, key: { startsWith: 'smtp_' } },
+    });
+    const cfg = {};
+    for (const r of rows) cfg[r.key] = r.value;
+
+    if (cfg.smtp_host && cfg.smtp_user && cfg.smtp_pass) {
+      return {
+        host: cfg.smtp_host,
+        port: parseInt(cfg.smtp_port) || 587,
+        user: cfg.smtp_user,
+        pass: cfg.smtp_pass,
+        from: cfg.smtp_from || cfg.smtp_user,
+        notifyEmail: cfg.smtp_notify_email || '',
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load org SMTP config:', err.message);
+  }
+  return null;
+}
+
+/**
+ * Get a transporter for an org (cached), falling back to env transporter.
+ */
+async function getTransporter(orgId) {
+  // Try org-specific config
+  if (orgId) {
+    const cached = orgTransporters.get(orgId);
+    if (cached && Date.now() - cached.createdAt < ORG_TRANSPORTER_TTL) {
+      return { transporter: cached.transporter, from: cached.from };
+    }
+
+    const cfg = await getOrgSmtpConfig(orgId);
+    if (cfg) {
+      const transporter = nodemailer.createTransport({
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.port === 465,
+        auth: { user: cfg.user, pass: cfg.pass },
+      });
+      orgTransporters.set(orgId, { transporter, from: cfg.from, createdAt: Date.now() });
+      return { transporter, from: cfg.from };
+    }
+  }
+
+  // Fallback to env
+  const t = getEnvTransporter();
+  return t ? { transporter: t, from: SMTP_FROM } : null;
+}
+
+/**
+ * Get the notify email for an org.
+ */
+async function getNotifyEmail(orgId) {
+  if (orgId) {
+    const cfg = await getOrgSmtpConfig(orgId);
+    if (cfg && cfg.notifyEmail) return cfg.notifyEmail;
+  }
+  return NOTIFY_EMAIL;
+}
+
+/**
+ * Invalidate cached transporter for an org (call after SMTP settings change).
+ */
+function invalidateOrgTransporter(orgId) {
+  orgTransporters.delete(orgId);
 }
 
 /**
  * Send an email. Fails silently (logs error) so it never blocks API responses.
  */
-async function sendMail({ to, subject, html }) {
-  const transport = getTransporter();
-  if (!transport) {
-    console.warn('⚠  Email not sent — SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS env vars.');
+async function sendMail({ to, subject, html, orgId }) {
+  const result = await getTransporter(orgId);
+  if (!result) {
+    console.warn('⚠  Email not sent — SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS env vars or configure in dashboard.');
     return false;
   }
 
   try {
-    await transport.sendMail({
-      from: SMTP_FROM,
+    await result.transporter.sendMail({
+      from: result.from,
       to,
       subject,
       html,
@@ -55,7 +135,7 @@ async function sendMail({ to, subject, html }) {
 /**
  * Notify admin about a new leave application.
  */
-function sendLeaveApplicationEmail({ employeeName, empCode, department, leaveType, startDate, endDate, days, reason }) {
+async function sendLeaveApplicationEmail({ employeeName, empCode, department, leaveType, startDate, endDate, days, reason, orgId }) {
   const appUrl = process.env.CORS_ORIGIN || 'https://hr.bijaysubbalimbu.com.np';
   const leaveUrl = `${appUrl}/leave-management`;
   const subject = `Leave Application — ${employeeName} (${empCode})`;
@@ -201,7 +281,8 @@ function sendLeaveApplicationEmail({ employeeName, empCode, department, leaveTyp
   `;
 
   // Fire and forget — don't block the API response
-  sendMail({ to: NOTIFY_EMAIL, subject, html });
+  const notifyTo = await getNotifyEmail(orgId);
+  sendMail({ to: notifyTo, subject, html, orgId });
 }
 
-module.exports = { sendMail, sendLeaveApplicationEmail, NOTIFY_EMAIL };
+module.exports = { sendMail, sendLeaveApplicationEmail, getNotifyEmail, getOrgSmtpConfig, invalidateOrgTransporter, NOTIFY_EMAIL };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import {
-  Clock, Building2, Calendar, Timer, Save, RotateCcw, CheckCircle, Image, Upload, Trash2, Globe, Briefcase, TreePalm
+  Clock, Building2, Calendar, Timer, Save, RotateCcw, CheckCircle, Image, Upload, Trash2, Globe, Briefcase, TreePalm, Mail, Send, Eye, EyeOff
 } from 'lucide-react';
 
 const DAYS = [
@@ -36,6 +36,18 @@ export default function Settings() {
   const [removeFavicon, setRemoveFavicon] = useState(false);
   const logoInputRef = useRef(null);
   const faviconInputRef = useRef(null);
+
+  // SMTP state
+  const [smtp, setSmtp] = useState({ smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '', smtp_notify_email: '' });
+  const [smtpOriginal, setSmtpOriginal] = useState(null);
+  const [smtpLoading, setSmtpLoading] = useState(false);
+  const [smtpSaving, setSmtpSaving] = useState(false);
+  const [smtpSaved, setSmtpSaved] = useState(false);
+  const [smtpError, setSmtpError] = useState('');
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const apiBase = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
@@ -257,6 +269,60 @@ export default function Settings() {
     }
   }
 
+  // ── SMTP functions ────────────────────────────────────────────────────────
+  async function fetchSmtp() {
+    setSmtpLoading(true);
+    setSmtpError('');
+    try {
+      const data = await api._request('/settings/smtp');
+      const cfg = data.smtp || {};
+      const merged = { smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '', smtp_notify_email: '', ...cfg };
+      setSmtp(merged);
+      setSmtpOriginal(merged);
+    } catch (err) {
+      setSmtpError(err.message);
+    } finally {
+      setSmtpLoading(false);
+    }
+  }
+
+  async function saveSmtp() {
+    setSmtpSaving(true);
+    setSmtpError('');
+    try {
+      await api._request('/settings/smtp', {
+        method: 'PUT',
+        body: JSON.stringify(smtp),
+      });
+      setSmtpOriginal({ ...smtp });
+      setSmtpSaved(true);
+      setTimeout(() => setSmtpSaved(false), 3000);
+    } catch (err) {
+      setSmtpError(err.message);
+    } finally {
+      setSmtpSaving(false);
+    }
+  }
+
+  async function testSmtp() {
+    if (!smtpTestEmail) return;
+    setSmtpTesting(true);
+    setSmtpTestResult(null);
+    try {
+      const data = await api._request('/settings/smtp/test', {
+        method: 'POST',
+        body: JSON.stringify({ to: smtpTestEmail }),
+      });
+      setSmtpTestResult({ success: true, message: data.message });
+    } catch (err) {
+      setSmtpTestResult({ success: false, message: err.message });
+    } finally {
+      setSmtpTesting(false);
+    }
+  }
+
+  const smtpHasChanges = smtpOriginal && JSON.stringify(smtp) !== JSON.stringify(smtpOriginal);
+
   const siteHasChanges = SITE_KEYS.some(k => settings?.[k] !== original?.[k]) || !!pendingLogo || !!pendingFavicon || removeLogo || removeFavicon;
   const officeHasChanges = OFFICE_KEYS.some(k => settings?.[k] !== original?.[k]);
   const leaveHasChanges = LEAVE_KEYS.some(k => settings?.[k] !== original?.[k]);
@@ -361,6 +427,16 @@ export default function Settings() {
           }`}
         >
           <TreePalm size={16} /> Leave Policy
+        </button>
+        <button
+          onClick={() => { setActiveTab('email'); if (!smtpOriginal) fetchSmtp(); }}
+          className={`flex items-center gap-2 flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'email'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Mail size={16} /> Email / SMTP
         </button>
       </div>
 
@@ -899,6 +975,190 @@ export default function Settings() {
               <p>• Weekends & public holidays excluded from leave calculation</p>
             </div>
           </div>
+        </>
+      )}
+
+      {/* ===== Email / SMTP Tab ===== */}
+      {activeTab === 'email' && (
+        <>
+          {smtpLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent" />
+            </div>
+          ) : (
+            <>
+              {smtpError && (
+                <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{smtpError}</div>
+              )}
+
+              {/* SMTP Server Config */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <Mail size={18} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">SMTP Configuration</h2>
+                    <p className="text-xs text-slate-500">Configure your organization's email server for sending notifications</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">SMTP Host</label>
+                    <input
+                      type="text"
+                      value={smtp.smtp_host}
+                      onChange={(e) => setSmtp(p => ({ ...p, smtp_host: e.target.value }))}
+                      placeholder="smtp.gmail.com"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">SMTP Port</label>
+                    <input
+                      type="number"
+                      value={smtp.smtp_port}
+                      onChange={(e) => setSmtp(p => ({ ...p, smtp_port: e.target.value }))}
+                      placeholder="587"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">587 (TLS) or 465 (SSL)</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                    <input
+                      type="text"
+                      value={smtp.smtp_user}
+                      onChange={(e) => setSmtp(p => ({ ...p, smtp_user: e.target.value }))}
+                      placeholder="your-email@domain.com"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={smtp.smtp_pass}
+                        onChange={(e) => setSmtp(p => ({ ...p, smtp_pass: e.target.value }))}
+                        placeholder="App password or SMTP password"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">From Address</label>
+                    <input
+                      type="email"
+                      value={smtp.smtp_from}
+                      onChange={(e) => setSmtp(p => ({ ...p, smtp_from: e.target.value }))}
+                      placeholder="hr@yourcompany.com"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Sender address shown in emails</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Notification Email</label>
+                    <input
+                      type="email"
+                      value={smtp.smtp_notify_email}
+                      onChange={(e) => setSmtp(p => ({ ...p, smtp_notify_email: e.target.value }))}
+                      placeholder="admin@yourcompany.com"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Receives leave requests, advance requests, etc.</p>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    {smtpSaved && (
+                      <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                        <CheckCircle size={16} /> Saved
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={saveSmtp}
+                    disabled={smtpSaving || !smtpHasChanges}
+                    className="flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {smtpSaving ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Save size={16} />
+                    )}
+                    Save SMTP Settings
+                  </button>
+                </div>
+              </div>
+
+              {/* Test Email */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
+                    <Send size={18} className="text-green-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Send Test Email</h2>
+                    <p className="text-xs text-slate-500">Verify your SMTP configuration by sending a test email</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <input
+                    type="email"
+                    value={smtpTestEmail}
+                    onChange={(e) => setSmtpTestEmail(e.target.value)}
+                    placeholder="recipient@example.com"
+                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <button
+                    onClick={testSmtp}
+                    disabled={smtpTesting || !smtpTestEmail}
+                    className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {smtpTesting ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                    Send Test
+                  </button>
+                </div>
+
+                {smtpTestResult && (
+                  <div className={`text-sm px-4 py-3 rounded-lg border ${
+                    smtpTestResult.success
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}>
+                    {smtpTestResult.message}
+                  </div>
+                )}
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 rounded-xl border border-blue-200 p-5">
+                <h3 className="text-sm font-semibold text-blue-800 mb-2">How Email Notifications Work</h3>
+                <ul className="space-y-1.5 text-sm text-blue-700">
+                  <li>• <strong>Leave Requests:</strong> When an employee applies for leave, the notification email receives an alert</li>
+                  <li>• <strong>Advance Requests:</strong> Payment advance requests are emailed to the notification address</li>
+                  <li>• <strong>Gmail Users:</strong> Use an App Password (Settings → Security → App Passwords), not your regular password</li>
+                  <li>• <strong>Port 587:</strong> TLS encryption (recommended). Port 465: SSL encryption</li>
+                </ul>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
