@@ -14,6 +14,10 @@ function transformAtt(r) {
   if (!r) return r;
   // Convert Prisma Decimal to plain number before addSnakeCase strips prototype
   if (r.workHours != null) r.workHours = parseFloat(r.workHours);
+  // Convert Date object to plain YYYY-MM-DD string for frontend compatibility
+  if (r.date instanceof Date) {
+    r.date = r.date.toISOString().split('T')[0];
+  }
   const t = addSnakeCase(r);
   if (t.status) {
     t.status = lowercaseEnum(t.status);

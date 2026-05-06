@@ -27,7 +27,6 @@ const NoticesScreen = lazy(() => import('./src/screens/NoticesScreen'));
 const EmployeeAttendanceScreen = lazy(() => import('./src/screens/EmployeeAttendanceScreen'));
 const EmployeeDetailScreen = lazy(() => import('./src/screens/EmployeeDetailScreen'));
 const PoliciesScreen = lazy(() => import('./src/screens/PoliciesScreen'));
-const QrCheckInScreen = lazy(() => import('./src/screens/QrCheckInScreen'));
 
 function ScreenFallback() {
   return (
@@ -61,7 +60,6 @@ const LazyNotices = withLazy(NoticesScreen);
 const LazyEmployeeAttendance = withLazy(EmployeeAttendanceScreen);
 const LazyEmployeeDetail = withLazy(EmployeeDetailScreen);
 const LazyPolicies = withLazy(PoliciesScreen);
-const LazyQrCheckIn = withLazy(QrCheckInScreen);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -200,7 +198,6 @@ function MainTabs() {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             'My Attendance': focused ? 'time' : 'time-outline',
-            'QR Check-In': focused ? 'qr-code' : 'qr-code-outline',
             Leaves: focused ? 'document-text' : 'document-text-outline',
             Calendar: focused ? 'calendar' : 'calendar-outline',
             More: focused ? 'grid' : 'grid-outline',
@@ -229,15 +226,6 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="My Attendance" component={LazyAttendance} options={{ headerTitle: 'My Attendance' }} />
-      <Tab.Screen
-        name="QR Check-In"
-        component={LazyQrCheckIn}
-        options={{
-          headerTitle: 'QR Check-In',
-          headerStyle: { backgroundColor: '#0f172a' },
-          headerTitleStyle: { color: '#ffffff', fontWeight: '700' },
-        }}
-      />
       <Tab.Screen name="Leaves" component={LazyLeaves} options={{ headerTitle: 'Leave Management' }} />
       <Tab.Screen name="Calendar" component={LazyCalendar} options={{ headerTitle: 'Monthly Calendar' }} />
       <Tab.Screen

@@ -20,7 +20,6 @@ export default function CalendarScreen() {
   const [year, setYear] = useState(todayBs.year);
   const [month, setMonth] = useState(todayBs.month);
   const [holidays, setHolidays] = useState([]);
-  const [designEvents, setDesignEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
   const [viewMode, setViewMode] = useState('monthly');
@@ -28,12 +27,8 @@ export default function CalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      Promise.all([
-        api.getHolidays(year),
-        api.getDesignEvents(year).catch(() => ({ events: [] })),
-      ]).then(([hData, dData]) => {
+      api.getHolidays(year).then(hData => {
         setHolidays(hData.holidays || []);
-        setDesignEvents(dData.events || []);
       }).catch(err => {
         console.error('Failed to load holidays:', err);
       }).finally(() => setLoading(false));
@@ -89,24 +84,8 @@ export default function CalendarScreen() {
     ? `${firstAd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${lastAd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     : `${firstAd.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
 
-  // Design event map by AD date string
-  const designEventMap = {};
-  designEvents.forEach(e => {
-    if (e.event_date) {
-      if (!designEventMap[e.event_date]) designEventMap[e.event_date] = [];
-      designEventMap[e.event_date].push(e);
-    }
-  });
-
-  const getDesignEventsForDay = d => {
-    if (!d) return [];
-    const adStr = bsToAd(year, month, d).toISOString().split('T')[0];
-    return designEventMap[adStr] || [];
-  };
-
   const selectedHoliday = selectedDay ? holidayMap[selectedDay] : null;
   const selectedAdDate = selectedDay ? bsToAd(year, month, selectedDay) : null;
-  const selectedDesignEvents = selectedDay ? getDesignEventsForDay(selectedDay) : [];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -243,8 +222,6 @@ export default function CalendarScreen() {
                     const today = isToday(day);
                     const sat = isSaturday(day);
                     const isSelected = selectedDay === day;
-                    const dayDesignEvents = getDesignEventsForDay(day);
-                    const hasEvents = dayDesignEvents.length > 0;
 
                     return (
                       <TouchableOpacity
@@ -276,7 +253,6 @@ export default function CalendarScreen() {
                           {holiday && (
                             <View style={[styles.dot, holiday.women_only ? styles.dotPurple : styles.dotRed]} />
                           )}
-                          {hasEvents && <View style={[styles.dot, styles.dotBlue]} />}
                         </View>
                       </TouchableOpacity>
                     );
@@ -318,19 +294,9 @@ export default function CalendarScreen() {
                     </View>
                   )}
 
-                  {!selectedHoliday && selectedDesignEvents.length === 0 && (
+                  {!selectedHoliday && (
                     <Text style={styles.infoNormal}>Regular working day</Text>
                   )}
-
-                  {selectedDesignEvents.map(dt => (
-                    <View key={dt.id} style={styles.designEventRow}>
-                      <Text style={styles.designEventEmoji}>🎨</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.designEventName}>{dt.event_name}</Text>
-                        <Text style={styles.designEventMeta}>{dt.category} · {dt.status || 'pending'}</Text>
-                      </View>
-                    </View>
-                  ))}
                 </View>
               )}
 
@@ -361,28 +327,6 @@ export default function CalendarScreen() {
                   ))}
                 </View>
               )}
-
-              {/* Design events this month */}
-              {(() => {
-                const firstStr = bsToAd(year, month, 1).toISOString().split('T')[0];
-                const lastStr = bsToAd(year, month, daysInMonth).toISOString().split('T')[0];
-                const monthDesign = designEvents.filter(e => e.event_date >= firstStr && e.event_date <= lastStr);
-                if (!monthDesign.length) return null;
-                return (
-                  <View style={[styles.listCard, { borderLeftColor: colors.purple }]}>
-                    <Text style={[styles.listCardTitle, { color: colors.purple }]}>🎨 Design Events this month</Text>
-                    {monthDesign.map((dt, i, arr) => (
-                      <View key={dt.id} style={[styles.listItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.listDot, { backgroundColor: colors.purple }]} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.listItemName}>{dt.event_name}</Text>
-                          <Text style={styles.listItemDate}>{dt.event_date} · {dt.category}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })()}
 
               {/* Legend */}
               <View style={styles.legend}>
