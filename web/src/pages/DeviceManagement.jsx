@@ -732,17 +732,9 @@ export default function DeviceManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Device Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Register and manage attendance devices, credentials, and events</p>
+          <p className="text-sm text-slate-500 mt-1">Manage attendance devices, credentials, and events</p>
         </div>
         <div className="flex gap-2">
-          {tab === 'devices' && (
-            <button
-              onClick={() => setShowRegister(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-            >
-              <Plus size={16} /> Register Device
-            </button>
-          )}
           {tab === 'credentials' && (
             <button
               onClick={() => setShowAssignCred(true)}
@@ -804,14 +796,8 @@ export default function DeviceManagement() {
           {devices.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
               <Radio size={48} className="mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-semibold text-slate-700">No devices registered</h3>
-              <p className="text-sm text-slate-500 mt-1">Register your first attendance device to get started.</p>
-              <button
-                onClick={() => setShowRegister(true)}
-                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-              >
-                Register Device
-              </button>
+              <h3 className="text-lg font-semibold text-slate-700">No devices assigned</h3>
+              <p className="text-sm text-slate-500 mt-1">Contact your platform administrator to assign devices to your organization.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -977,13 +963,6 @@ export default function DeviceManagement() {
       )}
 
       {/* Modals */}
-      {showRegister && (
-        <RegisterDeviceModal
-          branches={branches}
-          onClose={() => setShowRegister(false)}
-          onSubmit={handleRegister}
-        />
-      )}
       {editDevice && (
         <EditDeviceModal
           device={editDevice}

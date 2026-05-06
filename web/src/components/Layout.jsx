@@ -122,6 +122,7 @@ export default function Layout() {
               { to: '/holidays', icon: Star, label: 'Holidays' },
               { to: '/geofence', icon: Navigation, label: 'Geofence' },
               { to: '/nfc', icon: CreditCard, label: 'NFC Management' },
+              { to: '/devices', icon: Smartphone, label: 'Devices' },
             ],
           },
         ]

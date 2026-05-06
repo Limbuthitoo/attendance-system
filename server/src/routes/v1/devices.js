@@ -84,35 +84,9 @@ router.get('/', authenticate, tenantContext, requireRole('org_admin'), async (re
   }
 });
 
-// POST /api/v1/devices — Register a new device
-router.post('/', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
-  try {
-    const { branchId, deviceType, deviceSerial, name, location } = req.body;
-
-    if (!deviceType || !deviceSerial) {
-      return res.status(400).json({ error: 'deviceType and deviceSerial are required' });
-    }
-
-    const result = await deviceService.registerDevice({
-      orgId: req.orgId,
-      branchId,
-      deviceType,
-      deviceSerial,
-      name,
-      location,
-      adminId: req.user.id,
-      req,
-    });
-
-    res.status(201).json({
-      device: result.device,
-      apiKey: result.apiKey, // IMPORTANT: shown once only
-      message: 'Device registered. Save the API key — it will not be shown again.',
-    });
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    next(err);
-  }
+// POST /api/v1/devices — Disabled: only platform admin can register devices
+router.post('/', authenticate, tenantContext, requireRole('org_admin'), async (req, res) => {
+  return res.status(403).json({ error: 'Device registration is managed by the platform administrator. Please contact support.' });
 });
 
 // PUT /api/v1/devices/:id/deactivate
