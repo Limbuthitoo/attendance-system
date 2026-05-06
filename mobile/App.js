@@ -25,6 +25,8 @@ const ProfileScreen = lazy(() => import('./src/screens/ProfileScreen'));
 const NotificationsScreen = lazy(() => import('./src/screens/NotificationsScreen'));
 const NoticesScreen = lazy(() => import('./src/screens/NoticesScreen'));
 const EmployeeAttendanceScreen = lazy(() => import('./src/screens/EmployeeAttendanceScreen'));
+const EmployeeDetailScreen = lazy(() => import('./src/screens/EmployeeDetailScreen'));
+const PoliciesScreen = lazy(() => import('./src/screens/PoliciesScreen'));
 const QrCheckInScreen = lazy(() => import('./src/screens/QrCheckInScreen'));
 
 function ScreenFallback() {
@@ -57,6 +59,8 @@ const LazyProfile = withLazy(ProfileScreen);
 const LazyNotifications = withLazy(NotificationsScreen);
 const LazyNotices = withLazy(NoticesScreen);
 const LazyEmployeeAttendance = withLazy(EmployeeAttendanceScreen);
+const LazyEmployeeDetail = withLazy(EmployeeDetailScreen);
+const LazyPolicies = withLazy(PoliciesScreen);
 const LazyQrCheckIn = withLazy(QrCheckInScreen);
 
 const Stack = createNativeStackNavigator();
@@ -102,6 +106,14 @@ function MenuScreen({ navigation }) {
           description="Official notices & announcements"
           onPress={() => navigation.navigate('NoticesPage')}
           color="#1e40af"
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
+          icon="document-text-outline"
+          label="Policies"
+          description="Company policies & guidelines"
+          onPress={() => navigation.navigate('PoliciesPage')}
+          color="#7c3aed"
         />
       </View>
 
@@ -159,6 +171,7 @@ function MenuStackScreen() {
       <MenuStack.Screen name="MenuHome" component={MenuScreen} options={{ headerTitle: 'More' }} />
       <MenuStack.Screen name="NotificationsPage" component={LazyNotifications} options={{ headerTitle: 'Notifications' }} />
       <MenuStack.Screen name="NoticesPage" component={LazyNotices} options={{ headerTitle: 'Notices' }} />
+      <MenuStack.Screen name="PoliciesPage" component={LazyPolicies} options={{ headerTitle: 'Policies' }} />
       <MenuStack.Screen name="ProfilePage" component={LazyProfile} options={{ headerTitle: 'My Profile' }} />
       <MenuStack.Screen name="ChangePasswordPage" component={LazyChangePassword} options={{ headerTitle: 'Change Password' }} />
       {user?.role === 'admin' && (
@@ -169,6 +182,9 @@ function MenuStackScreen() {
       )}
       {user?.role === 'admin' && (
         <MenuStack.Screen name="EmployeeAttendancePage" component={LazyEmployeeAttendance} options={{ headerTitle: 'Employee Attendance' }} />
+      )}
+      {user?.role === 'admin' && (
+        <MenuStack.Screen name="EmployeeDetailPage" component={LazyEmployeeDetail} options={({ route }) => ({ headerTitle: route.params?.employeeName || 'Employee' })} />
       )}
     </MenuStack.Navigator>
   );

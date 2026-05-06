@@ -11,6 +11,11 @@ export const notices = {
   deleteNotice: (id) => request(`/notices/${id}`, { method: 'DELETE' }),
 };
 
+export const policies = {
+  getPolicies: (category) => request(`/policies${category ? `?category=${category}` : ''}`),
+  getPolicy: (id) => request(`/policies/${id}`),
+};
+
 export const notifications = {
   getNotifications: (limit, offset, unreadOnly) =>
     request(`/notifications?limit=${limit || 50}&offset=${offset || 0}${unreadOnly ? '&unread_only=1' : ''}`),

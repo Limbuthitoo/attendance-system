@@ -37,7 +37,7 @@ const DESIGNATIONS = [
   'Office Administrator', 'Intern', 'Trainee',
 ];
 
-export default function EmployeesScreen() {
+export default function EmployeesScreen({ navigation }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,6 +129,7 @@ export default function EmployeesScreen() {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.7}
+      onPress={() => navigation.navigate('EmployeeDetailPage', { employeeId: item.id, employeeName: item.name })}
       onLongPress={() => {
         setResetModalVisible(item);
         setNewPassword('');

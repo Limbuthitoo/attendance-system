@@ -5,8 +5,8 @@
 import { auth } from './auth';
 import { attendance } from './attendance';
 import { leaves } from './leaves';
-import { employees, dashboard } from './employees';
-import { holidays, notices, notifications } from './content';
+import { employees, dashboard, profile } from './employees';
+import { holidays, notices, notifications, policies } from './content';
 import { settings, qr, geofence, reports, overtime } from './settings';
 
 export const api = {
@@ -15,6 +15,8 @@ export const api = {
   ...leaves,
   ...employees,
   ...dashboard,
+  ...profile,
+  ...policies,
   ...holidays,
   ...notices,
   ...notifications,
