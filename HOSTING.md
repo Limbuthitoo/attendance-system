@@ -1,304 +1,190 @@
-# Archisys Attendance — Setup & Hosting Guide
+# Archisys Attendance — Hosting & Deployment Guide
 
-> Simple step-by-step instructions to install and host the Archisys Attendance system.
-> No prior experience needed — just follow each step in order.
-
----
-
-## What's Inside
-
-| Folder | What It Is |
-|--------|-----------|
-| `server/` | Backend API (the brain — handles data, login, attendance, office settings) |
-| `web/` | Admin website (manage employees, office settings, activity log, NFC, leaves) |
-| `mobile/` | Phone app for employees (check in/out, apply leave) |
-| `nfc-reader/` | Optional — connects a USB card reader for tap-to-attend |
+Production hosting guide for the multi-tenant attendance SaaS platform.
 
 ---
 
-## PART 1 — Run It On Your Computer
+## Table of Contents
 
-### What You Need First
-
-1. **Node.js** (version 18 or newer) — download from https://nodejs.org
-2. **Git** — download from https://git-scm.com
-3. **Expo Go app** on your phone — download from App Store or Play Store
-
-To check if you already have them, open Terminal and type:
-```
-node -v
-git --version
-```
-
-### Step 1: Get the Code
-
-```
-git clone https://github.com/YOUR_USERNAME/archisys-attendance.git
-cd archisys-attendance
-```
-
-### Step 2: Start the Backend Server
-
-```
-cd server
-npm install
-cp .env.example .env
-npm run seed
-npm start
-```
-
-You should see: `Archisys Attendance Server running on port 3001`
-
-That means the backend is working.
-
-### Step 3: Start the Website
-
-Open a **new terminal window** and run:
-```
-cd web
-npm install
-npm run dev
-```
-
-Open your browser and go to: **http://localhost:5173**
-
-### Step 4: Start the Mobile App
-
-Open another **new terminal window** and run:
-```
-cd mobile
-npm install
-npx expo start
-```
-
-A QR code will appear. Scan it with the **Expo Go** app on your phone.
-
-**Phone can't connect?** Your phone and computer must be on the **same WiFi**.
-Then open the file `mobile/src/api.js` and change `localhost` to your computer's IP address:
-
-- **Mac:** Open Terminal, type `ipconfig getifaddr en0`
-- **Windows:** Open Command Prompt, type `ipconfig`, look for "IPv4 Address"
-
-Example: Change `http://localhost:3001/api` to `http://192.168.1.5:3001/api`
-
-### Step 5: Login
-
-| Who | Email | Password |
-|-----|-------|----------|
-| **Admin** | admin@archisys.com | admin123 |
-| **Admin** | priya@archisys.com | password123 |
-| **Employee** | rajesh@archisys.com | password123 |
-| **Employee** | sita@archisys.com | password123 |
-| **Employee** | bikash@archisys.com | password123 |
-
-**Change the admin password after your first login!**
-
-### Step 6: Configure Office Hours
-
-Log in as admin → **Office Settings** in the sidebar. Set:
-- Office start/end time
-- Late grace period (minutes)
-- Half-day threshold (hours)
-- Working days
-- Company name and timezone
+1. [Prerequisites](#1-prerequisites)
+2. [VPS Setup](#2-vps-setup)
+3. [Deploy with Docker Compose](#3-deploy-with-docker-compose)
+4. [SSL/TLS with Nginx & Let's Encrypt](#4-ssltls-with-nginx--lets-encrypt)
+5. [Automated Deploys (GitHub Webhook)](#5-automated-deploys-github-webhook)
+6. [Database Backups](#6-database-backups)
+7. [NFC Reader Setup (On-Premise)](#7-nfc-reader-setup-on-premise)
+8. [Mobile App Distribution](#8-mobile-app-distribution)
+9. [Monitoring & Maintenance](#9-monitoring--maintenance)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
-## PART 2 — Put It On The Internet (Free — Using Render.com)
+## 1. Prerequisites
 
-This makes your app accessible from anywhere, not just your computer.
+| Requirement | Minimum |
+|-------------|---------|
+| VPS | Ubuntu 22.04+, 2 vCPU, 2 GB RAM, 40 GB SSD |
+| Domain | A domain with DNS pointing to your VPS IP |
+| Docker | Docker Engine 24+ with Compose V2 |
+| Git | Access to the repository |
 
-### Step 1: Upload Your Code to GitHub
-
-1. Go to https://github.com and create an account (or log in)
-2. Click the **"+"** button (top right) → **"New repository"**
-3. Name it anything (e.g. `attendance-system`)
-4. Set it to **Private**
-5. Click **"Create repository"**
-6. Open Terminal in your project folder and run:
-
-```
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/attendance-system.git
-git push -u origin main
-```
-
-### Step 2: Deploy the Backend (API Server)
-
-1. Go to https://render.com and sign up using your GitHub account
-2. Click **"New +"** → **"Web Service"**
-3. Select your `attendance-system` repository
-4. Fill in these settings:
-
-| Setting | What to type |
-|---------|-------------|
-| Name | `archisys-api` |
-| Root Directory | `server` |
-| Runtime | `Node` |
-| Build Command | `npm install` |
-| Start Command | `node src/index.js` |
-| Instance Type | `Free` |
-
-5. Scroll down to **"Environment Variables"** and add these one by one:
-
-| Key | Value |
-|-----|-------|
-| `PORT` | `3001` |
-| `JWT_SECRET` | Click **"Generate"** to create a random value |
-| `NODE_ENV` | `production` |
-| `CORS_ORIGIN` | `*` (you'll change this later) |
-
-6. Click **"Deploy Web Service"**
-7. Wait 2-3 minutes until it says **"Live"**
-8. You'll see a URL like: `https://archisys-api-abcd.onrender.com` — **copy this URL**
-9. Click the **"Shell"** tab at the top, type `npm run seed` and press Enter (this creates the default accounts)
-
-### Step 3: Deploy the Website
-
-1. On Render, click **"New +"** → **"Static Site"**
-2. Select the same repository
-3. Fill in:
-
-| Setting | What to type |
-|---------|-------------|
-| Name | `archisys-web` |
-| Root Directory | `web` |
-| Build Command | `npm install && npm run build` |
-| Publish Directory | `dist` |
-
-4. Add this **Environment Variable**:
-
-| Key | Value |
-|-----|-------|
-| `VITE_API_URL` | Paste your backend URL from Step 2 (e.g. `https://archisys-api-abcd.onrender.com`) |
-
-5. Click **"Deploy Static Site"**
-6. Wait for it to finish. Your website URL will look like: `https://archisys-web-abcd.onrender.com`
-
-### Step 4: Secure It
-
-Go back to your **backend service** on Render:
-1. Click **"Environment"**
-2. Change `CORS_ORIGIN` from `*` to your actual website URL (e.g. `https://archisys-web-abcd.onrender.com`)
-3. Click **"Save Changes"** — it will redeploy automatically
-
-### Step 5: Set Up the Mobile App
-
-Open `mobile/src/api.js` and change the API address to your Render backend:
-```
-const API_BASE = 'https://archisys-api-abcd.onrender.com/api';
-```
-
-Now the mobile app connects to your live server instead of your computer.
-
-### Important Note About Free Tier
-
-Render's free tier **sleeps after 15 minutes** of no activity. The first visit after sleep takes about 30 seconds to wake up. This is normal. For always-on service, upgrade to their paid plan ($7/month).
+Recommended providers: DigitalOcean, Hetzner, AWS Lightsail, Vultr, Linode.
 
 ---
 
-## PART 3 — Deploy With Docker (For Technical Users)
+## 2. VPS Setup
 
-If you have Docker installed and prefer containers:
+### 2.1 Initial Server Setup
 
-### Step 1: Create a `.env` file in the project root
-
-```
-JWT_SECRET=type-a-long-random-string-here
-CORS_ORIGIN=*
-NFC_API_KEY=type-another-random-string-here
-VITE_API_URL=http://localhost:3001
-```
-
-### Step 2: Start Everything
-
-```
-docker compose up -d --build
-```
-
-### Step 3: Create Default Accounts
-
-```
-docker compose exec api npm run seed
-```
-
-### Step 4: Open
-
-- **Website:** http://localhost
-- **API:** http://localhost:3001
-
-### To Stop
-
-```
-docker compose down
-```
-
----
-
-## PART 4 — Deploy on a VPS (DigitalOcean, AWS, Linode)
-
-For full control over your own server.
-
-### Step 1: Connect to Your Server
-
-```
+```bash
+# SSH into your server
 ssh root@your-server-ip
+
+# Create a deploy user
+adduser ubuntu
+usermod -aG sudo ubuntu
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker ubuntu
+
+# Install Nginx (host-level reverse proxy)
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx git
+
+# Switch to deploy user
+su - ubuntu
 ```
 
-### Step 2: Install Required Software
+### 2.2 Clone the Repository
 
-```
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt update && sudo apt install -y nodejs nginx git
-sudo npm install -g pm2
-```
-
-### Step 3: Get the Code and Set Up Backend
-
-```
-git clone https://github.com/YOUR_USERNAME/attendance-system.git /var/www/attendance
-cd /var/www/attendance/server
-npm install --production
-cp .env.example .env
-nano .env
+```bash
+mkdir -p ~/attendance
+cd ~/attendance
+git clone https://github.com/YOUR_USERNAME/attendance-system.git
+cd attendance-system
 ```
 
-In the `.env` file, set:
-- `JWT_SECRET` = a long random string
-- `CORS_ORIGIN` = your domain (e.g. `https://attendance.yourcompany.com`)
+---
 
-Then:
-```
-npm run seed
-pm2 start src/index.js --name "attendance-api"
-pm2 save
-pm2 startup
-```
+## 3. Deploy with Docker Compose
 
-### Step 4: Build the Website
+### 3.1 Environment Configuration
 
-```
-cd /var/www/attendance/web
-npm install
-npm run build
+Create a `.env` file in the project root:
+
+```bash
+cp server/.env.example .env
 ```
 
-### Step 5: Set Up Nginx (Web Server)
+Edit `.env` with production values:
 
-Create the file `/etc/nginx/sites-available/attendance`:
+```env
+# ── Database ─────────────────────────────────────────
+POSTGRES_USER=attendance
+POSTGRES_PASSWORD=<strong-random-password>
+POSTGRES_DB=attendance
+
+# ── Redis ────────────────────────────────────────────
+REDIS_PASSWORD=<strong-random-password>
+
+# ── API Server ───────────────────────────────────────
+JWT_SECRET=<64-char-random-string>
+CORS_ORIGIN=https://yourdomain.com
+NODE_ENV=production
+
+# ── Platform Admin (first-run seed) ─────────────────
+PLATFORM_ADMIN_EMAIL=admin@yourdomain.com
+PLATFORM_ADMIN_PASSWORD=<strong-password>
+
+# ── Email (optional, for notifications) ─────────────
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@yourdomain.com
+NOTIFY_EMAIL=admin@yourdomain.com
+
+# ── Frontend ─────────────────────────────────────────
+VITE_API_URL=https://yourdomain.com
 ```
+
+> Generate secrets: `openssl rand -hex 32`
+
+### 3.2 Docker Compose Services
+
+The `docker-compose.yml` runs 6 services:
+
+| Service | Image | Purpose |
+|---------|-------|---------|
+| `postgres` | postgres:16-alpine | Primary database |
+| `redis` | redis:7-alpine | Cache, session store, job queue |
+| `api` | ./server (Dockerfile) | Express API server on :3001 |
+| `worker` | ./server (Dockerfile) | BullMQ background worker (email, push, scheduler) |
+| `web` | ./web (Dockerfile) | Nginx serving the React SPA on :8080 |
+| `backup` | postgres:16-alpine | Daily database backups at 2 AM UTC |
+
+### 3.3 Start All Services
+
+```bash
+# Build and start everything
+docker compose up -d --build
+
+# Check all services are healthy
+docker compose ps
+
+# View API logs
+docker compose logs -f api
+
+# Run seed (first time only — creates platform admin + default org)
+docker compose exec api node src/seed.js
+```
+
+### 3.4 Verify
+
+```bash
+# Health check
+curl http://localhost:3001/api/health
+# → {"status":"ok","version":"2.0.0","timestamp":"..."}
+
+# Web frontend
+curl -s http://localhost:8080 | head -5
+```
+
+---
+
+## 4. SSL/TLS with Nginx & Let's Encrypt
+
+The Docker `web` container serves the SPA on port 8080 and proxies `/api/` to the API container. A host-level Nginx acts as the public-facing reverse proxy with SSL.
+
+### 4.1 Nginx Site Config
+
+Create `/etc/nginx/sites-available/attendance`:
+
+```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name yourdomain.com;
 
+    # Redirect HTTP → HTTPS (certbot will add this)
     location / {
-        root /var/www/attendance/web/dist;
-        try_files $uri $uri/ /index.html;
+        return 301 https://$host$request_uri;
     }
+}
 
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    # SSL certs (managed by certbot)
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    # API proxy (to Docker API container)
     location /api/ {
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
@@ -306,228 +192,386 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE support (for real-time NFC events)
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+    }
+
+    # APK downloads (larger file uploads)
+    location /api/v1/app-update/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 100M;
+    }
+
+    # Web frontend (Docker Nginx container)
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
 
-Enable it:
-```
-sudo ln -s /etc/nginx/sites-available/attendance /etc/nginx/sites-enabled/
+### 4.2 Enable & Get SSL Certificate
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/attendance /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t && sudo systemctl restart nginx
+sudo nginx -t && sudo systemctl reload nginx
+
+# Get SSL certificate (follow the prompts)
+sudo certbot --nginx -d yourdomain.com
 ```
 
-### Step 6: Add HTTPS (Free)
-
+Certbot auto-renews via a systemd timer. Verify:
+```bash
+sudo certbot renew --dry-run
 ```
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-Done! Your site now has a secure HTTPS connection.
 
 ---
 
-## PART 5 — NFC Card Reader (Optional)
+## 5. Automated Deploys (GitHub Webhook)
 
-This lets employees tap an NFC card to check in/out instead of using the app.
+The repo includes `webhook.js` — a lightweight listener that triggers `deploy.sh` on push to `main`.
 
-### What You Need to Buy
+### 5.1 Setup
 
-- **ACS ACR122U** USB NFC reader (~$30 online)
-- **MIFARE Classic** NFC cards or keyfobs (any 13.56 MHz cards)
+```bash
+# Install the webhook listener as a systemd service
+sudo tee /etc/systemd/system/attendance-webhook.service > /dev/null <<EOF
+[Unit]
+Description=Attendance Deploy Webhook
+After=network.target
 
-### Install Drivers (Linux Only)
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/attendance/attendance-system
+ExecStart=/usr/bin/node webhook.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable --now attendance-webhook
+```
+
+### 5.2 GitHub Webhook
+
+1. Go to your repo → **Settings** → **Webhooks** → **Add webhook**
+2. **Payload URL:** `https://yourdomain.com:9000/webhook` (or proxy through Nginx)
+3. **Content type:** `application/json`
+4. **Secret:** Set a webhook secret and add it to your `.env`
+5. **Events:** Just the push event
+
+### 5.3 Deploy Script
+
+`deploy.sh` performs:
+1. Pre-deploy database backup
+2. `git pull origin main`
+3. `prisma migrate deploy` (inside the API container)
+4. Rebuild and restart `api` + `worker` containers
+5. Health check
+6. `npm install && npm run build` for the web frontend
+7. Copy built assets to the Nginx document root
+8. Reload Nginx
+
+To deploy manually:
+```bash
+cd ~/attendance/attendance-system
+./deploy.sh
+```
+
+---
+
+## 6. Database Backups
+
+### Automated (Docker Compose)
+
+The `backup` service in `docker-compose.yml` runs a cron job at **2:00 AM UTC daily**:
+- Dumps the full PostgreSQL database to `/backups/`
+- Retains backups for 30 days (configurable via `BACKUP_RETENTION_DAYS`)
+- Backup volume: `backup-data` (Docker named volume)
+
+### Manual Backup
+
+```bash
+# Trigger a backup now
+docker compose exec backup /scripts/backup-db.sh
+
+# List backups
+docker compose exec backup ls -la /backups/
+
+# Copy a backup to the host
+docker cp $(docker compose ps -q backup):/backups/latest.sql.gz ./backup.sql.gz
+```
+
+### Restore
+
+```bash
+# Stop the API and worker first
+docker compose stop api worker
+
+# Restore from backup
+gunzip -c backup.sql.gz | docker compose exec -T postgres psql -U attendance -d attendance
+
+# Restart services
+docker compose start api worker
+```
+
+---
+
+## 7. NFC Reader Setup (On-Premise)
+
+NFC readers run as local clients at each office location. They connect **outbound** to your cloud server over HTTPS — no VPN or port forwarding needed.
+
+### 7.1 How It Works
 
 ```
-sudo apt install -y pcscd libpcsclite1 libpcsclite-dev
-sudo systemctl enable pcscd && sudo systemctl start pcscd
+┌─────────────────────────┐         HTTPS          ┌──────────────────────┐
+│  Office PC              │ ──────────────────────► │  Cloud Server        │
+│  + ACR122U USB reader   │                         │                      │
+│  + nfc-reader/ client   │  POST /api/nfc/tap      │  yourdomain.com      │
+│                         │  POST /api/nfc/heartbeat│                      │
+│                         │  GET  /api/nfc/write-*  │                      │
+└─────────────────────────┘                         └──────────────────────┘
 ```
 
-Mac and Windows: no extra drivers needed (Mac has built-in support; Windows — install from https://www.acs.com.hk/en/driver/3/acr122u-usb-nfc-reader/).
+### 7.2 Register the Device
 
-### Set Up the Reader Software
+1. Log into **Platform Admin** → **Devices** → **Register Device**
+2. Select the organization, device type = `NFC_READER`
+3. Enter serial (e.g., `NFC-RECEPTION-01`), brand (`ACS`), model (`ACR122U`)
+4. **Copy the API key** — it is shown only once
 
-```
-cd nfc-reader
+### 7.3 Setup the Reader PC
+
+Any PC (Windows / macOS / Linux) with a USB port:
+
+```bash
+# Get the reader client
+git clone https://github.com/YOUR_USERNAME/attendance-system.git
+cd attendance-system/nfc-reader
 npm install
+
+# Configure
 cp .env.example .env
 ```
 
-Edit the `.env` file:
-```
-API_URL=http://localhost:3001
-NFC_API_KEY=paste-the-same-key-from-server-env
-DEVICE_ID=front-desk-01
+Edit `.env`:
+```env
+API_URL=https://yourdomain.com
+DEVICE_SERIAL=NFC-RECEPTION-01
+NFC_API_KEY=dev_xxxxxxxxxxxxxxxxxx
+DEVICE_ID=reception-01
+DEBOUNCE_SECONDS=10
+ACTION_COOLDOWN_SECONDS=30
 ```
 
-The `NFC_API_KEY` must be the **exact same value** as in `server/.env`.
+### 7.4 Install PC/SC Drivers
 
-### Start the Reader
-
-Plug in the ACR122U USB reader, then:
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt install -y pcscd libpcsclite1 libpcsclite-dev
+sudo systemctl enable --now pcscd
 ```
+
+**macOS:** Built-in support, no installation needed.
+
+**Windows:** Install drivers from https://www.acs.com.hk/en/driver/3/acr122u-usb-nfc-reader/
+
+### 7.5 Start the Reader
+
+```bash
+# Plug in the ACR122U, then:
 npm start
 ```
 
-You should see:
+Expected output:
 ```
-[NFC] Reader detected: ACS ACR122U
-[NFC] Waiting for cards...
-```
-
-You can also use the included executable launcher:
-```
-./start.sh
+╔═══════════════════════════════════════╗
+║   Archisys NFC Reader                ║
+║   Serial: NFC-RECEPTION-01           ║
+║   → https://yourdomain.com           ║
+╚═══════════════════════════════════════╝
 ```
 
-### Start the Reader Automatically on Reboot (Linux)
+### 7.6 Run as a Service
 
-From the `nfc-reader` folder, run:
-```
+**Linux (systemd — recommended for unattended machines):**
+```bash
 chmod +x install-autostart.sh
 ./install-autostart.sh
 ```
 
-This installs a `systemd` service named `archisys-nfc-reader.service`, starts it immediately, and enables it for future reboots.
+This installs `archisys-nfc-reader.service` with auto-restart on crash.
 
-This is the recommended Linux setup because `systemd` will also restart the reader automatically if the Node process crashes.
-
-The installer also adds a PolicyKit rule for the chosen Linux user so the reader can talk to `pcscd` after a full reboot, even before any desktop session is active.
-
-Useful commands:
-```
-sudo systemctl status archisys-nfc-reader.service
-sudo systemctl restart archisys-nfc-reader.service
-sudo journalctl -u archisys-nfc-reader.service -f
+```bash
+# Useful commands
+sudo systemctl status archisys-nfc-reader
+sudo journalctl -u archisys-nfc-reader -f
 ```
 
-If you change `nfc-reader/.env`, restart the service afterward:
-```
-sudo systemctl restart archisys-nfc-reader.service
-```
-
-### Start the Reader Automatically on User Login (Linux, no sudo)
-
-If you only need the reader to start when this desktop user signs in, run:
-```
-chmod +x start.sh install-login-autostart.sh
+**Linux (user login autostart):**
+```bash
 ./install-login-autostart.sh
 ```
 
-This creates a desktop autostart entry in `~/.config/autostart/` and launches the reader automatically on each login.
+**Windows:** Use `start.bat` or configure as a Windows Service.
 
-The login autostart wrapper now also relaunches the reader after a crash and writes logs to `~/.local/state/archisys-nfc-reader/reader.log`, but `systemd` is still the more reliable option for unattended machines.
+**macOS:** Use `start.command` or create a LaunchAgent.
 
-To remove it later:
-```
-rm -f ~/.config/autostart/archisys-nfc-reader.desktop
-```
+### 7.7 Multiple Locations
 
-### How It Works
-
-- Employee taps card → automatically checks in (morning) or checks out (if already checked in)
-- Admin can assign cards to employees from the web dashboard: **Employees** → click **NFC** button → enter card UID
-- Admin can also write employee ID to a blank card: click **"Queue Write Job"** → place card on reader
+Register a separate device per location in Platform Admin. Each office PC gets its own serial and API key. The **NFC Management** page in the org dashboard shows all reader statuses.
 
 ---
 
-## PART 6 — Build Mobile App for Distribution
+## 8. Mobile App Distribution
 
-To share the app without Expo Go:
+### 8.1 Configure API URL
 
-### Install Build Tool
-
+Edit `mobile/src/api.js`:
+```javascript
+const API_BASE = 'https://yourdomain.com/api';
 ```
+
+### 8.2 Build with EAS (Expo Application Services)
+
+```bash
+cd mobile
 npm install -g eas-cli
 eas login
-```
 
-### Update the API Address
-
-Open `mobile/src/api.js` and set your production backend URL:
-```
-const API_BASE = 'https://your-backend-url.com/api';
-```
-
-### Build for Android (Free)
-
-```
-cd mobile
+# Android APK (free, no account needed)
 eas build --platform android --profile preview
+
+# Android Play Store bundle
+eas build --platform android --profile production
+
+# iOS (requires Apple Developer account — $99/year)
+eas build --platform ios --profile production
 ```
 
-This creates a downloadable `.apk` file you can share directly.
+### 8.3 Self-Hosted APK Updates
 
-### Build for iOS
+The platform includes a built-in app update system:
 
+1. **Platform Admin** → **App Update** → Upload new APK
+2. The mobile app checks for updates on launch via `GET /api/v1/app-update/check`
+3. Users see an update prompt with download link
+
+---
+
+## 9. Monitoring & Maintenance
+
+### Health Checks
+
+```bash
+# API health
+curl https://yourdomain.com/api/health
+
+# Docker service status
+docker compose ps
+
+# Resource usage
+docker stats --no-stream
 ```
-eas build --platform ios
+
+### Logs
+
+```bash
+# All services
+docker compose logs -f
+
+# Specific service
+docker compose logs -f api
+docker compose logs -f worker
+
+# Deploy log
+tail -f /var/log/attendance-deploy.log
 ```
 
-Requires an Apple Developer account ($99/year).
+### Database Migrations
+
+When updating the schema:
+
+```bash
+# Inside the API container
+docker compose exec api npx prisma migrate deploy
+
+# Or during deploy (handled automatically by deploy.sh)
+```
+
+### Scaling Considerations
+
+| Metric | Action |
+|--------|--------|
+| High API load | Scale horizontally with load balancer + multiple API containers |
+| Large database | Add read replicas, enable connection pooling (PgBouncer) |
+| Many orgs | Consider partitioning by org; the current shared-DB model handles hundreds of orgs |
+| Queue bottleneck | Run multiple worker containers |
 
 ---
 
-## Custom Domain (Optional)
+## 10. Troubleshooting
 
-If you have your own domain (e.g. `attendance.yourcompany.com`):
+### API won't start
 
-**On Render:**
-1. Go to your Static Site → **Settings** → **Custom Domains**
-2. Add your domain
-3. In your domain provider's DNS settings, add a **CNAME** record pointing to the Render URL
-4. Render gives you free HTTPS automatically
+```bash
+docker compose logs api
+# Check for missing env vars (DATABASE_URL, JWT_SECRET are required)
+```
 
-**On VPS:** Already covered in Part 4, Step 6 (Certbot).
+### Database connection refused
 
----
+```bash
+# Ensure postgres is healthy
+docker compose ps postgres
+docker compose exec postgres pg_isready
+```
 
-## Company Branding
+### NFC reader not detected (Linux)
 
-To put your own company name and logo:
+```bash
+# Check if pcscd sees the reader
+pcsc_scan
 
-| What to Change | Where |
-|---------------|-------|
-| Mobile app icon | Replace `mobile/assets/icon.png` (1024×1024 PNG) |
-| Mobile splash screen | Replace `mobile/assets/splash.png` (1284×2778 PNG) |
-| Website favicon | Replace `web/public/favicon.svg` |
-| Company name in sidebar | Edit `web/src/components/Layout.jsx` — search for "Archisys" |
-| Company name on login page | Edit `web/src/pages/Login.jsx` — search for "Archisys" |
-| Company name (dynamic) | Admin → **Office Settings** → Company Name |
+# If Ubuntu bound the reader to kernel NFC driver:
+sudo modprobe -r pn533_usb pn533 nfc
+sudo systemctl restart pcscd
+```
 
----
+### NFC reader auth failures
 
-## Troubleshooting
+```bash
+# Verify the device is registered and active in Platform Admin → Devices
+# Ensure DEVICE_SERIAL in .env matches the registered serial exactly
+# Ensure NFC_API_KEY is the key shown during registration (not rotated)
+```
 
-**"Port already in use"**
-→ Run: `lsof -ti:3001 | xargs kill -9`
+### SSL certificate renewal fails
 
-**Mobile says "Network Request Failed"**
-→ Change `API_BASE` in `mobile/src/api.js` to your computer's IP (not `localhost`)
-→ Make sure phone and computer are on the same WiFi
+```bash
+sudo certbot renew --dry-run
+# Check Nginx config is valid
+sudo nginx -t
+```
 
-**"Invalid credentials" when logging in**
-→ Run `npm run seed` in the server folder to create default accounts
+### Mobile app can't reach the server
 
-**Website shows blank page after deploying**
-→ Make sure Publish Directory is `dist` (not `build`)
-→ Check that `VITE_API_URL` environment variable is set
-
-**CORS error in browser console**
-→ Set `CORS_ORIGIN` in server `.env` to your exact website URL
-
-**Render site takes 30 seconds to load**
-→ Free tier sleeps after 15 minutes — this is normal
-
-**NFC reader says "No readers found"**
-→ Install PC/SC drivers (see Part 5)
-→ Make sure the USB reader is plugged in
-
-**Expo won't start or crashes**
-→ Try: `npx expo start -c` (clears cache)
-→ Try: `npx expo install --check` (fixes dependency versions)
-
----
-
-Built for **Archisys Innovations** © 2026
+- Ensure `CORS_ORIGIN` includes your domain
+- Ensure the API URL in `mobile/src/api.js` uses HTTPS
+- Check the phone has internet access
+- If using a custom domain, ensure DNS is propagated: `dig yourdomain.com`

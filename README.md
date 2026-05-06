@@ -1,186 +1,189 @@
-# Archisys Attendance Management System
+# Archisys Attendance — Multi-Tenant SaaS
 
-A professional and minimal attendance management system for **Archisys Innovations** — includes a backend API, a modern web dashboard, a mobile app, and NFC card reader support.
+A cloud-hosted, multi-tenant attendance management platform with a web dashboard, mobile app, and on-premise device integration (NFC readers, fingerprint scanners).
 
 ## Architecture
 
 ```
-├── server/         → Node.js + Express API with SQLite
-├── web/            → React + Vite + Tailwind CSS dashboard
-├── mobile/         → React Native + Expo mobile app
-└── nfc-reader/     → NFC card reader service (ACR122U)
+Cloud (Docker Compose on VPS)                 On-Premise (per office)
+┌──────────────────────────────────────┐      ┌──────────────────────┐
+│  nginx (reverse proxy + static SPA)  │◄─────│  Browser / Mobile    │
+│  ┌──────────┐  ┌───────────┐         │      └──────────────────────┘
+│  │ API (v1) │  │ Platform  │         │
+│  │  + NFC   │  │  (admin)  │         │      ┌──────────────────────┐
+│  └────┬─────┘  └─────┬─────┘         │◄─────│  NFC / FP reader     │
+│       │              │               │ HTTPS │  (nfc-reader client) │
+│  ┌────┴──────────────┴─────┐         │      └──────────────────────┘
+│  │  PostgreSQL 16 │ Redis 7│         │
+│  └─────────────────────────┘         │
+│  ┌─────────────┐  ┌────────┐         │
+│  │ BullMQ      │  │ Backup │         │
+│  │ Worker      │  │ (cron) │         │
+│  └─────────────┘  └────────┘         │
+└──────────────────────────────────────┘
 ```
 
-## Features
+## Project Structure
 
-### Employees
-- Clock in / Clock out with timestamps
-- View attendance history by month
-- Apply for leave (Sick, Casual, Earned, Unpaid)
-- Cancel pending leave requests
-- Dashboard with monthly stats & work hours
+```
+├── server/            Node.js + Express API, Prisma ORM, BullMQ workers
+│   ├── src/
+│   │   ├── routes/v1/       Org-level API (auth, attendance, leaves, NFC, …)
+│   │   ├── routes/platform/ Platform admin API (orgs, plans, billing, devices, …)
+│   │   ├── services/        Business logic layer
+│   │   ├── middleware/       Auth, CSRF, tenant context, device auth, sanitize
+│   │   ├── workers/         Background jobs (email, push, scheduler)
+│   │   └── config/          Env loader, Redis, BullMQ queues
+│   └── prisma/              Schema (31 models) + migrations
+├── web/               React 18 + Vite + Tailwind CSS
+│   └── src/
+│       ├── pages/           Org admin dashboard (26 pages)
+│       └── platform/pages/  Platform admin portal (11 pages)
+├── mobile/            React Native + Expo (SDK 54)
+│   └── src/screens/         13 screens (attendance, leaves, QR, …)
+├── nfc-reader/        On-premise NFC reader client (Node.js, nfc-pcsc)
+├── docker-compose.yml 6 services: postgres, redis, api, worker, web, backup
+├── deploy.sh          Zero-downtime deploy script
+└── webhook.js         GitHub webhook listener for auto-deploy
+```
 
-### Admin
-- View all employee attendance for any date
-- Approve / Reject leave requests with notes
-- Add, edit, activate/deactivate employees
-- Admin dashboard with company-wide metrics
-- Reset employee passwords
-- Manage NFC cards (assign, deactivate, delete)
-- Write employee ID to blank NFC cards
-- Real-time NFC tap alerts via SSE (browser notifications)
-- Activity log with unified timeline (attendance, NFC taps, leaves)
-- Configurable office settings (hours, thresholds, working days)
+## Tech Stack
 
-### NFC Card Reader (Optional)
-- Tap-to-attend using ACR122U USB reader
-- Automatic check-in / check-out based on time
-- Card write support (provision new cards from the dashboard)
-- Debounce, retry queue, and audit logging
+| Layer | Technology |
+|-------|-----------|
+| **API** | Node.js 20, Express, Prisma 6, JWT (access + refresh tokens) |
+| **Database** | PostgreSQL 16 (shared-database multi-tenancy with `orgId`) |
+| **Cache / Queue** | Redis 7, BullMQ (email, push notifications, scheduler) |
+| **Web** | React 18, Vite, Tailwind CSS, React Router, Recharts, Lucide |
+| **Mobile** | React Native, Expo SDK 54, React Navigation, SecureStore |
+| **NFC** | nfc-pcsc (ACR122U), PC/SC protocol |
+| **Infrastructure** | Docker Compose, Nginx, Let's Encrypt, systemd |
+| **Security** | Helmet, CORS, CSRF tokens, rate limiting, XSS sanitize, bcrypt-12 |
 
-## Quick Start
+## Multi-Tenancy
 
-### 1. Backend Server
+- **Shared database** — all tenants in one PostgreSQL instance, isolated by `orgId`
+- **Platform admin** — manages organizations, plans, billing, modules, devices
+- **Org admin** — manages employees, attendance, leaves, NFC, settings within their org
+- **Device auth** — physical devices (NFC readers, fingerprint scanners) authenticate via `X-Device-Serial` + `X-Api-Key` headers, registered through platform admin
+
+## Quick Start (Local Development)
+
+### Prerequisites
+
+- Node.js 20+, Docker (for PostgreSQL + Redis), Git
+
+### 1. Database + Redis
+
+```bash
+docker compose up -d postgres redis
+```
+
+### 2. API Server
 
 ```bash
 cd server
+cp .env.example .env          # Edit DATABASE_URL, JWT_SECRET, etc.
 npm install
-npm run seed     # Creates sample data + admin account
-npm run dev      # Starts on http://localhost:3001
+npx prisma migrate deploy     # Apply migrations
+node src/seed.js               # Seed platform admin + sample org
+node src/index.js              # http://localhost:3001
 ```
 
-**Default login credentials:**
-| Role     | Email                  | Password     |
-|----------|------------------------|--------------|
-| Admin    | admin@archisys.com     | admin123     |
-| Admin    | priya@archisys.com     | password123  |
-| Employee | rajesh@archisys.com    | password123  |
-| Employee | sita@archisys.com      | password123  |
-| Employee | bikash@archisys.com    | password123  |
-
-### 2. Web Dashboard
+### 3. Web Dashboard
 
 ```bash
 cd web
 npm install
-npm run dev      # Starts on http://localhost:5173
+npm run dev                    # http://localhost:5173 (proxies /api → :3001)
 ```
 
-The web app proxies API calls to the backend at `:3001`.
-
-### 3. Mobile App (Expo)
+### 4. Mobile App
 
 ```bash
 cd mobile
 npm install
-npx expo start   # Scan QR code with Expo Go
+npx expo start                 # Scan QR with Expo Go
 ```
 
-> **Note:** For physical device testing, update the `API_BASE` URL in `mobile/src/api.js` to your machine's local IP (e.g., `http://192.168.1.100:3001/api`).
+> Update `API_BASE` in `mobile/src/api.js` to your machine's IP for physical devices.
 
-### 4. NFC Card Reader (Optional)
+### Default Credentials
 
-Requires an **ACS ACR122U** USB NFC reader.
+| Portal | Email | Password |
+|--------|-------|----------|
+| **Platform Admin** | admin@attendance.app | Admin@123! |
+| **Org Admin** | admin@archisys.com | admin123 |
 
-```bash
-cd nfc-reader
-npm install
-cp .env.example .env   # Set API_URL and NFC_API_KEY (must match server/.env)
-npm start
-```
+## API Routes
 
-See [HOSTING.md](HOSTING.md) for full NFC setup instructions including driver installation.
+### Org API (`/api/v1/` or `/api/` for backward compat)
 
-## API Endpoints
+| Group | Key Endpoints |
+|-------|--------------|
+| **Auth** | POST `/auth/login`, `/auth/refresh`, `/auth/logout`, GET `/auth/me` |
+| **Attendance** | POST `/attendance/check-in`, `/attendance/check-out`, GET `/attendance/today`, `/attendance/history`, `/attendance/all` |
+| **Leaves** | POST `/leaves`, GET `/leaves/my`, `/leaves/all`, PUT `/leaves/:id/review` |
+| **Employees** | GET `/employees`, POST `/employees`, PUT `/employees/:id`, POST `/employees/:id/reset-password` |
+| **NFC** | POST `/nfc/tap`, `/nfc/heartbeat`, GET `/nfc/cards`, `/nfc/reader-status`, `/nfc/tap-log`, `/nfc/write-jobs` |
+| **Dashboard** | GET `/dashboard/stats`, `/dashboard/activity-log`, `/dashboard/weekly-trend` |
+| **Settings** | GET/PUT `/settings`, shifts, schedules, assignments, branding |
+| **Reports** | GET `/reports/attendance-summary`, `/reports/export/attendance` |
+| **QR** | POST `/qr/generate-location`, `/qr/scan` |
+| **Devices** | POST `/devices/event`, `/devices/heartbeat`, GET `/devices` |
+| **Holidays** | CRUD `/holidays` |
+| **Notices** | CRUD `/notices` |
+| **Overtime** | GET/POST `/overtime/policies`, PUT `/overtime/records/:id/review` |
+| **Payroll** | POST `/payroll/generate`, GET `/payroll/summaries`, `/payroll/export` |
+| **Geofence** | GET/PUT `/geofence/:branchId`, POST `/geofence/validate` |
+| **Roles** | CRUD `/roles`, POST `/roles/assign`, `/roles/remove` |
+| **App Update** | GET `/app-update/check`, `/app-update/download` |
 
-### Auth
-| Method | Endpoint                 | Description          |
-|--------|--------------------------|----------------------|
-| POST   | `/api/auth/login`        | Login                |
-| GET    | `/api/auth/me`           | Get current user     |
-| PUT    | `/api/auth/change-password` | Change password   |
+### Platform API (`/api/platform/`)
 
-### Attendance
-| Method | Endpoint                    | Description               |
-|--------|-----------------------------|---------------------------|
-| POST   | `/api/attendance/check-in`  | Check in                  |
-| POST   | `/api/attendance/check-out` | Check out                 |
-| GET    | `/api/attendance/today`     | Today's record            |
-| GET    | `/api/attendance/history`   | Monthly history           |
-| GET    | `/api/attendance/all`       | All attendance (admin)    |
+| Group | Key Endpoints |
+|-------|--------------|
+| **Auth** | POST `/auth/login`, GET `/auth/me` |
+| **Organizations** | CRUD `/organizations`, suspend/reactivate, module assignment |
+| **Plans** | CRUD `/plans` |
+| **Billing** | CRUD `/billing`, invoice payment |
+| **Modules** | GET `/modules` |
+| **Users** | CRUD `/users` |
+| **Devices** | GET/POST `/devices`, deactivate/reactivate, key rotation |
+| **Dashboard** | GET `/dashboard` |
+| **App Update** | POST `/app-update/upload`, GET/DELETE `/app-update/current` |
 
-### Leaves
-| Method | Endpoint                    | Description               |
-|--------|-----------------------------|---------------------------|
-| POST   | `/api/leaves`               | Apply for leave           |
-| GET    | `/api/leaves/my`            | My leave requests         |
-| GET    | `/api/leaves/all`           | All leaves (admin)        |
-| PUT    | `/api/leaves/:id/review`    | Approve/reject (admin)    |
-| DELETE | `/api/leaves/:id`           | Cancel pending leave      |
+## Production Deployment
 
-### Employees (Admin)
-| Method | Endpoint                          | Description          |
-|--------|-----------------------------------|----------------------|
-| GET    | `/api/employees`                  | List employees       |
-| POST   | `/api/employees`                  | Create employee      |
-| PUT    | `/api/employees/:id`              | Update employee      |
-| PUT    | `/api/employees/:id/reset-password` | Reset password    |
+See [HOSTING.md](HOSTING.md) for complete deployment instructions covering:
 
-### Dashboard
-| Method | Endpoint                     | Description              |
-|--------|------------------------------|--------------------------|
-| GET    | `/api/dashboard/stats`       | Get statistics           |
-| GET    | `/api/dashboard/activity-log`| Unified activity timeline|
+- **Docker Compose** on a VPS (recommended)
+- **SSL/TLS** with Let's Encrypt
+- **Automated deploys** via GitHub webhook
+- **Database backups** (daily, 30-day retention)
+- **NFC reader setup** at office locations
+- **Mobile app builds** with EAS
 
-### Office Settings
-| Method | Endpoint           | Description                  |
-|--------|--------------------|------------------------------|
-| GET    | `/api/settings`    | Get office settings (any user)|
-| PUT    | `/api/settings`    | Update settings (admin)      |
+See [INFRASTRUCTURE.md](INFRASTRUCTURE.md) for the system architecture diagram and service topology.
 
-### NFC
-| Method | Endpoint                          | Auth     | Description                    |
-|--------|-----------------------------------|----------|--------------------------------|
-| POST   | `/api/nfc/tap`                    | API Key  | Record card tap (check-in/out) |
-| GET    | `/api/nfc/cards`                  | Admin    | List all NFC cards             |
-| GET    | `/api/nfc/cards/employee/:id`     | Admin    | Cards for an employee          |
-| POST   | `/api/nfc/cards`                  | Admin    | Assign card to employee        |
-| PUT    | `/api/nfc/cards/:id/deactivate`   | Admin    | Deactivate card                |
-| PUT    | `/api/nfc/cards/:id/activate`     | Admin    | Reactivate card                |
-| DELETE | `/api/nfc/cards/:id`              | Admin    | Delete card                    |
-| GET    | `/api/nfc/tap-log`                | Admin    | View tap audit log             |
-| GET    | `/api/nfc/readers`                | Admin    | List reader devices            |
-| POST   | `/api/nfc/readers`                | Admin    | Register a reader              |
-| POST   | `/api/nfc/write-jobs`             | Admin    | Queue card write job           |
-| GET    | `/api/nfc/write-jobs`             | Admin    | List write jobs                |
-| PUT    | `/api/nfc/write-jobs/:id/cancel`  | Admin    | Cancel write job               |
-| GET    | `/api/nfc/write-jobs/pending`     | API Key  | Reader polls for write jobs    |
-| PUT    | `/api/nfc/write-jobs/:id/complete`| API Key  | Reader reports write result    |
-| GET    | `/api/nfc/events`                 | Admin    | SSE stream for real-time alerts|
+## Environment Variables
 
-## Tech Stack
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `JWT_SECRET` | Yes | Secret for signing JWT tokens |
+| `REDIS_URL` | No | Redis connection (default: `redis://localhost:6379`) |
+| `PORT` | No | API port (default: `3001`) |
+| `CORS_ORIGIN` | Prod | Comma-separated allowed origins |
+| `SMTP_HOST` | No | Email server host |
+| `SMTP_PORT` | No | Email server port (default: `587`) |
+| `SMTP_USER` | No | Email username |
+| `SMTP_PASS` | No | Email password |
+| `SMTP_FROM` | No | From address (default: `noreply@archisysinnovation.com`) |
+| `NOTIFY_EMAIL` | No | Admin notification recipient |
+| `PLATFORM_ADMIN_EMAIL` | No | Initial platform admin email |
+| `PLATFORM_ADMIN_PASSWORD` | No | Initial platform admin password |
 
-- **Backend:** Node.js, Express, better-sqlite3, JWT, bcryptjs, helmet, compression, express-rate-limit
-- **Web:** React 18, Vite, Tailwind CSS, React Router, Lucide Icons
-- **Mobile:** React Native, Expo (SDK 54), React Navigation, Expo SecureStore
-- **NFC:** nfc-pcsc (ACR122U), PC/SC protocol
+## License
 
-## Security
-
-- Helmet security headers
-- Rate limiting on auth routes (100 requests / 15 min)
-- CORS origin restriction
-- API key authentication for NFC reader devices
-- Request body size limit (1MB)
-
-## Deployment
-
-See [HOSTING.md](HOSTING.md) for full deployment instructions covering:
-- **Render.com** (free tier)
-- **VPS** (DigitalOcean, AWS, Linode) with Nginx + PM2 + SSL
-- **Docker** (docker-compose)
-- **Mobile builds** (EAS Build for APK/IPA)
-
----
-
-Built for **Archisys Innovations** © 2026
+Proprietary — Archisys Innovations © 2026
