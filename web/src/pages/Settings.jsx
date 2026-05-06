@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import {
-  Clock, Building2, Calendar, Timer, Save, RotateCcw, CheckCircle, Image, Upload, Trash2, Globe, Briefcase
+  Clock, Building2, Calendar, Timer, Save, RotateCcw, CheckCircle, Image, Upload, Trash2, Globe, Briefcase, TreePalm
 } from 'lucide-react';
 
 const DAYS = [
@@ -145,6 +145,13 @@ export default function Settings() {
     'office_start', 'office_end', 'late_threshold_minutes',
     'half_day_hours', 'full_day_hours', 'min_checkout_minutes', 'working_days', 'timezone',
   ];
+  const LEAVE_KEYS = [
+    'leave_accrual_enabled', 'leave_working_days_per_earned',
+    'leave_sick_days_per_year', 'leave_casual_days_per_year',
+    'leave_maternity_days', 'leave_maternity_paid_days', 'leave_paternity_days',
+    'leave_max_accumulation', 'leave_carryover_enabled', 'leave_carryover_max_days',
+    'leave_sandwich_policy', 'leave_half_day_enabled', 'leave_probation_restrict',
+  ];
 
   async function saveSiteSettings() {
     setSaving(true);
@@ -229,8 +236,30 @@ export default function Settings() {
     }
   }
 
+  async function saveLeaveSettings() {
+    setSaving(true);
+    setError('');
+    try {
+      const leaveOnly = {};
+      LEAVE_KEYS.forEach(k => { if (settings[k] !== undefined) leaveOnly[k] = settings[k]; });
+      const data = await api._request('/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ settings: leaveOnly }),
+      });
+      setSettings(data.settings);
+      setOriginal(data.settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const siteHasChanges = SITE_KEYS.some(k => settings?.[k] !== original?.[k]) || !!pendingLogo || !!pendingFavicon || removeLogo || removeFavicon;
   const officeHasChanges = OFFICE_KEYS.some(k => settings?.[k] !== original?.[k]);
+  const leaveHasChanges = LEAVE_KEYS.some(k => settings?.[k] !== original?.[k]);
   const workingDays = (settings?.working_days || '').split(',').filter(Boolean);
 
   if (loading) {
@@ -272,6 +301,29 @@ export default function Settings() {
             </button>
           </div>
         )}
+        {activeTab === 'leave' && (
+          <div className="flex items-center gap-2">
+            {leaveHasChanges && (
+              <button onClick={reset} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
+                <RotateCcw size={16} /> Reset
+              </button>
+            )}
+            <button
+              onClick={saveLeaveSettings}
+              disabled={!leaveHasChanges || saving}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              ) : saved ? (
+                <CheckCircle size={16} />
+              ) : (
+                <Save size={16} />
+              )}
+              {saved ? 'Saved!' : 'Save Changes'}
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -299,6 +351,16 @@ export default function Settings() {
           }`}
         >
           <Briefcase size={16} /> Office Settings
+        </button>
+        <button
+          onClick={() => setActiveTab('leave')}
+          className={`flex items-center gap-2 flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'leave'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <TreePalm size={16} /> Leave Policy
         </button>
       </div>
 
@@ -572,6 +634,269 @@ export default function Settings() {
                 <p className="text-2xl font-bold text-slate-900">{settings?.half_day_hours}h</p>
                 <p className="text-xs text-slate-500">Half-Day Cutoff</p>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ===== Leave Policy Tab ===== */}
+      {activeTab === 'leave' && (
+        <>
+          {/* Annual/Earned Leave Accrual */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-emerald-50"><TreePalm size={20} className="text-emerald-600" /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Earned Leave (Annual Leave)</h2>
+                <p className="text-xs text-slate-500">Nepal rule: 1 day earned per 20 working days attended</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings?.leave_accrual_enabled === 'true'}
+                  onChange={e => update('leave_accrual_enabled', e.target.checked ? 'true' : 'false')}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-primary-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+              </label>
+              <span className="text-sm font-medium text-slate-700">Enable earned leave accrual</span>
+            </div>
+
+            {settings?.leave_accrual_enabled === 'true' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Working Days per Earned Day</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={settings?.leave_working_days_per_earned || '20'}
+                    onChange={e => update('leave_working_days_per_earned', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Employee earns 1 day leave for every N working days attended</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Max Accumulation (days)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={settings?.leave_max_accumulation || '90'}
+                    onChange={e => update('leave_max_accumulation', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Cap — earned leave stops accumulating beyond this</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sick & Casual Leave */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-red-50"><Calendar size={20} className="text-red-600" /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Sick & Casual Leave</h2>
+                <p className="text-xs text-slate-500">Fixed annual allocation (sick leave is prorated for new joiners)</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Sick Leave Days / Year</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={settings?.leave_sick_days_per_year || '12'}
+                  onChange={e => update('leave_sick_days_per_year', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Prorated based on months worked for new joiners</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Casual Leave Days / Year</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={settings?.leave_casual_days_per_year || '12'}
+                  onChange={e => update('leave_casual_days_per_year', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Fixed allocation at start of year</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Maternity & Paternity */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-pink-50"><Briefcase size={20} className="text-pink-600" /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Maternity & Paternity Leave</h2>
+                <p className="text-xs text-slate-500">Gender-specific leave as per Nepal Labour Act</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Maternity Leave (total days)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="180"
+                  value={settings?.leave_maternity_days || '98'}
+                  onChange={e => update('leave_maternity_days', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Maternity Paid Days</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="180"
+                  value={settings?.leave_maternity_paid_days || '60'}
+                  onChange={e => update('leave_maternity_paid_days', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Rest is unpaid</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Paternity Leave (days)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={settings?.leave_paternity_days || '15'}
+                  onChange={e => update('leave_paternity_days', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Policies & Options */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-blue-50"><RotateCcw size={20} className="text-blue-600" /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Policies & Options</h2>
+                <p className="text-xs text-slate-500">Carryover, sandwich policy, half-day, probation rules</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Carryover */}
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Year-End Carryover</p>
+                  <p className="text-xs text-slate-400">Unused earned leave carries forward</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings?.leave_carryover_enabled === 'true'}
+                    onChange={e => update('leave_carryover_enabled', e.target.checked ? 'true' : 'false')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-primary-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+              </div>
+              {settings?.leave_carryover_enabled === 'true' && (
+                <div className="max-w-xs pl-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Max Carryover Days</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={settings?.leave_carryover_max_days || '45'}
+                    onChange={e => update('leave_carryover_max_days', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              )}
+
+              {/* Sandwich Policy */}
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Sandwich Policy</p>
+                  <p className="text-xs text-slate-400">Count weekends/holidays between leave days</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings?.leave_sandwich_policy === 'true'}
+                    onChange={e => update('leave_sandwich_policy', e.target.checked ? 'true' : 'false')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-primary-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+              </div>
+
+              {/* Half-Day */}
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Half-Day Leave</p>
+                  <p className="text-xs text-slate-400">Allow employees to apply for 0.5 day leave</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings?.leave_half_day_enabled === 'true'}
+                    onChange={e => update('leave_half_day_enabled', e.target.checked ? 'true' : 'false')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-primary-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+              </div>
+
+              {/* Probation Restriction */}
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Probation Restriction</p>
+                  <p className="text-xs text-slate-400">Restrict earned leave during probation period</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings?.leave_probation_restrict === 'true'}
+                    onChange={e => update('leave_probation_restrict', e.target.checked ? 'true' : 'false')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-primary-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Policy Summary */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">Nepal HR Leave Summary</h3>
+            <div className="space-y-2 text-sm text-slate-600">
+              <p>• <span className="font-semibold text-slate-900">Sick Leave:</span> {settings?.leave_sick_days_per_year || '12'} days/year (prorated for new joiners)</p>
+              <p>• <span className="font-semibold text-slate-900">Casual Leave:</span> {settings?.leave_casual_days_per_year || '12'} days/year</p>
+              {settings?.leave_accrual_enabled === 'true' && (
+                <p>• <span className="font-semibold text-slate-900">Earned Leave:</span> 1 day per {settings?.leave_working_days_per_earned || '20'} working days (max {settings?.leave_max_accumulation || '90'} days)</p>
+              )}
+              <p>• <span className="font-semibold text-slate-900">Maternity:</span> {settings?.leave_maternity_days || '98'} days ({settings?.leave_maternity_paid_days || '60'} paid)</p>
+              <p>• <span className="font-semibold text-slate-900">Paternity:</span> {settings?.leave_paternity_days || '15'} days (paid)</p>
+              {settings?.leave_carryover_enabled === 'true' && (
+                <p>• Unused earned leave carries over (max {settings?.leave_carryover_max_days || '45'} days)</p>
+              )}
+              {settings?.leave_sandwich_policy === 'true' && (
+                <p className="text-amber-600">• Sandwich policy active: weekends/holidays between leaves are counted</p>
+              )}
+              {settings?.leave_half_day_enabled === 'true' && (
+                <p>• Half-day leave allowed (0.5 day deduction)</p>
+              )}
+              {settings?.leave_probation_restrict === 'true' && (
+                <p className="text-amber-600">• Earned leave restricted during probation</p>
+              )}
+              <p>• Weekends & public holidays excluded from leave calculation</p>
             </div>
           </div>
         </>

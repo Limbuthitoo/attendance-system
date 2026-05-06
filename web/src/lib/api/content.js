@@ -23,3 +23,12 @@ export const notifications = {
   clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
   clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
 };
+
+export const policies = {
+  getPolicies: (category) => request(`/policies${category ? `?category=${category}` : ''}`),
+  getAllPolicies: () => request('/policies/all'),
+  getPolicy: (id) => request(`/policies/${id}`),
+  createPolicy: (data) => request('/policies', { method: 'POST', body: JSON.stringify(data) }),
+  updatePolicy: (id, data) => request(`/policies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePolicy: (id) => request(`/policies/${id}`, { method: 'DELETE' }),
+};

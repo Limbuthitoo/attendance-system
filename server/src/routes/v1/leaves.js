@@ -45,6 +45,7 @@ router.post('/', async (req, res, next) => {
     const startDate = req.body.startDate || req.body.start_date;
     const endDate = req.body.endDate || req.body.end_date;
     const reason = req.body.reason;
+    const isHalfDay = req.body.isHalfDay || req.body.is_half_day || false;
 
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({ error: 'leaveType, startDate, endDate, and reason are required' });
@@ -60,6 +61,7 @@ router.post('/', async (req, res, next) => {
       startDate,
       endDate,
       reason,
+      isHalfDay: !!isHalfDay,
       req,
     });
 
@@ -150,6 +152,46 @@ router.delete('/:id', async (req, res, next) => {
     res.json({ message: 'Leave request cancelled' });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/v1/leaves/balance — Current user's leave balances
+router.get('/balance', async (req, res, next) => {
+  try {
+    const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
+    const balances = await leaveService.getLeaveBalances({
+      employeeId: req.user.id,
+      orgId: req.orgId,
+      year,
+    });
+    res.json({ balances, year });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/leaves/balance/:employeeId — Admin: get employee's leave balances
+router.get('/balance/:employeeId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+  try {
+    const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
+    const balances = await leaveService.getLeaveBalances({
+      employeeId: req.params.employeeId,
+      orgId: req.orgId,
+      year,
+    });
+    res.json({ balances, year });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/leaves/policy — Get leave policy settings
+router.get('/policy', async (req, res, next) => {
+  try {
+    const policy = await leaveService.getLeavePolicySettings(req.orgId);
+    res.json({ policy });
+  } catch (err) {
     next(err);
   }
 });

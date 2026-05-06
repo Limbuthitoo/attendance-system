@@ -1,9 +1,34 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { BS_MONTHS, BS_MONTHS_NP } from '../lib/bs-date';
+import { BS_MONTHS, BS_MONTHS_NP, bsToAd } from '../lib/bs-date';
 import { Plus, Pencil, Trash2, X, Star, Save } from 'lucide-react';
 
 const CURRENT_YEAR = 2083;
+
+// Convert ISO date string or Date to YYYY-MM-DD for <input type="date">
+function toDateInput(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+}
+
+// Auto-calculate AD date from BS date
+function calcAdFromBs(bsYear, bsMonth, bsDay) {
+  try {
+    const ad = bsToAd(bsYear, bsMonth, bsDay);
+    if (ad && !isNaN(ad.getTime())) return ad.toISOString().split('T')[0];
+  } catch { /* ignore conversion errors */ }
+  return '';
+}
+
+// Format AD date for display in table
+function formatAdDisplay(val) {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function HolidayManager() {
   const [holidays, setHolidays] = useState([]);
@@ -50,7 +75,9 @@ export default function HolidayManager() {
   }
 
   function openAddForm() {
-    setForm({ ...getEmptyForm(), bs_year: selectedYear });
+    const defaultForm = { ...getEmptyForm(), bs_year: selectedYear };
+    defaultForm.ad_date = calcAdFromBs(defaultForm.bs_year, defaultForm.bs_month, defaultForm.bs_day);
+    setForm(defaultForm);
     setEditing(null);
     setShowForm(true);
     setError('');
@@ -65,8 +92,8 @@ export default function HolidayManager() {
       bs_month_end: holiday.bs_month_end || '',
       name: holiday.name,
       name_np: holiday.name_np || '',
-      ad_date: holiday.ad_date || '',
-      ad_date_end: holiday.ad_date_end || '',
+      ad_date: toDateInput(holiday.ad_date),
+      ad_date_end: toDateInput(holiday.ad_date_end),
       women_only: !!holiday.women_only,
     });
     setEditing(holiday.id);
@@ -194,8 +221,8 @@ export default function HolidayManager() {
                   <td className="px-5 py-3 text-slate-600">{h.name_np || '—'}</td>
                   <td className="px-5 py-3 text-slate-700">{formatBsDate(h)}</td>
                   <td className="px-5 py-3 text-slate-500">
-                    {h.ad_date || '—'}
-                    {h.ad_date_end ? ` – ${h.ad_date_end}` : ''}
+                    {formatAdDisplay(h.ad_date)}
+                    {h.ad_date_end ? ` – ${formatAdDisplay(h.ad_date_end)}` : ''}
                   </td>
                   <td className="px-5 py-3">
                     {h.women_only ? (
@@ -273,7 +300,11 @@ export default function HolidayManager() {
                     <label className="block text-xs text-slate-500 mb-1">Month</label>
                     <select
                       value={form.bs_month}
-                      onChange={e => setForm(f => ({ ...f, bs_month: parseInt(e.target.value) }))}
+                      onChange={e => {
+                        const newMonth = parseInt(e.target.value);
+                        const ad = calcAdFromBs(form.bs_year, newMonth, form.bs_day);
+                        setForm(f => ({ ...f, bs_month: newMonth, ad_date: ad || f.ad_date }));
+                      }}
                       className="w-full px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       {BS_MONTHS.map((m, i) => (
@@ -288,13 +319,17 @@ export default function HolidayManager() {
                       min="1"
                       max="32"
                       value={form.bs_day}
-                      onChange={e => setForm(f => ({ ...f, bs_day: parseInt(e.target.value) || 1 }))}
+                      onChange={e => {
+                        const newDay = parseInt(e.target.value) || 1;
+                        const ad = calcAdFromBs(form.bs_year, form.bs_month, newDay);
+                        setForm(f => ({ ...f, bs_day: newDay, ad_date: ad || f.ad_date }));
+                      }}
                       className="w-full px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">AD Date</label>
+                    <label className="block text-xs text-slate-500 mb-1">AD Date (auto-filled)</label>
                     <input
                       type="date"
                       value={form.ad_date}
@@ -313,7 +348,12 @@ export default function HolidayManager() {
                     <label className="block text-xs text-slate-500 mb-1">End Month</label>
                     <select
                       value={form.bs_month_end}
-                      onChange={e => setForm(f => ({ ...f, bs_month_end: e.target.value }))}
+                      onChange={e => {
+                        const endMonth = e.target.value ? parseInt(e.target.value) : '';
+                        const endDay = form.bs_day_end ? parseInt(form.bs_day_end) : '';
+                        const ad = endMonth && endDay ? calcAdFromBs(form.bs_year, endMonth, endDay) : '';
+                        setForm(f => ({ ...f, bs_month_end: e.target.value, ad_date_end: ad || f.ad_date_end }));
+                      }}
                       className="w-full px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Same month</option>
@@ -329,13 +369,18 @@ export default function HolidayManager() {
                       min=""
                       max="32"
                       value={form.bs_day_end}
-                      onChange={e => setForm(f => ({ ...f, bs_day_end: e.target.value }))}
+                      onChange={e => {
+                        const endDay = e.target.value;
+                        const endMonth = form.bs_month_end ? parseInt(form.bs_month_end) : form.bs_month;
+                        const ad = endDay ? calcAdFromBs(form.bs_year, endMonth, parseInt(endDay)) : '';
+                        setForm(f => ({ ...f, bs_day_end: endDay, ad_date_end: ad || f.ad_date_end }));
+                      }}
                       placeholder="—"
                       className="w-full px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">AD End Date</label>
+                    <label className="block text-xs text-slate-500 mb-1">AD End Date (auto-filled)</label>
                     <input
                       type="date"
                       value={form.ad_date_end}

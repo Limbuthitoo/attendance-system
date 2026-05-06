@@ -83,6 +83,12 @@ const schedulerWorker = new Worker('scheduler', async (job) => {
   if (job.name === 'check-trial-expiry') {
     await handleTrialExpiry();
   }
+  if (job.name === 'leave-accrual') {
+    await handleLeaveAccrual();
+  }
+  if (job.name === 'leave-carryover') {
+    await handleLeaveCarryover();
+  }
 }, { connection });
 
 async function handleForgotCheckout({ orgId }) {
@@ -228,6 +234,67 @@ async function handleTrialExpiry() {
   }
 }
 
+// ── Leave Accrual Handler ───────────────────────────────────────────────────
+async function handleLeaveAccrual() {
+  const { getPrisma } = require('../lib/prisma');
+  const { accrueEarnedLeave } = require('../services/leave.service');
+
+  const prisma = getPrisma();
+  const now = new Date();
+  const year = now.getFullYear();
+
+  // Get all active orgs
+  const orgs = await prisma.organization.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+  });
+
+  let totalAccrued = 0;
+  for (const org of orgs) {
+    try {
+      const result = await accrueEarnedLeave({ orgId: org.id, year });
+      totalAccrued += result.accrued;
+      if (result.accrued > 0) {
+        console.log(`  📅 Recalculated earned leave for ${result.accrued} employees in ${org.name}`);
+      }
+    } catch (err) {
+      console.error(`  ✗ Leave accrual failed for ${org.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`📅 Leave accrual complete: ${totalAccrued} employees across ${orgs.length} orgs`);
+}
+
+// ── Leave Carryover Handler ─────────────────────────────────────────────────
+async function handleLeaveCarryover() {
+  const { getPrisma } = require('../lib/prisma');
+  const { carryOverLeave } = require('../services/leave.service');
+
+  const prisma = getPrisma();
+  const previousYear = new Date().getFullYear() - 1;
+
+  const orgs = await prisma.organization.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+  });
+
+  let totalCarried = 0;
+  for (const org of orgs) {
+    try {
+      const result = await carryOverLeave({ orgId: org.id, fromYear: previousYear });
+      totalCarried += result.carried;
+      if (result.carried > 0) {
+        console.log(`  🔄 Carried over leave for ${result.carried} employees in ${org.name}`);
+      }
+    } catch (err) {
+      console.error(`  ✗ Leave carryover failed for ${org.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`🔄 Leave carryover complete: ${totalCarried} employees across ${orgs.length} orgs`);
+}
+
+
 // ── Register Repeatable Jobs ────────────────────────────────────────────────
 async function registerRepeatableJobs() {
   const { Queue } = require('bullmq');
@@ -237,6 +304,18 @@ async function registerRepeatableJobs() {
   await schedulerQueue.add('check-trial-expiry', {}, {
     repeat: { pattern: '15 18 * * *' },  // 00:00 NPT = 18:15 UTC
     jobId: 'trial-expiry-daily',
+  });
+
+  // Leave accrual — 1st of every month at 00:05 NPT (18:20 UTC previous day)
+  await schedulerQueue.add('leave-accrual', {}, {
+    repeat: { pattern: '20 18 1 * *' },  // 1st of month, 00:05 NPT
+    jobId: 'leave-accrual-monthly',
+  });
+
+  // Leave carryover — January 1st at 00:10 NPT (18:25 UTC Dec 31)
+  await schedulerQueue.add('leave-carryover', {}, {
+    repeat: { pattern: '25 18 1 1 *' },  // Jan 1st, 00:10 NPT
+    jobId: 'leave-carryover-yearly',
   });
 
   console.log('✓ Repeatable jobs registered');

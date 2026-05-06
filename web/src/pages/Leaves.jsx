@@ -5,6 +5,7 @@ import DatePicker from '../components/DatePicker';
 
 export default function Leaves() {
   const [leaves, setLeaves] = useState([]);
+  const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('');
@@ -12,12 +13,14 @@ export default function Leaves() {
     leave_type: 'casual',
     start_date: '',
     end_date: '',
-    reason: ''
+    reason: '',
+    is_half_day: false,
   });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadLeaves();
+    loadBalances();
   }, [filter]);
 
   const loadLeaves = async () => {
@@ -32,13 +35,22 @@ export default function Leaves() {
     }
   };
 
+  const loadBalances = async () => {
+    try {
+      const data = await api.getLeaveBalance();
+      setBalances(data.balances || []);
+    } catch (err) {
+      console.error('Failed to load balances', err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       await api.applyLeave(form);
       setShowForm(false);
-      setForm({ leave_type: 'casual', start_date: '', end_date: '', reason: '' });
+      setForm({ leave_type: 'casual', start_date: '', end_date: '', reason: '', is_half_day: false });
       loadLeaves();
     } catch (err) {
       alert(err.message);
@@ -86,6 +98,30 @@ export default function Leaves() {
         </button>
       </div>
 
+      {/* Leave Balance Cards */}
+      {balances.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          {balances.filter(b => b.totalDays > 0 || b.usedDays > 0).map(b => (
+            <div key={b.leaveType} className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs font-medium text-slate-500 capitalize mb-1">{b.leaveType.toLowerCase()}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-slate-900">{b.remainingDays}</span>
+                <span className="text-xs text-slate-400">/ {b.totalDays}</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2">
+                <div
+                  className="h-1.5 bg-primary-500 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (b.remainingDays / b.totalDays) * 100)}%` }}
+                />
+              </div>
+              {b.usedDays > 0 && (
+                <p className="text-xs text-slate-400 mt-1">{b.usedDays} used</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Leave Form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
@@ -101,11 +137,23 @@ export default function Leaves() {
                 <option value="casual">Casual Leave</option>
                 <option value="sick">Sick Leave</option>
                 <option value="earned">Earned Leave</option>
+                <option value="maternity">Maternity Leave</option>
+                <option value="paternity">Paternity Leave</option>
                 <option value="unpaid">Unpaid Leave</option>
                 <option value="other">Other</option>
               </select>
             </div>
-            <div />
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_half_day}
+                  onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-slate-700">Half-day leave (0.5 day)</span>
+              </label>
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date</label>
               <DatePicker

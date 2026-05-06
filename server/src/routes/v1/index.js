@@ -24,6 +24,7 @@ const geofenceRoutes = require('./geofence');
 const payrollRoutes = require('./payroll');
 const nfcRoutes = require('./nfc');
 const appUpdateRoutes = require('./app-update');
+const policyRoutes = require('./policies');
 
 const router = Router();
 
@@ -48,5 +49,6 @@ router.use('/overtime', authenticate, tenantContext, overtimeRoutes);
 router.use('/geofence', authenticate, tenantContext, geofenceRoutes);
 router.use('/payroll', authenticate, tenantContext, payrollRoutes);
 router.use('/nfc', nfcRoutes);  // has its own mixed auth (device + admin)
+router.use('/policies', authenticate, tenantContext, policyRoutes);
 router.use('/app-update', appUpdateRoutes);  // check/download are public; upload/current need auth
 module.exports = router;

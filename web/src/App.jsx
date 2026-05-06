@@ -30,6 +30,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 const PayrollOvertime = lazy(() => import('./pages/PayrollOvertime'));
 const GeofenceManagement = lazy(() => import('./pages/GeofenceManagement'));
 const NfcManagement = lazy(() => import('./pages/NfcManagement'));
+const Policies = lazy(() => import('./pages/Policies'));
 
 // ── Lazy-loaded platform portal (entire sub-app) ───────────────────────────
 const PlatformLogin = lazy(() => import('./platform/pages/PlatformLogin'));
@@ -291,6 +292,7 @@ export default function App() {
         <Route path="payroll" element={<AdminRoute><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
         <Route path="geofence" element={<AdminRoute><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
         <Route path="nfc" element={<AdminRoute><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />
+        <Route path="policies" element={<LazyPage name="Policies"><Policies /></LazyPage>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

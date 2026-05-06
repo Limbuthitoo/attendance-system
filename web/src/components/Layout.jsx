@@ -1,9 +1,9 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, BarChart3, DollarSign, Navigation, CreditCard
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, BarChart3, DollarSign, Navigation, CreditCard, FileText, ChevronDown, Lock, HelpCircle
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell';
 
 export default function Layout() {
@@ -11,6 +11,19 @@ export default function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLogo, setSidebarLogo] = useState('/favicon.svg');
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const apiBase = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
@@ -63,6 +76,7 @@ export default function Layout() {
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
         { to: '/activity-log', icon: Activity, label: 'Activity Log' },
         { to: '/notices', icon: Megaphone, label: 'Notices' },
+        { to: '/policies', icon: FileText, label: 'Policies' },
       ],
     },
     {
@@ -122,7 +136,7 @@ export default function Layout() {
     }`;
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="h-screen flex bg-slate-50 overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -163,29 +177,10 @@ export default function Layout() {
             </div>
           ))}
         </nav>
-
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold">
-              {user?.name?.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{user?.name}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.designation}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors w-full"
-          >
-            <LogOut size={18} />
-            Sign Out
-          </button>
-        </div>
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1 text-slate-600 hover:text-slate-900">
@@ -196,16 +191,74 @@ export default function Layout() {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <NotificationBell />
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary-100 text-primary-700 capitalize">
-              {user?.role}
-            </span>
+            {/* Profile dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold">
+                  {user?.name?.charAt(0)}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium text-slate-900 leading-tight">{user?.name}</p>
+                  <p className="text-[11px] text-slate-500 leading-tight capitalize">{user?.role === 'admin' ? 'Administrator' : user?.designation || user?.role}</p>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-slate-200 shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="text-sm font-medium text-slate-900">{user?.name}</p>
+                    <p className="text-xs text-slate-500">{user?.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={() => { navigate('/profile'); setProfileOpen(false); }}
+                      className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <UserCircle size={16} /> My Profile
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => { navigate('/settings'); setProfileOpen(false); }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <Settings size={16} /> Settings
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { navigate('/policies'); setProfileOpen(false); }}
+                      className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <FileText size={16} /> Policies
+                    </button>
+                    <button
+                      onClick={() => { navigate('/leaves'); setProfileOpen(false); }}
+                      className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <CalendarDays size={16} /> My Leaves
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut size={16} /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>

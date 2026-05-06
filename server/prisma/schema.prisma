@@ -83,6 +83,10 @@ model Organization {
   payrollSummaries    PayrollSummary[]
   leaveQuotas         LeaveQuota[]
   invoices            Invoice[]
+  policies            Policy[]
+  salaryStructures    SalaryStructure[]
+  payslips            Payslip[]
+  loanAdvances        LoanAdvance[]
 
   @@map("organizations")
 }
@@ -241,6 +245,9 @@ model Employee {
   password           String
   department         String   @default("General")
   designation        String   @default("Employee")
+  gender             String?  // male, female, other
+  joinDate           DateTime? @map("join_date") @db.Date
+  employmentStatus   String   @default("active") @map("employment_status") // active, probation, notice_period
   phone              String?
   avatarUrl          String?  @map("avatar_url")
   mustChangePassword Boolean  @default(false) @map("must_change_password")
@@ -269,6 +276,10 @@ model Employee {
   overtimeApprovals   OvertimeRecord[] @relation("overtime_approver")
   payrollSummaries    PayrollSummary[]
   leaveQuotas         LeaveQuota[]
+  policiesCreated     Policy[]
+  salaryStructures    SalaryStructure[]
+  payslips            Payslip[]
+  loanAdvances        LoanAdvance[]
 
   @@unique([orgId, email])
   @@unique([orgId, employeeCode])
@@ -566,7 +577,8 @@ model Leave {
   leaveType   LeaveType   @map("leave_type")
   startDate   DateTime    @map("start_date") @db.Date
   endDate     DateTime    @map("end_date") @db.Date
-  days        Int
+  days        Float
+  isHalfDay   Boolean     @default(false) @map("is_half_day")
   reason      String
   status      LeaveStatus @default(PENDING)
   reviewedBy  String?     @map("reviewed_by") @db.Uuid
@@ -587,6 +599,8 @@ enum LeaveType {
   SICK
   CASUAL
   EARNED
+  MATERNITY
+  PATERNITY
   UNPAID
   OTHER
 }
@@ -652,8 +666,8 @@ model LeaveQuota {
   employeeId  String?   @map("employee_id") @db.Uuid  // null = org default
   leaveType   LeaveType @map("leave_type")
   year        Int
-  totalDays   Int       @map("total_days")
-  usedDays    Int       @default(0) @map("used_days")
+  totalDays   Float     @map("total_days")
+  usedDays    Float     @default(0) @map("used_days")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -898,4 +912,139 @@ model PayrollSummary {
   @@unique([orgId, employeeId, year, month])
   @@index([orgId, year, month])
   @@map("payroll_summaries")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POLICIES — Organization policy documents
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Policy {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  title       String
+  category    String   // e.g. LEAVE, SALARY, PRIVACY, CODE_OF_CONDUCT, CUSTOM
+  content     String   @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator     Employee?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([orgId, category])
+  @@map("policies")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SALARY STRUCTURE (per employee)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SalaryStructure {
+  id               String   @id @default(uuid()) @db.Uuid
+  orgId            String   @map("org_id") @db.Uuid
+  employeeId       String   @map("employee_id") @db.Uuid
+  grossSalary      Decimal  @map("gross_salary") @db.Decimal(12,2)
+  basicSalary      Decimal  @map("basic_salary") @db.Decimal(12,2)
+  allowances       Json     @default("{}") // { dearness: 5000, transport: 3000, ... }
+  effectiveFrom    DateTime @map("effective_from") @db.Date
+  effectiveTo      DateTime? @map("effective_to") @db.Date
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, employeeId, isActive])
+  @@map("salary_structures")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYSLIP (monthly per employee — full breakdown)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Payslip {
+  id                  String   @id @default(uuid()) @db.Uuid
+  orgId               String   @map("org_id") @db.Uuid
+  employeeId          String   @map("employee_id") @db.Uuid
+  year                Int
+  month               Int
+
+  // Earnings
+  basicSalary         Decimal  @map("basic_salary") @db.Decimal(12,2)
+  allowances          Json     @default("{}") // breakdown of allowances
+  overtimeAmount      Decimal  @default(0) @map("overtime_amount") @db.Decimal(12,2)
+  bonus               Decimal  @default(0) @db.Decimal(12,2)
+  grossEarnings       Decimal  @map("gross_earnings") @db.Decimal(12,2)
+
+  // Deductions
+  employeeSsf         Decimal  @default(0) @map("employee_ssf") @db.Decimal(12,2)
+  employerSsf         Decimal  @default(0) @map("employer_ssf") @db.Decimal(12,2)
+  tds                 Decimal  @default(0) @db.Decimal(12,2) // Tax Deducted at Source
+  unpaidLeaveDeduction Decimal @default(0) @map("unpaid_leave_deduction") @db.Decimal(12,2)
+  absenceDeduction    Decimal  @default(0) @map("absence_deduction") @db.Decimal(12,2)
+  loanDeduction       Decimal  @default(0) @map("loan_deduction") @db.Decimal(12,2)
+  advanceDeduction    Decimal  @default(0) @map("advance_deduction") @db.Decimal(12,2)
+  otherDeductions     Json     @default("{}") @map("other_deductions") // { insurance: 500, ... }
+  totalDeductions     Decimal  @map("total_deductions") @db.Decimal(12,2)
+
+  // Net
+  netSalary           Decimal  @map("net_salary") @db.Decimal(12,2)
+  companyCost         Decimal  @default(0) @map("company_cost") @db.Decimal(12,2) // gross + employer_ssf
+
+  // Attendance context
+  totalWorkDays       Int      @map("total_work_days")
+  presentDays         Int      @map("present_days")
+  absentDays          Int      @map("absent_days")
+  unpaidLeaveDays     Float    @default(0) @map("unpaid_leave_days")
+  overtimeHours       Decimal  @default(0) @map("overtime_hours") @db.Decimal(7,2)
+
+  // Status
+  status              PayslipStatus @default(DRAFT)
+  lockedAt            DateTime? @map("locked_at")
+  lockedBy            String?   @map("locked_by") @db.Uuid
+  notes               String?   @db.Text
+  generatedAt         DateTime  @default(now()) @map("generated_at")
+
+  org                 Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee            Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, employeeId, year, month])
+  @@index([orgId, year, month])
+  @@index([orgId, status])
+  @@map("payslips")
+}
+
+enum PayslipStatus {
+  DRAFT
+  LOCKED
+  PAID
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOAN & ADVANCE (per employee — tracked with monthly deduction)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model LoanAdvance {
+  id                String   @id @default(uuid()) @db.Uuid
+  orgId             String   @map("org_id") @db.Uuid
+  employeeId        String   @map("employee_id") @db.Uuid
+  type              String   // LOAN or ADVANCE
+  description       String?
+  totalAmount       Decimal  @map("total_amount") @db.Decimal(12,2)
+  remainingAmount   Decimal  @map("remaining_amount") @db.Decimal(12,2)
+  monthlyDeduction  Decimal  @map("monthly_deduction") @db.Decimal(12,2)
+  startMonth        Int      @map("start_month")
+  startYear         Int      @map("start_year")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee          Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, employeeId, isActive])
+  @@map("loan_advances")
 }

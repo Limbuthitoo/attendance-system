@@ -43,10 +43,18 @@ function csrfValidate(req, res, next) {
     return next();
   }
 
-  // Only enforce if using cookie-based auth
+  // Skip CSRF for device auth (NFC readers, fingerprint scanners)
+  if (req.headers['x-api-key'] && req.headers['x-device-serial']) {
+    return next();
+  }
+
+  // Only enforce if the client actually has cookie-based auth AND a CSRF cookie.
+  // Mobile apps (React Native fetch) don't participate in the cookie flow,
+  // so if there's no CSRF cookie present, this is not a browser session.
   const hasCookieAuth = req.cookies?.access_token ||
     req.cookies?.platform_access_token;
-  if (!hasCookieAuth) {
+  const hasCsrfCookie = !!req.cookies[CSRF_COOKIE];
+  if (!hasCookieAuth || !hasCsrfCookie) {
     return next();
   }
 

@@ -266,6 +266,20 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       half_day_hours: '4',
       full_day_hours: '8',
       working_days: 'mon,tue,wed,thu,fri',
+      leave_accrual_enabled: 'true',
+      leave_accrual_type: 'EARNED',
+      leave_working_days_per_earned: '20',
+      leave_sick_days_per_year: '12',
+      leave_casual_days_per_year: '12',
+      leave_maternity_days: '98',
+      leave_maternity_paid_days: '60',
+      leave_paternity_days: '15',
+      leave_max_accumulation: '90',
+      leave_carryover_enabled: 'true',
+      leave_carryover_max_days: '45',
+      leave_sandwich_policy: 'false',
+      leave_half_day_enabled: 'true',
+      leave_probation_restrict: 'false',
     };
     for (const [key, value] of Object.entries(defaultSettings)) {
       await tx.orgSetting.create({ data: { orgId: org.id, key, value } });

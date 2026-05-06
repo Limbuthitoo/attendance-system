@@ -7,4 +7,7 @@ export const leaves = {
   reviewLeave: (id, status, review_note) =>
     request(`/leaves/${id}/review`, { method: 'PUT', body: JSON.stringify({ status, review_note }) }),
   cancelLeave: (id) => request(`/leaves/${id}`, { method: 'DELETE' }),
+  getLeaveBalance: (year) => request(`/leaves/balance${year ? `?year=${year}` : ''}`),
+  getEmployeeLeaveBalance: (employeeId, year) => request(`/leaves/balance/${employeeId}${year ? `?year=${year}` : ''}`),
+  getLeavePolicy: () => request('/leaves/policy'),
 };

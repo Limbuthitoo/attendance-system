@@ -9,7 +9,7 @@ import { leaves } from './leaves';
 import { employees } from './employees';
 import { dashboard } from './dashboard';
 import { devices, nfc } from './devices';
-import { holidays, notices, notifications } from './content';
+import { holidays, notices, notifications, policies } from './content';
 import { branches, shifts, workSchedules, assignments } from './settings';
 import { reports, overtime, geofence, payroll } from './reports';
 
@@ -33,4 +33,5 @@ export const api = {
   ...overtime,
   ...geofence,
   ...payroll,
+  ...policies,
 };

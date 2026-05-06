@@ -55,4 +55,35 @@ export const payroll = {
     return request(`/payroll/summaries?${qs}`);
   },
   exportPayrollCsv: (year, month) => request(`/payroll/export?year=${year}&month=${month}`, {}, true),
+
+  // Payroll Config
+  getPayrollConfig: () => request('/payroll/config'),
+  updatePayrollConfig: (settings) => request('/payroll/config', { method: 'PUT', body: JSON.stringify(settings) }),
+
+  // Salary Structures
+  getSalaryStructures: () => request('/payroll/salary-structures'),
+  getEmployeeSalary: (employeeId) => request(`/payroll/salary-structures/${employeeId}`),
+  saveSalaryStructure: (data) => request('/payroll/salary-structures', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Loans & Advances
+  getLoans: (employeeId) => {
+    const qs = employeeId ? `?employeeId=${employeeId}` : '';
+    return request(`/payroll/loans${qs}`);
+  },
+  createLoan: (data) => request('/payroll/loans', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Payslips
+  generatePayslips: (year, month) => request('/payroll/payslips/generate', { method: 'POST', body: JSON.stringify({ year, month }) }),
+  getPayslips: (year, month, department, status) => {
+    const qs = new URLSearchParams({ year, month });
+    if (department) qs.set('department', department);
+    if (status) qs.set('status', status);
+    return request(`/payroll/payslips?${qs}`);
+  },
+  getMyPayslips: (year) => request(`/payroll/payslips/my?year=${year}`),
+  getEmployeePayslip: (employeeId, year, month) => request(`/payroll/payslips/${employeeId}/${year}/${month}`),
+  lockPayroll: (year, month) => request('/payroll/payslips/lock', { method: 'POST', body: JSON.stringify({ year, month }) }),
+  unlockPayroll: (year, month) => request('/payroll/payslips/unlock', { method: 'POST', body: JSON.stringify({ year, month }) }),
+  markPayrollPaid: (year, month) => request('/payroll/payslips/mark-paid', { method: 'POST', body: JSON.stringify({ year, month }) }),
+  exportPayslipsCsv: (year, month) => request(`/payroll/payslips/export?year=${year}&month=${month}`, {}, true),
 };
