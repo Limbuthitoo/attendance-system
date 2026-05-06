@@ -128,6 +128,109 @@ router.get('/me', authenticate, async (req, res) => {
   res.json({ user: req.user });
 });
 
+// GET /api/v1/auth/profile — Get full profile with personal/bank/emergency info
+router.get('/profile', authenticate, async (req, res, next) => {
+  try {
+    const { getEmployee } = require('../../services/employee.service');
+    const profile = await getEmployee(req.user.id, req.user.orgId);
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+    res.json({ profile });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/auth/profile — Employee self-update personal details
+router.put('/profile', authenticate, async (req, res, next) => {
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+
+    // Only allow personal/bank fields — not role, department, designation, etc.
+    const allowedFields = [
+      'phone', 'dateOfBirth', 'bloodGroup', 'maritalStatus', 'gender',
+      'address', 'city', 'state', 'country', 'zipCode',
+      'bankName', 'bankBranch', 'bankAccountNumber', 'bankAccountName',
+      'panNumber', 'ssfNumber',
+    ];
+
+    const data = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        if (field === 'dateOfBirth' && req.body[field]) {
+          data[field] = new Date(req.body[field]);
+        } else {
+          data[field] = req.body[field] || null;
+        }
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const updated = await prisma.employee.update({
+      where: { id: req.user.id },
+      data,
+      select: {
+        id: true, phone: true, dateOfBirth: true, bloodGroup: true,
+        maritalStatus: true, gender: true, address: true, city: true,
+        state: true, country: true, zipCode: true,
+        bankName: true, bankBranch: true, bankAccountNumber: true,
+        bankAccountName: true, panNumber: true, ssfNumber: true,
+      },
+    });
+
+    res.json({ profile: updated, message: 'Profile updated' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/auth/profile/emergency-contacts — Employee manage own emergency contacts
+router.post('/profile/emergency-contacts', authenticate, async (req, res, next) => {
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+    const { name, relationship, phone, email, isPrimary } = req.body;
+
+    if (!name || !relationship || !phone) {
+      return res.status(400).json({ error: 'name, relationship, and phone are required' });
+    }
+
+    const contact = await prisma.emergencyContact.create({
+      data: {
+        orgId: req.user.orgId,
+        employeeId: req.user.id,
+        name, relationship, phone,
+        email: email || null,
+        isPrimary: isPrimary || false,
+      },
+    });
+
+    res.status(201).json({ contact });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/profile/emergency-contacts/:contactId', authenticate, async (req, res, next) => {
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+
+    const contact = await prisma.emergencyContact.findFirst({
+      where: { id: req.params.contactId, employeeId: req.user.id },
+    });
+    if (!contact) return res.status(404).json({ error: 'Contact not found' });
+
+    await prisma.emergencyContact.delete({ where: { id: req.params.contactId } });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/v1/auth/push-token — Register push token (mobile, after auth restore)
 router.post('/push-token', authenticate, async (req, res, next) => {
   try {
