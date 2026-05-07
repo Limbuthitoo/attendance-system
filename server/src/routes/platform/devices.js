@@ -32,11 +32,15 @@ router.get('/', async (req, res, next) => {
         model: true,
         location: true,
         firmwareVersion: true,
+        healthStatus: true,
+        failedSyncCount: true,
+        lastSyncAt: true,
         lastHeartbeatAt: true,
         isActive: true,
         createdAt: true,
         org: { select: { id: true, name: true, slug: true } },
         branch: { select: { id: true, name: true } },
+        deviceModel: { select: { id: true, name: true, category: { select: { name: true } }, brand: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -58,7 +62,7 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { orgId, branchId, deviceType, deviceSerial, name, brand, model, location } = req.body;
+    const { orgId, branchId, deviceType, deviceSerial, name, brand, model, location, modelId } = req.body;
 
     if (!orgId || !deviceType || !deviceSerial) {
       return res.status(400).json({ error: 'orgId, deviceType, and deviceSerial are required' });
@@ -72,6 +76,13 @@ router.post('/', async (req, res, next) => {
     const existing = await prisma.device.findUnique({ where: { deviceSerial } });
     if (existing) return res.status(409).json({ error: 'Device serial already registered' });
 
+    // Validate modelId if provided
+    if (modelId) {
+      const deviceModel = await prisma.deviceModel.findUnique({ where: { id: modelId } });
+      if (!deviceModel) return res.status(404).json({ error: 'Device model not found' });
+      if (!deviceModel.isActive) return res.status(400).json({ error: 'Device model is not active' });
+    }
+
     // Generate API key
     const apiKey = `dev_${crypto.randomBytes(32).toString('hex')}`;
     const apiKeyHash = await bcrypt.hash(apiKey, 12);
@@ -80,6 +91,7 @@ router.post('/', async (req, res, next) => {
       data: {
         orgId,
         branchId: branchId || null,
+        modelId: modelId || null,
         deviceType,
         deviceSerial,
         name: name || null,

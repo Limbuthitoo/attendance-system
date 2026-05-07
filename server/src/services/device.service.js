@@ -124,13 +124,17 @@ async function rotateDeviceKey({ deviceId, orgId, adminId, req }) {
 }
 
 /**
- * Record device heartbeat
+ * Record device heartbeat and update health status
  */
 async function recordHeartbeat(deviceId) {
   const prisma = getPrisma();
   await prisma.device.update({
     where: { id: deviceId },
-    data: { lastHeartbeatAt: new Date() },
+    data: {
+      lastHeartbeatAt: new Date(),
+      healthStatus: 'ONLINE',
+      failedSyncCount: 0,
+    },
   });
 }
 
@@ -168,8 +172,18 @@ async function listDevices({ orgId, branchId, deviceType }) {
  * Handle device event (unified tap/scan from any device type).
  * This is the main entry point when a device reports a credential scan.
  */
-async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, credentialData }) {
+async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, credentialData, rawPayload }) {
   const prisma = getPrisma();
+
+  // Store raw log for audit/reprocessing
+  const rawLog = await prisma.deviceRawLog.create({
+    data: {
+      orgId,
+      deviceId,
+      rawPayload: rawPayload || { credentialType, credentialData, timestamp: new Date().toISOString() },
+      processingStatus: 'RECEIVED',
+    },
+  });
 
   // Look up the credential
   const credential = await prisma.employeeCredential.findFirst({
@@ -199,6 +213,10 @@ async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, cr
         eventTime: new Date(),
       },
     });
+    await prisma.deviceRawLog.update({
+      where: { id: rawLog.id },
+      data: { processingStatus: 'UNMAPPED', processedAt: new Date() },
+    });
     return { success: false, error: 'Unknown credential', action: 'unknown' };
   }
 
@@ -216,6 +234,10 @@ async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, cr
         eventTime: new Date(),
       },
     });
+    await prisma.deviceRawLog.update({
+      where: { id: rawLog.id },
+      data: { processingStatus: 'INVALID', processedAt: new Date(), errorMessage: 'inactive_employee' },
+    });
     return { success: false, error: 'Employee is inactive', action: 'rejected' };
   }
 
@@ -231,6 +253,10 @@ async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, cr
         result: 'wrong_organization',
         eventTime: new Date(),
       },
+    });
+    await prisma.deviceRawLog.update({
+      where: { id: rawLog.id },
+      data: { processingStatus: 'INVALID', processedAt: new Date(), errorMessage: 'wrong_organization' },
     });
     return { success: false, error: 'Employee belongs to a different organization', action: 'rejected' };
   }
@@ -253,6 +279,12 @@ async function handleDeviceEvent({ deviceId, orgId, branchId, credentialType, cr
     credentialType,
     credentialData,
     source: sourceMap[credentialType] || 'MANUAL',
+  });
+
+  // Mark raw log as processed
+  await prisma.deviceRawLog.update({
+    where: { id: rawLog.id },
+    data: { processingStatus: 'PROCESSED', processedAt: new Date() },
   });
 
   return {
@@ -486,6 +518,81 @@ async function listDeviceEvents({ orgId, deviceId, employeeId, eventType, startD
   };
 }
 
+/**
+ * Update device health statuses based on heartbeat staleness.
+ * Call this from a scheduled worker job.
+ */
+async function updateDeviceHealthStatuses() {
+  const prisma = getPrisma();
+  const now = new Date();
+
+  // Devices with no heartbeat in 60s → WARNING
+  const warningThreshold = new Date(now.getTime() - 60 * 1000);
+  // Devices with no heartbeat in 5min → OFFLINE
+  const offlineThreshold = new Date(now.getTime() - 5 * 60 * 1000);
+
+  // Mark OFFLINE (more than 5 min stale)
+  await prisma.device.updateMany({
+    where: {
+      isActive: true,
+      healthStatus: { not: 'DISABLED' },
+      lastHeartbeatAt: { lt: offlineThreshold },
+    },
+    data: { healthStatus: 'OFFLINE' },
+  });
+
+  // Mark WARNING (between 60s and 5min stale)
+  await prisma.device.updateMany({
+    where: {
+      isActive: true,
+      healthStatus: { not: 'DISABLED' },
+      lastHeartbeatAt: { gte: offlineThreshold, lt: warningThreshold },
+    },
+    data: { healthStatus: 'WARNING' },
+  });
+}
+
+/**
+ * Reprocess a failed raw log entry
+ */
+async function reprocessRawLog(rawLogId) {
+  const prisma = getPrisma();
+
+  const rawLog = await prisma.deviceRawLog.findUnique({
+    where: { id: rawLogId },
+    include: { device: true },
+  });
+  if (!rawLog) throw Object.assign(new Error('Raw log not found'), { status: 404 });
+  if (rawLog.processingStatus === 'PROCESSED') {
+    throw Object.assign(new Error('Log already processed'), { status: 400 });
+  }
+
+  // Mark as retrying
+  await prisma.deviceRawLog.update({
+    where: { id: rawLogId },
+    data: { processingStatus: 'RETRYING' },
+  });
+
+  const payload = rawLog.rawPayload;
+  try {
+    const result = await handleDeviceEvent({
+      deviceId: rawLog.deviceId,
+      orgId: rawLog.orgId,
+      branchId: rawLog.device?.branchId,
+      credentialType: payload.credentialType,
+      credentialData: payload.credentialData,
+      rawPayload: payload,
+    });
+    return result;
+  } catch (err) {
+    await prisma.deviceRawLog.update({
+      where: { id: rawLogId },
+      data: { processingStatus: 'FAILED', errorMessage: err.message },
+    });
+    throw err;
+  }
+}
+
 module.exports = {
   registerDevice,
   deactivateDevice,
@@ -500,4 +607,6 @@ module.exports = {
   updateDevice,
   reactivateDevice,
   listDeviceEvents,
+  updateDeviceHealthStatuses,
+  reprocessRawLog,
 };

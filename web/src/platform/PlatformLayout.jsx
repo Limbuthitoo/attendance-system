@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { usePlatformAuth } from './PlatformAuthContext';
-import { LayoutDashboard, Building2, Boxes, CreditCard, Receipt, Users, LogOut, Shield, Smartphone, Radio } from 'lucide-react';
+import { LayoutDashboard, Building2, Boxes, CreditCard, Receipt, Users, LogOut, Shield, Smartphone, Radio, Database } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/platform', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: '/platform/users', icon: Users, label: 'Users' },
   { path: '/platform/app-update', icon: Smartphone, label: 'App Update' },
   { path: '/platform/devices', icon: Radio, label: 'Devices' },
+  { path: '/platform/device-catalog', icon: Database, label: 'Device Catalog' },
 ];
 
 export default function PlatformLayout() {

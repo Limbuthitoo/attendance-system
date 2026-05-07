@@ -67,6 +67,7 @@ model Organization {
   shifts             Shift[]
   workSchedules      WorkSchedule[]
   devices            Device[]
+  deviceRawLogs      DeviceRawLog[]
   attendance         Attendance[]
   leaves             Leave[]
   holidays           Holiday[]
@@ -473,27 +474,102 @@ model EmployeeAssignment {
 // DEVICES — Unified (NFC, Fingerprint, QR, Face, etc.)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+model DeviceCategory {
+  id        String        @id @default(uuid()) @db.Uuid
+  key       String        @unique               // NFC_RFID, FINGERPRINT, FACE_RECOGNITION, etc.
+  name      String                              // "NFC / RFID", "Fingerprint Scanner"
+  icon      String?                             // lucide icon name for UI
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+  models    DeviceModel[]
+
+  @@map("device_categories")
+}
+
+model DeviceBrand {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String        @unique               // "ZKTeco", "Generic PC/SC", "Hikvision"
+  website   String?
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+  models    DeviceModel[]
+
+  @@map("device_brands")
+}
+
+model DeviceModel {
+  id                 String         @id @default(uuid()) @db.Uuid
+  categoryId         String         @map("category_id") @db.Uuid
+  brandId            String         @map("brand_id") @db.Uuid
+  name               String                              // "ACR122U", "K40", "DS-K1T341"
+  adapterKey         String?        @map("adapter_key")  // null = regular device, "zkteco" = needs adapter
+  connectionType     ConnectionType @map("connection_type")
+  syncMode           SyncMode       @default(PUSH) @map("sync_mode")
+  setupSchema        Json?          @map("setup_schema")         // dynamic config field definitions
+  eventMappingSchema Json?          @map("event_mapping_schema") // raw → normalized field mapping
+  capabilities       Json?                                       // { supports_realtime, supports_card, etc. }
+  supportedActions   String[]       @default([]) @map("supported_actions") // ["CHECK_IN","CHECK_OUT"]
+  isActive           Boolean        @default(true) @map("is_active")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  category           DeviceCategory @relation(fields: [categoryId], references: [id])
+  brand              DeviceBrand    @relation(fields: [brandId], references: [id])
+  devices            Device[]
+
+  @@unique([brandId, name])
+  @@index([categoryId])
+  @@map("device_models")
+}
+
+enum ConnectionType {
+  LOCAL_USB
+  LOCAL_PCSC
+  LAN_TCP_IP
+  HTTP_API
+  WEBHOOK
+  SDK
+  FILE_IMPORT
+  CLOUD_API
+}
+
+enum SyncMode {
+  PUSH
+  PULL
+  REALTIME
+  SCHEDULED
+  MANUAL_IMPORT
+  OFFLINE_SYNC
+}
+
 model Device {
-  id              String     @id @default(uuid()) @db.Uuid
-  orgId           String     @map("org_id") @db.Uuid
-  branchId        String?    @map("branch_id") @db.Uuid
-  deviceType      DeviceType @map("device_type")
-  deviceSerial    String     @unique @map("device_serial")
+  id              String        @id @default(uuid()) @db.Uuid
+  orgId           String        @map("org_id") @db.Uuid
+  branchId        String?       @map("branch_id") @db.Uuid
+  modelId         String?       @map("model_id") @db.Uuid
+  deviceType      DeviceType    @map("device_type")
+  deviceSerial    String        @unique @map("device_serial")
   name            String?
   brand           String?
   model           String?
   location        String?
-  apiKeyHash      String     @map("api_key_hash")   // bcrypt hashed per-device key
-  firmwareVersion String?    @map("firmware_version")
-  lastHeartbeatAt DateTime?  @map("last_heartbeat_at")
-  isActive        Boolean    @default(true) @map("is_active")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  apiKeyHash      String        @map("api_key_hash")   // bcrypt hashed per-device key
+  firmwareVersion String?       @map("firmware_version")
+  deviceConfig    Json?         @map("device_config")  // instance-specific config (encrypted sensitive fields)
+  healthStatus    DeviceHealth  @default(ONLINE) @map("health_status")
+  failedSyncCount Int           @default(0) @map("failed_sync_count")
+  lastSyncAt      DateTime?     @map("last_sync_at")
+  lastHeartbeatAt DateTime?     @map("last_heartbeat_at")
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
   org             Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   branch          Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  deviceModel     DeviceModel?  @relation(fields: [modelId], references: [id], onDelete: SetNull)
   deviceEvents    DeviceEvent[]
   writeJobs       DeviceWriteJob[]
+  rawLogs         DeviceRawLog[]
 
   @@index([orgId, deviceType])
   @@map("devices")
@@ -504,6 +580,51 @@ enum DeviceType {
   FINGERPRINT
   QR_TERMINAL
   FACE_RECOGNITION
+  ACCESS_CONTROL
+  GENERIC_HTTP
+}
+
+enum DeviceHealth {
+  ONLINE
+  OFFLINE
+  WARNING
+  ERROR
+  DISABLED
+  GATEWAY_OFFLINE
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEVICE RAW LOGS — Audit trail of all device communication
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DeviceRawLog {
+  id               String              @id @default(uuid()) @db.Uuid
+  orgId            String              @map("org_id") @db.Uuid
+  deviceId         String              @map("device_id") @db.Uuid
+  rawPayload       Json                @map("raw_payload")
+  processingStatus LogProcessingStatus @default(RECEIVED) @map("processing_status")
+  syncBatchId      String?             @map("sync_batch_id")
+  errorMessage     String?             @map("error_message")
+  receivedAt       DateTime            @default(now()) @map("received_at")
+  processedAt      DateTime?           @map("processed_at")
+
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  device           Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, receivedAt])
+  @@index([orgId, processingStatus])
+  @@map("device_raw_logs")
+}
+
+enum LogProcessingStatus {
+  RECEIVED
+  NORMALIZED
+  PROCESSED
+  DUPLICATE
+  UNMAPPED
+  INVALID
+  FAILED
+  RETRYING
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -573,6 +694,9 @@ enum DeviceEventType {
   REJECTED
   UNKNOWN
   HEARTBEAT
+  AUTO
+  BREAK_IN
+  BREAK_OUT
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

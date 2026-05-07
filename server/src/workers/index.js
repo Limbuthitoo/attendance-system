@@ -92,6 +92,10 @@ const schedulerWorker = new Worker('scheduler', async (job) => {
   if (job.name === 'finalize-attendance') {
     await handleFinalizeAttendance();
   }
+  if (job.name === 'device-health-check') {
+    const { updateDeviceHealthStatuses } = require('../services/device.service');
+    await updateDeviceHealthStatuses();
+  }
 }, { connection });
 
 async function handleForgotCheckout({ orgId }) {
@@ -378,6 +382,12 @@ async function registerRepeatableJobs() {
   await schedulerQueue.add('leave-carryover', {}, {
     repeat: { pattern: '25 18 1 1 *' },  // Jan 1st, 00:10 NPT
     jobId: 'leave-carryover-yearly',
+  });
+
+  // Device health check every 2 minutes
+  await schedulerQueue.add('device-health-check', {}, {
+    repeat: { pattern: '*/2 * * * *' },
+    jobId: 'device-health-check',
   });
 
   console.log('✓ Repeatable jobs registered');
