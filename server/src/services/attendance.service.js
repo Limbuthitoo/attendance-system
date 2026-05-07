@@ -375,6 +375,106 @@ async function getOrgAttendanceSummary(orgId) {
   return { totalActive, present, late, halfDay, onLeave, absent, date: today };
 }
 
+/**
+ * End-of-day attendance finalization for an org.
+ * - Employees with no attendance record → ABSENT
+ * - Checked in but not out (1st half) → default fullDayHours, auto-checkout
+ * - Checked in but not out (2nd half) → HALF_DAY, halfDayHours, auto-checkout
+ */
+async function finalizeAttendance({ orgId, date }) {
+  const prisma = getPrisma();
+  const targetDate = date || getTodayDate();
+
+  // Get all active employees for this org
+  const activeEmployees = await prisma.employee.findMany({
+    where: { orgId, isActive: true },
+    select: { id: true },
+  });
+
+  // Get all attendance records for the date
+  const existingRecords = await prisma.attendance.findMany({
+    where: { orgId, date: new Date(targetDate) },
+    select: { employeeId: true, id: true, checkIn: true, checkOut: true, status: true },
+  });
+
+  const recordMap = new Map(existingRecords.map((r) => [r.employeeId, r]));
+
+  // Get org default shift for thresholds
+  const defaultShift = await prisma.shift.findFirst({
+    where: { orgId, isDefault: true, isActive: true },
+  });
+
+  const shiftStartTime = defaultShift?.startTime || '09:00';
+  const fullDayHours = Number(defaultShift?.fullDayHours) || 8;
+  const halfDayHours = Number(defaultShift?.halfDayHours) || 4;
+
+  // Calculate the 2nd-half cutoff: shift start + half of full day hours
+  const [startH, startM] = shiftStartTime.split(':').map(Number);
+  const halfCutoffMinutes = (startH * 60 + startM) + (fullDayHours / 2) * 60;
+
+  let absentCount = 0;
+  let autoCheckoutFullCount = 0;
+  let autoCheckoutHalfCount = 0;
+
+  for (const emp of activeEmployees) {
+    const record = recordMap.get(emp.id);
+
+    if (!record) {
+      // No record at all → mark ABSENT
+      await prisma.attendance.create({
+        data: {
+          orgId,
+          employeeId: emp.id,
+          date: new Date(targetDate),
+          status: 'ABSENT',
+          source: 'SYSTEM',
+          notes: 'Auto-marked absent (no check-in)',
+        },
+      });
+      absentCount++;
+    } else if (record.checkIn && !record.checkOut) {
+      // Checked in but forgot to check out
+      const checkInTime = new Date(record.checkIn);
+      const checkInParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kathmandu',
+        hour: '2-digit', minute: '2-digit',
+        hour12: false,
+      }).formatToParts(checkInTime);
+
+      const checkInH = parseInt(checkInParts.find((p) => p.type === 'hour')?.value || '0');
+      const checkInM = parseInt(checkInParts.find((p) => p.type === 'minute')?.value || '0');
+      const checkInMinutes = checkInH * 60 + checkInM;
+
+      if (checkInMinutes >= halfCutoffMinutes) {
+        // Checked in at 2nd half → HALF_DAY, 4hr work, no auto-checkout
+        await prisma.attendance.update({
+          where: { id: record.id },
+          data: {
+            workHours: halfDayHours,
+            status: 'HALF_DAY',
+            notes: `${record.notes || ''} [SYSTEM] Forgot checkout (2nd half, ${halfDayHours}hr credited)`.trim(),
+          },
+        });
+        autoCheckoutHalfCount++;
+      } else {
+        // Checked in at 1st half → default full day hours, no auto-checkout
+        await prisma.attendance.update({
+          where: { id: record.id },
+          data: {
+            workHours: fullDayHours,
+            status: record.status, // Keep PRESENT or LATE
+            notes: `${record.notes || ''} [SYSTEM] Forgot checkout (${fullDayHours}hr credited)`.trim(),
+          },
+        });
+        autoCheckoutFullCount++;
+      }
+    }
+    // If checkIn and checkOut both exist → already finalized, skip
+  }
+
+  return { date: targetDate, absentCount, autoCheckoutFullCount, autoCheckoutHalfCount };
+}
+
 module.exports = {
   getNowInTimezone,
   getTodayDate,
@@ -386,4 +486,5 @@ module.exports = {
   deviceAttendance,
   getEmployeeAttendance,
   getOrgAttendanceSummary,
+  finalizeAttendance,
 };

@@ -193,4 +193,20 @@ router.get('/summary', requireRole('org_admin', 'hr_manager'), async (req, res, 
   }
 });
 
+// POST /api/v1/attendance/finalize — Admin: manually finalize attendance for a date
+router.post('/finalize', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const { date } = req.body; // optional YYYY-MM-DD, defaults to yesterday
+    const targetDate = date || (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
+    })();
+    const result = await attendanceService.finalizeAttendance({ orgId: req.orgId, date: targetDate });
+    res.json({ message: 'Attendance finalized', ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

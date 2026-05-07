@@ -89,6 +89,9 @@ const schedulerWorker = new Worker('scheduler', async (job) => {
   if (job.name === 'leave-carryover') {
     await handleLeaveCarryover();
   }
+  if (job.name === 'finalize-attendance') {
+    await handleFinalizeAttendance();
+  }
 }, { connection });
 
 async function handleForgotCheckout({ orgId }) {
@@ -128,6 +131,46 @@ async function handleForgotCheckout({ orgId }) {
     body: "You checked in today but haven't checked out yet.",
     type: 'CHECKOUT_REMINDER',
   });
+}
+
+// ── Finalize Attendance Handler ─────────────────────────────────────────────
+async function handleFinalizeAttendance() {
+  const { getPrisma } = require('../lib/prisma');
+  const { finalizeAttendance, getTodayDate } = require('../services/attendance.service');
+
+  const prisma = getPrisma();
+
+  // Get all active orgs
+  const orgs = await prisma.organization.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+  });
+
+  // Finalize yesterday's attendance (runs at end of day / start of next day)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const targetDate = yesterday.toISOString().split('T')[0];
+
+  let totalAbsent = 0;
+  let totalAutoFull = 0;
+  let totalAutoHalf = 0;
+
+  for (const org of orgs) {
+    try {
+      const result = await finalizeAttendance({ orgId: org.id, date: targetDate });
+      totalAbsent += result.absentCount;
+      totalAutoFull += result.autoCheckoutFullCount;
+      totalAutoHalf += result.autoCheckoutHalfCount;
+
+      if (result.absentCount > 0 || result.autoCheckoutFullCount > 0 || result.autoCheckoutHalfCount > 0) {
+        console.log(`  📋 ${org.name}: ${result.absentCount} absent, ${result.autoCheckoutFullCount} auto-checkout (full), ${result.autoCheckoutHalfCount} auto-checkout (half)`);
+      }
+    } catch (err) {
+      console.error(`  ✗ Attendance finalization failed for ${org.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`📋 Attendance finalization complete: ${totalAbsent} absent, ${totalAutoFull} auto-full, ${totalAutoHalf} auto-half across ${orgs.length} orgs`);
 }
 
 schedulerWorker.on('failed', (job, err) => {
@@ -304,6 +347,13 @@ async function registerRepeatableJobs() {
   await schedulerQueue.add('check-trial-expiry', {}, {
     repeat: { pattern: '15 18 * * *' },  // 00:00 NPT = 18:15 UTC
     jobId: 'trial-expiry-daily',
+  });
+
+  // Finalize attendance daily at 23:55 NPT (18:10 UTC)
+  // Marks absent for no-shows, auto-checkouts for forgot checkouts
+  await schedulerQueue.add('finalize-attendance', {}, {
+    repeat: { pattern: '10 18 * * *' },  // 23:55 NPT = 18:10 UTC
+    jobId: 'finalize-attendance-daily',
   });
 
   // Leave accrual — 1st of every month at 00:05 NPT (18:20 UTC previous day)
