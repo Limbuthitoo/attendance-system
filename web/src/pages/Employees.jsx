@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen } from 'lucide-react';
+import NfcModal from '../components/employees/NfcModal';
+import ResetPasswordModal from '../components/employees/ResetPasswordModal';
+import EditEmployeeModal from '../components/employees/EditEmployeeModal';
+import DeleteConfirmModal from '../components/employees/DeleteConfirmModal';
 
 const DEPARTMENTS = [
   'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
@@ -520,285 +524,47 @@ export default function Employees() {
       </div>
 
       {/* NFC Card Management Modal */}
-      {nfcModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setNfcModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">NFC Cards</h3>
-                <p className="text-xs text-slate-500">{nfcModal.name} ({nfcModal.employee_id})</p>
-              </div>
-              <button onClick={() => setNfcModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-
-            <div className="p-5">
-              {/* Reader Status */}
-              <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs font-medium ${
-                readerOnline === false
-                  ? 'bg-red-50 text-red-700 border border-red-200'
-                  : sseConnected
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-              }`}>
-                <Wifi size={14} className={sseConnected && readerOnline !== false ? 'animate-pulse' : ''} />
-                {readerOnline === false
-                  ? 'NFC reader device is disconnected'
-                  : sseConnected
-                    ? detectedUid
-                      ? `Card detected: ${detectedUid} — click Assign to link it`
-                      : 'Listening... Tap a card on the NFC reader'
-                    : 'Connecting to NFC reader...'}
-              </div>
-
-              {/* Assign new card */}
-              <form onSubmit={handleAssignCard} className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  value={nfcForm.card_uid}
-                  onChange={(e) => { setNfcForm({ ...nfcForm, card_uid: e.target.value }); setDetectedUid(null); }}
-                  placeholder={sseConnected ? 'Tap card or type UID...' : 'Card UID (hex)'}
-                  required
-                  className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${detectedUid ? 'border-emerald-400 bg-emerald-50 font-mono' : 'border-slate-300'}`}
-                />
-                <input
-                  type="text"
-                  value={nfcForm.label}
-                  onChange={(e) => setNfcForm({ ...nfcForm, label: e.target.value })}
-                  placeholder="Label (optional)"
-                  className="w-32 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <button
-                  type="submit"
-                  disabled={nfcSubmitting}
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {nfcSubmitting ? '...' : 'Assign'}
-                </button>
-              </form>
-
-              {/* Card list */}
-              {nfcCards.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-6">No NFC cards assigned</p>
-              ) : (
-                <div className="space-y-2">
-                  {nfcCards.map((card) => (
-                    <div key={card.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
-                      <div>
-                        <p className="text-sm font-mono font-medium text-slate-800">{card.card_uid}</p>
-                        <p className="text-xs text-slate-500">{card.label || 'No label'} &middot; {new Date(card.assigned_at).toLocaleDateString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${card.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {card.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                        <button onClick={() => toggleCardActive(card)} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
-                          {card.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button onClick={() => deleteCard(card)} className="text-slate-400 hover:text-red-500">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <NfcModal
+        nfcModal={nfcModal} setNfcModal={setNfcModal}
+        nfcCards={nfcCards} nfcForm={nfcForm} setNfcForm={setNfcForm}
+        nfcSubmitting={nfcSubmitting} handleAssignCard={handleAssignCard}
+        toggleCardActive={toggleCardActive} deleteCard={deleteCard}
+        sseConnected={sseConnected} readerOnline={readerOnline}
+        detectedUid={detectedUid} setDetectedUid={setDetectedUid}
+      />
 
       {/* Reset Password Modal */}
-      {resetModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setResetModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Reset Password</h3>
-                <p className="text-xs text-slate-500">{resetModal.name} ({resetModal.employee_id})</p>
-              </div>
-              <button onClick={() => setResetModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleResetPassword} className="p-5 space-y-4">
-              <p className="text-sm text-slate-600">
-                Set a new temporary password. The employee will be required to change it on their next login.
-              </p>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">New Password</label>
-                <input
-                  type="password"
-                  value={resetPassword}
-                  onChange={(e) => setResetPassword(e.target.value)}
-                  placeholder="e.g. Temp@1234"
-                  required
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">Min 8 chars, uppercase, lowercase, digit, and special character</p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setResetModal(null)}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={resetSubmitting}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {resetSubmitting ? 'Resetting...' : 'Reset Password'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ResetPasswordModal
+        resetModal={resetModal} setResetModal={setResetModal}
+        resetPassword={resetPassword} setResetPassword={setResetPassword}
+        resetSubmitting={resetSubmitting} handleResetPassword={handleResetPassword}
+      />
 
       {/* Edit Employee Modal */}
-      {editModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEditModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Edit Employee</h3>
-                <p className="text-xs text-slate-500">{editModal.employee_id}</p>
-              </div>
-              <button onClick={() => setEditModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
-                  <select
-                    value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Select Department</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
-                  <select
-                    value={editForm.designation}
-                    onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Select Designation</option>
-                    {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
-                  <select
-                    value={editForm.role}
-                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Phone</label>
-                  <input
-                    type="text"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    placeholder="9800000000"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setEditModal(null)}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editSubmitting}
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {editSubmitting ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditEmployeeModal
+        editModal={editModal} setEditModal={setEditModal}
+        editForm={editForm} setEditForm={setEditForm}
+        editSubmitting={editSubmitting} handleEditSubmit={handleEditSubmit}
+        departments={DEPARTMENTS} designations={DESIGNATIONS}
+      />
 
       {/* Delete Confirmation Modal */}
-      {deleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <UserX size={20} className="text-red-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Delete Employee</h3>
-            </div>
-            <p className="text-sm text-slate-600 mb-2">
-              Are you sure you want to permanently delete <span className="font-semibold text-slate-900">{deleteModal.name}</span>?
-            </p>
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
-              This action cannot be undone. All attendance records, leaves, NFC cards, and other data associated with this employee will be permanently removed.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteModal(null)}
-                disabled={deleteSubmitting}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setDeleteSubmitting(true);
-                  try {
-                    await api.deleteEmployee(deleteModal.id);
-                    setDeleteModal(null);
-                    loadEmployees();
-                  } catch (err) {
-                    alert(err.message);
-                  } finally {
-                    setDeleteSubmitting(false);
-                  }
-                }}
-                disabled={deleteSubmitting}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-              >
-                {deleteSubmitting ? 'Deleting...' : 'Delete Permanently'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        deleteModal={deleteModal} setDeleteModal={setDeleteModal}
+        deleteSubmitting={deleteSubmitting}
+        onConfirm={async () => {
+          setDeleteSubmitting(true);
+          try {
+            await api.deleteEmployee(deleteModal.id);
+            setDeleteModal(null);
+            loadEmployees();
+          } catch (err) {
+            alert(err.message);
+          } finally {
+            setDeleteSubmitting(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { STATUS_COLORS, STATUS_LABELS } from '../lib/status-config';
 import DatePicker from '../components/DatePicker';
 import {
   Users, Clock, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight,
@@ -17,17 +18,18 @@ function formatDateLabel(d) {
   });
 }
 
-const STATUS_CONFIG = {
-  present:  { label: 'Present',  color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200', dot: 'bg-green-500', icon: CheckCircle },
-  late:     { label: 'Late',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200', dot: 'bg-amber-500', icon: AlertTriangle },
-  'half-day': { label: 'Half Day', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', dot: 'bg-orange-500', icon: Timer },
-  absent:   { label: 'Absent',   color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200', dot: 'bg-red-500', icon: XCircle },
-  'on-leave': { label: 'On Leave', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', dot: 'bg-purple-500', icon: Calendar },
-  holiday:  { label: 'Holiday',  color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200', dot: 'bg-blue-500', icon: Coffee },
-  'weekly-off': { label: 'Weekly Off', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', dot: 'bg-indigo-500', icon: Coffee },
-  'missing-checkout': { label: 'Missing Checkout', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', dot: 'bg-rose-500', icon: AlertOctagon },
-  'early-exit': { label: 'Early Exit', color: 'text-pink-700', bg: 'bg-pink-50', border: 'border-pink-200', dot: 'bg-pink-500', icon: ArrowDownRight },
+// Build STATUS_CONFIG from shared constants + icon mapping
+const STATUS_ICONS = {
+  present: CheckCircle, late: AlertTriangle, 'half-day': Timer, absent: XCircle,
+  'on-leave': Calendar, holiday: Coffee, 'weekly-off': Coffee,
+  'missing-checkout': AlertOctagon, 'early-exit': ArrowDownRight,
 };
+
+const STATUS_CONFIG = Object.fromEntries(
+  Object.entries(STATUS_COLORS).map(([key, val]) => [
+    key, { label: STATUS_LABELS[key], ...val, icon: STATUS_ICONS[key] || XCircle },
+  ])
+);
 
 export default function EmployeeAttendance() {
   // Use Nepal timezone for "today" to match server behavior

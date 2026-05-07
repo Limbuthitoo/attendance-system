@@ -9,17 +9,11 @@ import {
   MapPin, Droplets, Users, BadgeCheck, Hash, Landmark
 } from 'lucide-react';
 
-const STATUS_BADGE = {
-  present: { label: 'Present', class: 'bg-emerald-100 text-emerald-700' },
-  late: { label: 'Late', class: 'bg-amber-100 text-amber-700' },
-  'half-day': { label: 'Half Day', class: 'bg-orange-100 text-orange-700' },
-  absent: { label: 'Absent', class: 'bg-red-100 text-red-700' },
-  'on-leave': { label: 'On Leave', class: 'bg-purple-100 text-purple-700' },
-  holiday: { label: 'Holiday', class: 'bg-blue-100 text-blue-700' },
-  'weekly-off': { label: 'Weekly Off', class: 'bg-indigo-100 text-indigo-700' },
-  'missing-checkout': { label: 'Missing C/O', class: 'bg-rose-100 text-rose-700' },
-  'early-exit': { label: 'Early Exit', class: 'bg-pink-100 text-pink-700' },
-};
+import { STATUS_BADGE_STYLES, STATUS_LABELS } from '../lib/status-config';
+
+const STATUS_BADGE = Object.fromEntries(
+  Object.entries(STATUS_BADGE_STYLES).map(([k, v]) => [k, { label: STATUS_LABELS[k], class: v }])
+);
 
 const DOC_TYPES = [
   { value: 'citizenship', label: 'Citizenship' },
