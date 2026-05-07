@@ -480,6 +480,11 @@ function getStatusColor(status) {
     late: colors.warning,
     absent: colors.danger,
     'half-day': '#ea580c',
+    'on-leave': '#7c3aed',
+    holiday: '#2563eb',
+    'weekly-off': '#4f46e5',
+    'missing-checkout': '#e11d48',
+    'early-exit': '#ec4899',
   };
   return map[status] || colors.textSecondary;
 }

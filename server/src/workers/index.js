@@ -136,13 +136,21 @@ async function handleForgotCheckout({ orgId }) {
 // ── Finalize Attendance Handler ─────────────────────────────────────────────
 async function handleFinalizeAttendance() {
   const { getPrisma } = require('../lib/prisma');
-  const { finalizeAttendance, getTodayDate } = require('../services/attendance.service');
+  const { finalizeAttendance } = require('../services/attendance.service');
 
   const prisma = getPrisma();
 
-  // Get all active orgs
+  // Only process orgs that have the attendance module enabled
   const orgs = await prisma.organization.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      orgModules: {
+        some: {
+          isActive: true,
+          module: { code: 'attendance' },
+        },
+      },
+    },
     select: { id: true, name: true },
   });
 
@@ -152,25 +160,29 @@ async function handleFinalizeAttendance() {
   const targetDate = yesterday.toISOString().split('T')[0];
 
   let totalAbsent = 0;
-  let totalAutoFull = 0;
-  let totalAutoHalf = 0;
+  let totalMissingFull = 0;
+  let totalMissingHalf = 0;
+  let totalHoliday = 0;
+  let totalWeeklyOff = 0;
 
   for (const org of orgs) {
     try {
       const result = await finalizeAttendance({ orgId: org.id, date: targetDate });
       totalAbsent += result.absentCount;
-      totalAutoFull += result.autoCheckoutFullCount;
-      totalAutoHalf += result.autoCheckoutHalfCount;
+      totalMissingFull += result.missingCheckoutFullCount;
+      totalMissingHalf += result.missingCheckoutHalfCount;
+      totalHoliday += result.holidayCount;
+      totalWeeklyOff += result.weeklyOffCount;
 
-      if (result.absentCount > 0 || result.autoCheckoutFullCount > 0 || result.autoCheckoutHalfCount > 0) {
-        console.log(`  📋 ${org.name}: ${result.absentCount} absent, ${result.autoCheckoutFullCount} auto-checkout (full), ${result.autoCheckoutHalfCount} auto-checkout (half)`);
+      if (result.absentCount > 0 || result.missingCheckoutFullCount > 0 || result.missingCheckoutHalfCount > 0) {
+        console.log(`  📋 ${org.name}: ${result.absentCount} absent, ${result.missingCheckoutFullCount} missing-co (full), ${result.missingCheckoutHalfCount} missing-co (half), ${result.holidayCount} holiday, ${result.weeklyOffCount} weekly-off`);
       }
     } catch (err) {
       console.error(`  ✗ Attendance finalization failed for ${org.name}: ${err.message}`);
     }
   }
 
-  console.log(`📋 Attendance finalization complete: ${totalAbsent} absent, ${totalAutoFull} auto-full, ${totalAutoHalf} auto-half across ${orgs.length} orgs`);
+  console.log(`📋 Attendance finalization complete: ${totalAbsent} absent, ${totalMissingFull}+${totalMissingHalf} missing-checkout, ${totalHoliday} holiday, ${totalWeeklyOff} weekly-off across ${orgs.length} orgs`);
 }
 
 schedulerWorker.on('failed', (job, err) => {

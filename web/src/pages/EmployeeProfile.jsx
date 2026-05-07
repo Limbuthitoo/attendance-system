@@ -14,6 +14,11 @@ const STATUS_BADGE = {
   late: { label: 'Late', class: 'bg-amber-100 text-amber-700' },
   'half-day': { label: 'Half Day', class: 'bg-orange-100 text-orange-700' },
   absent: { label: 'Absent', class: 'bg-red-100 text-red-700' },
+  'on-leave': { label: 'On Leave', class: 'bg-purple-100 text-purple-700' },
+  holiday: { label: 'Holiday', class: 'bg-blue-100 text-blue-700' },
+  'weekly-off': { label: 'Weekly Off', class: 'bg-indigo-100 text-indigo-700' },
+  'missing-checkout': { label: 'Missing C/O', class: 'bg-rose-100 text-rose-700' },
+  'early-exit': { label: 'Early Exit', class: 'bg-pink-100 text-pink-700' },
 };
 
 const DOC_TYPES = [

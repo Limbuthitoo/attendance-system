@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 
 const COLORS = {
-  present: '#10b981', late: '#f59e0b', absent: '#ef4444', halfDay: '#6366f1',
+  present: '#10b981', late: '#f59e0b', absent: '#ef4444', halfDay: '#6366f1', earlyExit: '#ec4899',
   sick: '#ef4444', casual: '#3b82f6', earned: '#10b981', unpaid: '#94a3b8', other: '#8b5cf6'
 };
 
@@ -69,9 +69,10 @@ function AdminDashboard({ stats, trend, deptStats, leaveStats }) {
     { name: 'Late', value: stats?.lateToday || 0 },
     { name: 'Absent', value: stats?.absentToday || 0 },
     { name: 'On Leave', value: stats?.onLeaveToday || 0 },
+    { name: 'Early Exit', value: stats?.earlyExitToday || 0 },
   ].filter(d => d.value > 0);
 
-  const donutColors = ['#10b981', '#f59e0b', '#ef4444', '#6366f1'];
+  const donutColors = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899'];
 
   // Trend data formatting
   const trendData = (trend?.trend || []).map(r => ({
@@ -79,6 +80,7 @@ function AdminDashboard({ stats, trend, deptStats, leaveStats }) {
     Present: r.present,
     Late: r.late,
     Absent: r.absent + (r.halfDay || 0),
+    'Early Exit': r.earlyExit || 0,
   }));
 
   // Department data

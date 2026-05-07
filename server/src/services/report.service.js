@@ -52,7 +52,7 @@ async function getAttendanceSummary({ orgId, startDate, endDate, branchId, depar
   for (const emp of employees.filter(e => filteredIds.includes(e.id))) {
     empMap[emp.id] = {
       ...emp,
-      present: 0, late: 0, halfDay: 0, absent: 0,
+      present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0,
       totalHours: 0, avgHours: 0, records: 0,
     };
   }
@@ -66,6 +66,7 @@ async function getAttendanceSummary({ orgId, startDate, endDate, branchId, depar
     else if (rec.status === 'LATE') { emp.present++; emp.late++; }
     else if (rec.status === 'HALF_DAY') emp.halfDay++;
     else if (rec.status === 'ABSENT') emp.absent++;
+    else if (rec.status === 'EARLY_EXIT') { emp.present++; emp.earlyExit++; }
   }
 
   const summaries = Object.values(empMap).map(emp => ({
@@ -80,8 +81,9 @@ async function getAttendanceSummary({ orgId, startDate, endDate, branchId, depar
     late: acc.late + e.late,
     halfDay: acc.halfDay + e.halfDay,
     absent: acc.absent + e.absent,
+    earlyExit: acc.earlyExit + e.earlyExit,
     totalHours: acc.totalHours + e.totalHours,
-  }), { present: 0, late: 0, halfDay: 0, absent: 0, totalHours: 0 });
+  }), { present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0, totalHours: 0 });
 
   return { employees: summaries, totals, period: { startDate, endDate }, employeeCount: summaries.length };
 }
@@ -108,7 +110,7 @@ async function getDepartmentReport({ orgId, startDate, endDate }) {
   const deptMap = {};
   for (const emp of employees) {
     if (!deptMap[emp.department]) {
-      deptMap[emp.department] = { department: emp.department, employeeCount: 0, present: 0, late: 0, halfDay: 0, absent: 0, totalHours: 0 };
+      deptMap[emp.department] = { department: emp.department, employeeCount: 0, present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0, totalHours: 0 };
     }
     deptMap[emp.department].employeeCount++;
   }
@@ -125,6 +127,7 @@ async function getDepartmentReport({ orgId, startDate, endDate }) {
     else if (rec.status === 'LATE') { d.present++; d.late++; }
     else if (rec.status === 'HALF_DAY') d.halfDay++;
     else if (rec.status === 'ABSENT') d.absent++;
+    else if (rec.status === 'EARLY_EXIT') { d.present++; d.earlyExit++; }
   }
 
   return Object.values(deptMap).map(d => ({
@@ -154,12 +157,13 @@ async function getDailyTrend({ orgId, startDate, endDate, branchId }) {
   const dayMap = {};
   for (const rec of attendance) {
     const key = rec.date.toISOString().slice(0, 10);
-    if (!dayMap[key]) dayMap[key] = { date: key, present: 0, late: 0, halfDay: 0, absent: 0, total: 0 };
+    if (!dayMap[key]) dayMap[key] = { date: key, present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0, total: 0 };
     dayMap[key].total++;
     if (rec.status === 'PRESENT') dayMap[key].present++;
     else if (rec.status === 'LATE') { dayMap[key].present++; dayMap[key].late++; }
     else if (rec.status === 'HALF_DAY') dayMap[key].halfDay++;
     else if (rec.status === 'ABSENT') dayMap[key].absent++;
+    else if (rec.status === 'EARLY_EXIT') { dayMap[key].present++; dayMap[key].earlyExit++; }
   }
 
   return Object.values(dayMap);

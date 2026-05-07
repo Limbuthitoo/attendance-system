@@ -18,6 +18,11 @@ const STATUS_CONFIG = {
   late:     { label: 'Late',     color: colors.warning,  bg: colors.warningLight, icon: 'alert-circle' },
   'half-day': { label: 'Half Day', color: '#ea580c',     bg: '#fff7ed',          icon: 'time' },
   absent:   { label: 'Absent',   color: colors.danger,   bg: colors.dangerLight,  icon: 'close-circle' },
+  'on-leave': { label: 'On Leave', color: '#7c3aed',    bg: '#faf5ff',          icon: 'calendar' },
+  holiday:  { label: 'Holiday',  color: '#2563eb',       bg: '#eff6ff',          icon: 'sunny' },
+  'weekly-off': { label: 'Weekly Off', color: '#4f46e5', bg: '#eef2ff',          icon: 'cafe' },
+  'missing-checkout': { label: 'Missing C/O', color: '#e11d48', bg: '#fff1f2',   icon: 'warning' },
+  'early-exit': { label: 'Early Exit', color: '#ec4899', bg: '#fdf2f8',          icon: 'arrow-down-circle' },
 };
 
 export default function EmployeeAttendanceScreen() {
@@ -28,7 +33,7 @@ export default function EmployeeAttendanceScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  const defaultSummary = { total: 0, present: 0, late: 0, halfDay: 0, absent: 0 };
+  const defaultSummary = { total: 0, present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0, onLeave: 0, missingCheckout: 0 };
 
   const loadData = async () => {
     try {

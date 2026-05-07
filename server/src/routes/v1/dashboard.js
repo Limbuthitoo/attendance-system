@@ -25,12 +25,13 @@ router.get('/stats', async (req, res, next) => {
       const todayFilter = new Date(today + 'T00:00:00.000Z');
       const monthStart = new Date(currentMonth + '-01T00:00:00.000Z');
 
-      const [totalEmployees, presentToday, lateToday, halfDayToday, absentToday, pendingLeaves, monthlyRaw] = await Promise.all([
+      const [totalEmployees, presentToday, lateToday, halfDayToday, absentToday, earlyExitToday, pendingLeaves, monthlyRaw] = await Promise.all([
         prisma.employee.count({ where: { orgId, isActive: true } }),
-        prisma.attendance.count({ where: { orgId, date: todayFilter, status: { in: ['PRESENT', 'LATE'] } } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: { in: ['PRESENT', 'LATE', 'EARLY_EXIT'] } } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'LATE' } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'HALF_DAY' } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'ABSENT' } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'EARLY_EXIT' } }),
         prisma.leave.count({ where: { orgId, status: 'PENDING' } }),
         prisma.attendance.groupBy({ by: ['status'], where: { orgId, date: { gte: monthStart } }, _count: true }),
       ]);
@@ -44,6 +45,7 @@ router.get('/stats', async (req, res, next) => {
         totalEmployees,
         presentToday,
         lateToday,
+        earlyExitToday,
         onLeaveToday: absentToday,
         absentToday: totalEmployees - presentToday - absentToday - halfDayToday,
         pendingLeaves,
@@ -100,12 +102,13 @@ router.get('/weekly-trend', async (req, res, next) => {
       const byDate = {};
       for (const r of records) {
         const d = r.date.toISOString().slice(0, 10);
-        if (!byDate[d]) byDate[d] = { date: d, present: 0, late: 0, halfDay: 0, absent: 0 };
+        if (!byDate[d]) byDate[d] = { date: d, present: 0, late: 0, halfDay: 0, absent: 0, earlyExit: 0 };
         const s = r.status.toLowerCase().replace('_', '');
         if (s === 'present') byDate[d].present++;
         else if (s === 'late') byDate[d].late++;
         else if (s === 'halfday' || s === 'half_day') byDate[d].halfDay++;
         else if (s === 'absent') byDate[d].absent++;
+        else if (s === 'earlyexit' || s === 'early_exit') byDate[d].earlyExit++;
       }
 
       const totalEmployees = await prisma.employee.count({ where: { orgId, isActive: true } });

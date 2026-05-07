@@ -1,0 +1,5 @@
+-- Add new attendance status enum values
+ALTER TYPE "AttendanceStatus" ADD VALUE IF NOT EXISTS 'ON_LEAVE';
+ALTER TYPE "AttendanceStatus" ADD VALUE IF NOT EXISTS 'HOLIDAY';
+ALTER TYPE "AttendanceStatus" ADD VALUE IF NOT EXISTS 'WEEKLY_OFF';
+ALTER TYPE "AttendanceStatus" ADD VALUE IF NOT EXISTS 'MISSING_CHECKOUT';

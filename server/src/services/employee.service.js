@@ -354,16 +354,64 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
 }
 
 /**
- * Deactivate an employee (soft delete)
+ * Deactivate an employee (soft delete).
+ * Revokes all sessions and marks assignments as non-current.
  */
 async function deactivateEmployee({ employeeId, orgId, adminId, req }) {
-  return updateEmployee({
-    employeeId,
+  const prisma = getPrisma();
+
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, orgId },
+    include: { employeeRoles: { include: { role: true } } },
+  });
+
+  if (!employee) {
+    throw Object.assign(new Error('Employee not found'), { status: 404 });
+  }
+
+  // Prevent deactivating the last org_admin
+  const isAdmin = employee.employeeRoles.some((er) => er.role.name === 'org_admin');
+  if (isAdmin) {
+    const adminCount = await prisma.employeeRole.count({
+      where: {
+        role: { name: 'org_admin' },
+        employee: { orgId, isActive: true },
+      },
+    });
+    if (adminCount <= 1) {
+      throw Object.assign(new Error('Cannot deactivate the last admin account'), { status: 400 });
+    }
+  }
+
+  // Prevent self-deactivation
+  if (employeeId === adminId) {
+    throw Object.assign(new Error('Cannot deactivate your own account'), { status: 400 });
+  }
+
+  // Deactivate + revoke sessions + mark assignments non-current
+  await prisma.$transaction([
+    prisma.employee.update({
+      where: { id: employeeId },
+      data: { isActive: false },
+    }),
+    prisma.refreshToken.deleteMany({ where: { employeeId } }),
+    prisma.employeeAssignment.updateMany({
+      where: { employeeId, isCurrent: true },
+      data: { isCurrent: false, effectiveTo: new Date() },
+    }),
+  ]);
+
+  await auditLog({
     orgId,
-    data: { isActive: false },
-    adminId,
+    actorId: adminId,
+    action: 'employee.deactivate',
+    resource: 'employee',
+    resourceId: employeeId,
+    newData: { name: employee.name, email: employee.email },
     req,
   });
+
+  return prisma.employee.findUnique({ where: { id: employeeId } });
 }
 
 /**

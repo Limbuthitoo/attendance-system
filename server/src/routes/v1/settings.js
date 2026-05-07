@@ -492,4 +492,46 @@ router.post('/smtp/test', requireRole('org_admin'), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── Attendance Penalty Policy ──────────────────────────────────────────────
+
+// GET /api/v1/settings/penalty-policy
+router.get('/penalty-policy', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+    const policy = await prisma.attendancePenaltyPolicy.findUnique({ where: { orgId: req.orgId } });
+    res.json(policy || { maxLatePerMonth: 3, maxEarlyExitPerMonth: 3, latePenaltyType: 'half_day_deduction', earlyExitPenaltyType: 'half_day_deduction', isActive: false });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/v1/settings/penalty-policy
+router.put('/penalty-policy', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+    const { maxLatePerMonth, maxEarlyExitPerMonth, latePenaltyType, earlyExitPenaltyType, isActive } = req.body;
+
+    const policy = await prisma.attendancePenaltyPolicy.upsert({
+      where: { orgId: req.orgId },
+      create: {
+        orgId: req.orgId,
+        maxLatePerMonth: maxLatePerMonth ?? 3,
+        maxEarlyExitPerMonth: maxEarlyExitPerMonth ?? 3,
+        latePenaltyType: latePenaltyType || 'half_day_deduction',
+        earlyExitPenaltyType: earlyExitPenaltyType || 'half_day_deduction',
+        isActive: isActive ?? true,
+      },
+      update: {
+        ...(maxLatePerMonth !== undefined && { maxLatePerMonth }),
+        ...(maxEarlyExitPerMonth !== undefined && { maxEarlyExitPerMonth }),
+        ...(latePenaltyType && { latePenaltyType }),
+        ...(earlyExitPenaltyType && { earlyExitPenaltyType }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+
+    res.json(policy);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

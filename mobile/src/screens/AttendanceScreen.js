@@ -75,6 +75,11 @@ export default function AttendanceScreen() {
       late: { bg: colors.warningLight, text: colors.warning, icon: 'alert-circle' },
       absent: { bg: colors.dangerLight, text: colors.danger, icon: 'close-circle' },
       'half-day': { bg: '#fff7ed', text: '#ea580c', icon: 'time' },
+      'on-leave': { bg: '#faf5ff', text: '#7c3aed', icon: 'calendar' },
+      holiday: { bg: '#eff6ff', text: '#2563eb', icon: 'sunny' },
+      'weekly-off': { bg: '#eef2ff', text: '#4f46e5', icon: 'cafe' },
+      'missing-checkout': { bg: '#fff1f2', text: '#e11d48', icon: 'warning' },
+      'early-exit': { bg: '#fdf2f8', text: '#ec4899', icon: 'arrow-down-circle' },
     };
     return map[status] || { bg: '#f1f5f9', text: colors.textSecondary, icon: 'ellipse' };
   };

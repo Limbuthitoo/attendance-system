@@ -58,6 +58,11 @@ async function generatePayrollSummary({ orgId, year, month, adminId, req }) {
     select: { employeeId: true, overtimeHours: true },
   });
 
+  // Load penalty policy for this org
+  const penaltyPolicy = await prisma.attendancePenaltyPolicy.findUnique({
+    where: { orgId, isActive: true },
+  });
+
   // Calculate total working days in month (excluding weekends - Saturday for Nepal)
   let totalWorkDays = 0;
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -93,6 +98,7 @@ async function generatePayrollSummary({ orgId, year, month, adminId, req }) {
   for (const emp of employees) {
     const records = attByEmp[emp.id] || [];
     let present = 0, late = 0, halfDay = 0, absent = 0, totalWorkHours = 0;
+    let onLeave = 0, holiday = 0, weeklyOff = 0, earlyExit = 0;
 
     for (const rec of records) {
       totalWorkHours += Number(rec.workHours || 0);
@@ -100,17 +106,38 @@ async function generatePayrollSummary({ orgId, year, month, adminId, req }) {
       else if (rec.status === 'LATE') { present++; late++; }
       else if (rec.status === 'HALF_DAY') halfDay++;
       else if (rec.status === 'ABSENT') absent++;
+      else if (rec.status === 'ON_LEAVE') onLeave++;
+      else if (rec.status === 'HOLIDAY') holiday++;
+      else if (rec.status === 'WEEKLY_OFF') weeklyOff++;
+      else if (rec.status === 'EARLY_EXIT') { present++; earlyExit++; }
+      else if (rec.status === 'MISSING_CHECKOUT') present++; // credited hours
     }
 
     const leaveDays = leaveByEmp[emp.id] || 0;
     const overtimeHours = otByEmp[emp.id] || 0;
 
-    // Calculate absent: total work days - present - half day - leave days
-    const accountedDays = present + halfDay + leaveDays;
+    // Paid days: present + leave + holidays + weekly offs + half days(0.5)
+    const paidDays = present + leaveDays + holiday + weeklyOff + (halfDay * 0.5);
+
+    // Absent/unpaid: total work days - accounted days
+    const accountedDays = present + halfDay + leaveDays + onLeave + holiday + weeklyOff;
     absent = Math.max(0, totalWorkDays - accountedDays);
 
-    // Effective days: present + leaves + halfDay*0.5
-    const effectiveDays = present + leaveDays + (halfDay * 0.5);
+    // Effective (payable) days
+    const effectiveDays = present + leaveDays + onLeave + holiday + weeklyOff + (halfDay * 0.5);
+
+    // Late/Early exit penalties
+    let penaltyDays = 0;
+    if (penaltyPolicy) {
+      if (late > penaltyPolicy.maxLatePerMonth) {
+        const excessLate = late - penaltyPolicy.maxLatePerMonth;
+        penaltyDays += excessLate * 0.5; // Each excess late = 0.5 day deduction
+      }
+      if (earlyExit > penaltyPolicy.maxEarlyExitPerMonth) {
+        const excessEarly = earlyExit - penaltyPolicy.maxEarlyExitPerMonth;
+        penaltyDays += excessEarly * 0.5;
+      }
+    }
 
     summaries.push({
       orgId,
@@ -122,11 +149,14 @@ async function generatePayrollSummary({ orgId, year, month, adminId, req }) {
       absentDays: absent,
       lateDays: late,
       halfDays: halfDay,
-      leaveDays,
-      holidayDays: holidayCount,
+      leaveDays: leaveDays + onLeave,
+      holidayDays: holidayCount + holiday,
+      weeklyOffDays: weeklyOff,
+      earlyExitDays: earlyExit,
       totalWorkHours: Math.round(totalWorkHours * 100) / 100,
       overtimeHours: Math.round(overtimeHours * 100) / 100,
-      effectiveDays: Math.round(effectiveDays * 100) / 100,
+      effectiveDays: Math.round((effectiveDays - penaltyDays) * 100) / 100,
+      penaltyDays: Math.round(penaltyDays * 100) / 100,
     });
   }
 
@@ -151,9 +181,12 @@ async function generatePayrollSummary({ orgId, year, month, adminId, req }) {
           halfDays: s.halfDays,
           leaveDays: s.leaveDays,
           holidayDays: s.holidayDays,
+          weeklyOffDays: s.weeklyOffDays,
+          earlyExitDays: s.earlyExitDays,
           totalWorkHours: s.totalWorkHours,
           overtimeHours: s.overtimeHours,
           effectiveDays: s.effectiveDays,
+          penaltyDays: s.penaltyDays,
           generatedAt: new Date(),
         },
       })

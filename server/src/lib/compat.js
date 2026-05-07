@@ -59,6 +59,8 @@ function normalizeToCamelCase(obj) {
  */
 const ENUM_MAP = {
   PRESENT: 'present', LATE: 'late', HALF_DAY: 'half-day', ABSENT: 'absent',
+  ON_LEAVE: 'on-leave', HOLIDAY: 'holiday', WEEKLY_OFF: 'weekly-off', MISSING_CHECKOUT: 'missing-checkout',
+  EARLY_EXIT: 'early-exit',
   PENDING: 'pending', APPROVED: 'approved', REJECTED: 'rejected', CANCELLED: 'cancelled',
   SICK: 'sick', CASUAL: 'casual', EARNED: 'earned', UNPAID: 'unpaid', OTHER: 'other',
   GENERAL: 'general', OFFICIAL: 'official', EVENT: 'event', URGENT: 'urgent',

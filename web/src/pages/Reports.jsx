@@ -129,10 +129,11 @@ export default function Reports() {
 
       {/* Stats */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <StatCard label="Total Present" value={summary.totals.present} sub={`of ${summary.employeeCount} employees`} icon={Users} color="green" />
           <StatCard label="Late Arrivals" value={summary.totals.late} icon={Clock} color="amber" />
           <StatCard label="Half Days" value={summary.totals.halfDay} icon={Calendar} color="purple" />
+          <StatCard label="Early Exits" value={summary.totals.earlyExit || 0} icon={Clock} color="pink" />
           <StatCard label="Absent" value={summary.totals.absent} icon={AlertTriangle} color="red" />
           <StatCard label="Total Hours" value={Math.round(summary.totals.totalHours).toLocaleString()} sub="work hours logged" icon={BarChart3} color="blue" />
         </div>
@@ -168,6 +169,7 @@ export default function Reports() {
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Present</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Late</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Half Day</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Early Exit</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Absent</th>
                   <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Total Hours</th>
                   <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Avg Hours</th>
@@ -184,6 +186,7 @@ export default function Reports() {
                     <td className="py-3 px-4 text-center text-sm font-medium text-green-700">{emp.present}</td>
                     <td className="py-3 px-4 text-center text-sm font-medium text-amber-700">{emp.late}</td>
                     <td className="py-3 px-4 text-center text-sm font-medium text-purple-700">{emp.halfDay}</td>
+                    <td className="py-3 px-4 text-center text-sm font-medium text-pink-700">{emp.earlyExit || 0}</td>
                     <td className="py-3 px-4 text-center text-sm font-medium text-red-700">{emp.absent}</td>
                     <td className="py-3 px-4 text-right text-sm font-medium">{emp.totalHours}h</td>
                     <td className="py-3 px-4 text-right text-sm text-slate-500">{emp.avgHours}h</td>
@@ -234,21 +237,23 @@ export default function Reports() {
             <div className="text-center py-16 text-slate-500">No data for this period</div>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-slate-500 uppercase mb-2 px-2">
+              <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-slate-500 uppercase mb-2 px-2">
                 <span>Date</span>
                 <span className="text-center">Total</span>
                 <span className="text-center">Present</span>
                 <span className="text-center">Late</span>
                 <span className="text-center">Half Day</span>
+                <span className="text-center">Early Exit</span>
                 <span className="text-center">Absent</span>
               </div>
               {trend.map(day => (
-                <div key={day.date} className="grid grid-cols-6 gap-2 items-center px-2 py-2 rounded-lg hover:bg-slate-50">
+                <div key={day.date} className="grid grid-cols-7 gap-2 items-center px-2 py-2 rounded-lg hover:bg-slate-50">
                   <span className="text-sm font-medium">{new Date(day.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                   <span className="text-center text-sm font-bold">{day.total}</span>
                   <span className="text-center text-sm text-green-700">{day.present}</span>
                   <span className="text-center text-sm text-amber-700">{day.late}</span>
                   <span className="text-center text-sm text-purple-700">{day.halfDay}</span>
+                  <span className="text-center text-sm text-pink-700">{day.earlyExit || 0}</span>
                   <span className="text-center text-sm text-red-700">{day.absent}</span>
                 </div>
               ))}

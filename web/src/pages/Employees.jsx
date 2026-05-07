@@ -92,8 +92,14 @@ export default function Employees() {
   };
 
   const toggleActive = async (emp) => {
+    const action = emp.is_active ? 'deactivate' : 'activate';
+    if (emp.is_active && !confirm(`Are you sure you want to deactivate ${emp.name}? They will lose access immediately.`)) return;
     try {
-      await api.updateEmployee(emp.id, { is_active: emp.is_active ? 0 : 1 });
+      if (emp.is_active) {
+        await api.deactivateEmployee(emp.id);
+      } else {
+        await api.activateEmployee(emp.id);
+      }
       loadEmployees();
     } catch (err) {
       alert(err.message);

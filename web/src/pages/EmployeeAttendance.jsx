@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 import DatePicker from '../components/DatePicker';
 import {
   Users, Clock, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight,
-  Search, LogIn, LogOut, Filter, UserCheck, UserX, Timer
+  Search, LogIn, LogOut, Filter, UserCheck, UserX, Timer, Calendar, Coffee, AlertOctagon, ArrowDownRight
 } from 'lucide-react';
 
 function formatTime(iso) {
@@ -22,6 +22,11 @@ const STATUS_CONFIG = {
   late:     { label: 'Late',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200', dot: 'bg-amber-500', icon: AlertTriangle },
   'half-day': { label: 'Half Day', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', dot: 'bg-orange-500', icon: Timer },
   absent:   { label: 'Absent',   color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200', dot: 'bg-red-500', icon: XCircle },
+  'on-leave': { label: 'On Leave', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', dot: 'bg-purple-500', icon: Calendar },
+  holiday:  { label: 'Holiday',  color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200', dot: 'bg-blue-500', icon: Coffee },
+  'weekly-off': { label: 'Weekly Off', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', dot: 'bg-indigo-500', icon: Coffee },
+  'missing-checkout': { label: 'Missing Checkout', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', dot: 'bg-rose-500', icon: AlertOctagon },
+  'early-exit': { label: 'Early Exit', color: 'text-pink-700', bg: 'bg-pink-50', border: 'border-pink-200', dot: 'bg-pink-500', icon: ArrowDownRight },
 };
 
 export default function EmployeeAttendance() {
@@ -46,7 +51,7 @@ export default function EmployeeAttendance() {
       const res = await api._request(url);
       setData(res);
     } catch {
-      setData({ attendance: [], summary: { total: 0, present: 0, late: 0, halfDay: 0, absent: 0 }, departments: [] });
+      setData({ attendance: [], summary: { total: 0, present: 0, late: 0, halfDay: 0, absent: 0, onLeave: 0, holiday: 0, weeklyOff: 0, missingCheckout: 0, earlyExit: 0 }, departments: [] });
     } finally {
       setLoading(false);
     }
@@ -103,13 +108,16 @@ export default function EmployeeAttendance() {
       <p className="text-sm font-medium text-slate-600">{formatDateLabel(date)}</p>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         {[
           { key: 'all', label: 'Total', value: summary.total, icon: Users, color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200' },
           { key: 'present', label: 'Present', value: summary.present, icon: UserCheck, color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
           { key: 'late', label: 'Late', value: summary.late, icon: AlertTriangle, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
           { key: 'half-day', label: 'Half Day', value: summary.halfDay, icon: Timer, color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
           { key: 'absent', label: 'Absent', value: summary.absent, icon: UserX, color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200' },
+          { key: 'on-leave', label: 'On Leave', value: summary.onLeave, icon: Calendar, color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
+          { key: 'early-exit', label: 'Early Exit', value: summary.earlyExit, icon: ArrowDownRight, color: 'text-pink-700', bg: 'bg-pink-50', border: 'border-pink-200' },
+          { key: 'missing-checkout', label: 'Missing C/O', value: summary.missingCheckout, icon: AlertOctagon, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' },
         ].map(card => {
           const Icon = card.icon;
           const isActive = statusFilter === card.key || (card.key === 'all' && statusFilter === 'all');

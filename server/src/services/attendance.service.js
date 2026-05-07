@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance Service — Check-in, check-out, shift-aware logic
+// Nepal HR compliant: break deduction, early exit, night shift, flexible shift,
+// attendance lock, late/early exit tracking
 // ─────────────────────────────────────────────────────────────────────────────
 const { getPrisma } = require('../lib/prisma');
 const { auditLog } = require('../lib/audit');
@@ -34,26 +36,100 @@ function getTodayDate(timezone = 'Asia/Kathmandu') {
 }
 
 /**
- * Determine if a check-in time is late based on shift config.
+ * Get time in minutes from a Date in a timezone.
  */
-function isLateCheckIn(checkInDate, shift, timezone = 'Asia/Kathmandu') {
-  const [startH, startM] = (shift.startTime || '09:00').split(':').map(Number);
-  const threshold = shift.lateThresholdMinutes || 30;
-
-  const lateMinute = startM + threshold;
-  const lateH = startH + Math.floor(lateMinute / 60);
-  const lateM = lateMinute % 60;
-
+function getTimeMinutes(date, timezone = 'Asia/Kathmandu') {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     hour: '2-digit', minute: '2-digit',
     hour12: false,
-  }).formatToParts(checkInDate);
-
+  }).formatToParts(date);
   const h = parseInt(parts.find((p) => p.type === 'hour')?.value || '0');
   const m = parseInt(parts.find((p) => p.type === 'minute')?.value || '0');
+  return h * 60 + m;
+}
 
-  return h > lateH || (h === lateH && m > lateM);
+/**
+ * Parse "HH:MM" string to minutes since midnight.
+ */
+function parseTimeToMinutes(timeStr) {
+  const [h, m] = (timeStr || '09:00').split(':').map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Determine if a check-in time is late based on shift config.
+ * For FLEXIBLE shifts, there is no late penalty.
+ */
+function isLateCheckIn(checkInDate, shift, timezone = 'Asia/Kathmandu') {
+  if (shift.shiftType === 'FLEXIBLE') return false;
+
+  const startMinutes = parseTimeToMinutes(shift.startTime);
+  const threshold = shift.lateThresholdMinutes || 30;
+  const lateCutoff = startMinutes + threshold;
+
+  const actualMinutes = getTimeMinutes(checkInDate, timezone);
+  return actualMinutes > lateCutoff;
+}
+
+/**
+ * Calculate late minutes (how many minutes after grace period).
+ */
+function calculateLateMinutes(checkInDate, shift, timezone = 'Asia/Kathmandu') {
+  if (shift.shiftType === 'FLEXIBLE') return 0;
+
+  const startMinutes = parseTimeToMinutes(shift.startTime);
+  const threshold = shift.lateThresholdMinutes || 30;
+  const lateCutoff = startMinutes + threshold;
+
+  const actualMinutes = getTimeMinutes(checkInDate, timezone);
+  return Math.max(0, actualMinutes - lateCutoff);
+}
+
+/**
+ * Calculate early exit minutes (how many minutes before shift end).
+ * For night shifts, endTime is the next day but we compare in minutes.
+ */
+function calculateEarlyExitMinutes(checkOutDate, shift, timezone = 'Asia/Kathmandu') {
+  if (shift.shiftType === 'FLEXIBLE') return 0;
+
+  let endMinutes = parseTimeToMinutes(shift.endTime);
+  const startMinutes = parseTimeToMinutes(shift.startTime);
+
+  // Night shift: end time is conceptually next day
+  if (shift.shiftType === 'NIGHT' || endMinutes <= startMinutes) {
+    endMinutes += 24 * 60; // add 24h for comparison
+  }
+
+  let actualMinutes = getTimeMinutes(checkOutDate, timezone);
+  // If night shift and checkout is in morning (before start), it's next day
+  if ((shift.shiftType === 'NIGHT' || endMinutes > 24 * 60) && actualMinutes < startMinutes) {
+    actualMinutes += 24 * 60;
+  }
+
+  return Math.max(0, endMinutes - actualMinutes);
+}
+
+/**
+ * Check if a date's attendance is locked (payroll processed).
+ */
+async function isAttendanceLocked(orgId, date) {
+  const prisma = getPrisma();
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+
+  const lockedPayslip = await prisma.payslip.findFirst({
+    where: {
+      orgId,
+      year,
+      month,
+      status: { in: ['LOCKED', 'PAID'] },
+    },
+    select: { id: true },
+  });
+
+  return !!lockedPayslip;
 }
 
 /**
@@ -63,7 +139,6 @@ function isLateCheckIn(checkInDate, shift, timezone = 'Asia/Kathmandu') {
 async function getEmployeeShift(employeeId, orgId) {
   const prisma = getPrisma();
 
-  // Try current assignment
   const assignment = await prisma.employeeAssignment.findFirst({
     where: { employeeId, isCurrent: true },
     include: { shift: true },
@@ -71,7 +146,6 @@ async function getEmployeeShift(employeeId, orgId) {
 
   if (assignment?.shift) return assignment.shift;
 
-  // Fallback: org default shift
   const defaultShift = await prisma.shift.findFirst({
     where: { orgId, isDefault: true, isActive: true },
   });
@@ -79,6 +153,8 @@ async function getEmployeeShift(employeeId, orgId) {
   return defaultShift || {
     startTime: '09:00',
     endTime: '18:00',
+    shiftType: 'FIXED',
+    breakMinutes: 0,
     lateThresholdMinutes: 30,
     halfDayHours: 4,
     fullDayHours: 8,
@@ -101,14 +177,43 @@ async function getEmployeeTimezone(employeeId) {
 }
 
 /**
+ * Determine the attendance date for night shifts.
+ * If the shift is a night shift and we're past midnight, the attendance date
+ * is the previous day (when the shift started).
+ */
+function getAttendanceDate(timezone, shift) {
+  const now = getNowInTimezone(timezone);
+  const today = now.dateString;
+
+  if (shift.shiftType === 'NIGHT' || parseTimeToMinutes(shift.endTime) <= parseTimeToMinutes(shift.startTime)) {
+    const currentMinutes = now.hours * 60 + now.minutes;
+    const startMinutes = parseTimeToMinutes(shift.startTime);
+
+    // If current time is before start (i.e. we're in the after-midnight portion), use yesterday
+    if (currentMinutes < startMinutes) {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return yesterday.toISOString().slice(0, 10);
+    }
+  }
+
+  return today;
+}
+
+/**
  * Manual check-in
  */
 async function checkIn({ employeeId, orgId, notes, latitude, longitude, req }) {
   const prisma = getPrisma();
   const shift = await getEmployeeShift(employeeId, orgId);
   const timezone = await getEmployeeTimezone(employeeId);
-  const today = getTodayDate(timezone);
+  const today = getAttendanceDate(timezone, shift);
   const now = new Date();
+
+  // Attendance lock check
+  if (await isAttendanceLocked(orgId, today)) {
+    throw Object.assign(new Error('Attendance is locked for this period (payroll processed)'), { status: 403 });
+  }
 
   // Geofence validation (if location provided)
   if (latitude && longitude) {
@@ -133,7 +238,13 @@ async function checkIn({ employeeId, orgId, notes, latitude, longitude, req }) {
     throw Object.assign(new Error('Already checked in today'), { status: 400 });
   }
 
-  const status = isLateCheckIn(now, shift, timezone) ? 'LATE' : 'PRESENT';
+  if (existing?.isLocked) {
+    throw Object.assign(new Error('This attendance record is locked'), { status: 403 });
+  }
+
+  const late = isLateCheckIn(now, shift, timezone);
+  const status = late ? 'LATE' : 'PRESENT';
+  const lateMinutes = calculateLateMinutes(now, shift, timezone);
 
   const attendance = await prisma.attendance.upsert({
     where: { employeeId_date: { employeeId, date: new Date(today) } },
@@ -143,12 +254,14 @@ async function checkIn({ employeeId, orgId, notes, latitude, longitude, req }) {
       date: new Date(today),
       checkIn: now,
       status,
+      lateMinutes: lateMinutes || 0,
       source: 'MANUAL',
       notes: notes || null,
     },
     update: {
       checkIn: now,
       status,
+      lateMinutes: lateMinutes || 0,
       source: 'MANUAL',
       notes: notes || null,
     },
@@ -160,7 +273,7 @@ async function checkIn({ employeeId, orgId, notes, latitude, longitude, req }) {
     action: 'attendance.check_in',
     resource: 'attendance',
     resourceId: attendance.id,
-    newData: { checkIn: now.toISOString(), status },
+    newData: { checkIn: now.toISOString(), status, lateMinutes },
     req,
   });
 
@@ -169,12 +282,13 @@ async function checkIn({ employeeId, orgId, notes, latitude, longitude, req }) {
 
 /**
  * Manual check-out
+ * Deducts break time, tracks early exit, determines final status.
  */
 async function checkOut({ employeeId, orgId, notes, req }) {
   const prisma = getPrisma();
   const shift = await getEmployeeShift(employeeId, orgId);
   const timezone = await getEmployeeTimezone(employeeId);
-  const today = getTodayDate(timezone);
+  const today = getAttendanceDate(timezone, shift);
   const now = new Date();
 
   const existing = await prisma.attendance.findUnique({
@@ -189,15 +303,53 @@ async function checkOut({ employeeId, orgId, notes, req }) {
     throw Object.assign(new Error('Already checked out today'), { status: 400 });
   }
 
-  // Calculate work hours
-  const checkInTime = new Date(existing.checkIn);
-  const workHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+  if (existing.isLocked) {
+    throw Object.assign(new Error('This attendance record is locked'), { status: 403 });
+  }
 
-  // Determine status
+  // Calculate raw work hours
+  const checkInTime = new Date(existing.checkIn);
+  const rawHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+
+  // Deduct break time
+  const breakMinutes = shift.breakMinutes || 0;
+  const breakHours = breakMinutes / 60;
+  const workHours = Math.max(0, rawHours - breakHours);
+
+  // Calculate early exit minutes
+  const earlyExitMinutes = calculateEarlyExitMinutes(now, shift, timezone);
+
+  // Determine status based on working hours
+  // If status was MISSING_CHECKOUT (from finalization), reset to original check-in status
   let status = existing.status;
+  if (status === 'MISSING_CHECKOUT') {
+    // Restore to what it should have been at check-in time
+    status = isLateCheckIn(new Date(existing.checkIn), shift, timezone) ? 'LATE' : 'PRESENT';
+  }
   const halfDayHours = Number(shift.halfDayHours) || 4;
-  if (workHours < halfDayHours && status !== 'LATE') {
-    status = 'HALF_DAY';
+  const fullDayHours = Number(shift.fullDayHours) || 8;
+
+  if (shift.shiftType === 'FLEXIBLE') {
+    // Flexible shift: only hours matter, no fixed times
+    if (workHours >= fullDayHours) {
+      status = 'PRESENT';
+    } else if (workHours >= halfDayHours) {
+      status = 'HALF_DAY';
+    } else {
+      status = 'HALF_DAY';
+    }
+  } else {
+    // Fixed/Night shift: determine status by hours worked
+    if (workHours >= fullDayHours) {
+      if (status !== 'LATE') status = 'PRESENT';
+    } else if (workHours >= halfDayHours) {
+      if (earlyExitMinutes > 0 && status !== 'LATE') {
+        status = 'EARLY_EXIT';
+      }
+      // If LATE + early exit, keep LATE (more severe)
+    } else {
+      status = 'HALF_DAY';
+    }
   }
 
   const attendance = await prisma.attendance.update({
@@ -205,6 +357,8 @@ async function checkOut({ employeeId, orgId, notes, req }) {
     data: {
       checkOut: now,
       workHours: Math.round(workHours * 100) / 100,
+      breakMinutes,
+      earlyExitMinutes: earlyExitMinutes || 0,
       status,
       notes: notes ? `${existing.notes || ''} ${notes}`.trim() : existing.notes,
     },
@@ -216,7 +370,7 @@ async function checkOut({ employeeId, orgId, notes, req }) {
     action: 'attendance.check_out',
     resource: 'attendance',
     resourceId: attendance.id,
-    newData: { checkOut: now.toISOString(), workHours, status },
+    newData: { checkOut: now.toISOString(), workHours, earlyExitMinutes, status },
     req,
   });
 
@@ -237,19 +391,25 @@ async function deviceAttendance({ employeeId, orgId, branchId, deviceId, credent
   const prisma = getPrisma();
   const shift = await getEmployeeShift(employeeId, orgId);
   const timezone = await getEmployeeTimezone(employeeId);
-  const today = getTodayDate(timezone);
+  const today = getAttendanceDate(timezone, shift);
   const now = new Date();
 
   const existing = await prisma.attendance.findUnique({
     where: { employeeId_date: { employeeId, date: new Date(today) } },
   });
 
+  if (existing?.isLocked) {
+    return { action: 'locked', attendance: existing };
+  }
+
   let attendance;
   let eventType;
 
   if (!existing || !existing.checkIn) {
     // CHECK IN
-    const status = isLateCheckIn(now, shift, timezone) ? 'LATE' : 'PRESENT';
+    const late = isLateCheckIn(now, shift, timezone);
+    const status = late ? 'LATE' : 'PRESENT';
+    const lateMinutes = calculateLateMinutes(now, shift, timezone);
 
     attendance = await prisma.attendance.upsert({
       where: { employeeId_date: { employeeId, date: new Date(today) } },
@@ -260,12 +420,14 @@ async function deviceAttendance({ employeeId, orgId, branchId, deviceId, credent
         date: new Date(today),
         checkIn: now,
         status,
+        lateMinutes: lateMinutes || 0,
         source: source || 'NFC',
         notes: `[${source || 'DEVICE'}] Check-in`,
       },
       update: {
         checkIn: now,
         status,
+        lateMinutes: lateMinutes || 0,
         source: source || 'NFC',
         notes: `[${source || 'DEVICE'}] Check-in`,
       },
@@ -281,11 +443,37 @@ async function deviceAttendance({ employeeId, orgId, branchId, deviceId, credent
       return { action: 'too_soon', attendance: existing };
     }
 
-    const workHours = elapsed / (1000 * 60 * 60);
+    const rawHours = elapsed / (1000 * 60 * 60);
+    const breakMinutes = shift.breakMinutes || 0;
+    const workHours = Math.max(0, rawHours - breakMinutes / 60);
+    const earlyExitMinutes = calculateEarlyExitMinutes(now, shift, timezone);
+
+    // Reset MISSING_CHECKOUT status (from finalization) to original check-in status
     let status = existing.status;
+    if (status === 'MISSING_CHECKOUT') {
+      status = isLateCheckIn(new Date(existing.checkIn), shift, timezone) ? 'LATE' : 'PRESENT';
+    }
     const halfDayHours = Number(shift.halfDayHours) || 4;
-    if (workHours < halfDayHours && status !== 'LATE') {
-      status = 'HALF_DAY';
+    const fullDayHours = Number(shift.fullDayHours) || 8;
+
+    if (shift.shiftType === 'FLEXIBLE') {
+      if (workHours >= fullDayHours) {
+        status = 'PRESENT';
+      } else if (workHours >= halfDayHours) {
+        status = 'HALF_DAY';
+      } else {
+        status = 'HALF_DAY';
+      }
+    } else {
+      if (workHours >= fullDayHours) {
+        if (status !== 'LATE') status = 'PRESENT';
+      } else if (workHours >= halfDayHours) {
+        if (earlyExitMinutes > 0 && status !== 'LATE') {
+          status = 'EARLY_EXIT';
+        }
+      } else {
+        status = 'HALF_DAY';
+      }
     }
 
     attendance = await prisma.attendance.update({
@@ -293,6 +481,8 @@ async function deviceAttendance({ employeeId, orgId, branchId, deviceId, credent
       data: {
         checkOut: now,
         workHours: Math.round(workHours * 100) / 100,
+        breakMinutes,
+        earlyExitMinutes: earlyExitMinutes || 0,
         status,
         notes: `${existing.notes || ''} [${source || 'DEVICE'}] Check-out`.trim(),
       },
@@ -369,71 +559,132 @@ async function getOrgAttendanceSummary(orgId) {
   const present = todayRecords.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
   const late = todayRecords.filter((r) => r.status === 'LATE').length;
   const halfDay = todayRecords.filter((r) => r.status === 'HALF_DAY').length;
-  const onLeave = todayRecords.filter((r) => r.status === 'ABSENT').length;
-  const absent = totalActive - todayRecords.length;
+  const onLeave = todayRecords.filter((r) => r.status === 'ON_LEAVE' || (r.status === 'ABSENT' && r.checkOut === null)).length;
+  const absent = todayRecords.filter((r) => r.status === 'ABSENT').length;
+  const holiday = todayRecords.filter((r) => r.status === 'HOLIDAY').length;
+  const weeklyOff = todayRecords.filter((r) => r.status === 'WEEKLY_OFF').length;
+  const missingCheckout = todayRecords.filter((r) => r.status === 'MISSING_CHECKOUT').length;
+  const earlyExit = todayRecords.filter((r) => r.status === 'EARLY_EXIT').length;
+  const notMarked = totalActive - todayRecords.length;
 
-  return { totalActive, present, late, halfDay, onLeave, absent, date: today };
+  return { totalActive, present, late, halfDay, onLeave, absent, holiday, weeklyOff, missingCheckout, earlyExit, notMarked, date: today };
 }
 
 /**
  * End-of-day attendance finalization for an org.
- * - Employees with no attendance record → ABSENT
- * - Checked in but not out (1st half) → default fullDayHours, auto-checkout
- * - Checked in but not out (2nd half) → HALF_DAY, halfDayHours, auto-checkout
+ * Uses per-employee WorkSchedule for weekly offs and per-employee Shift for hour credits.
+ * - No check-in + holiday → HOLIDAY
+ * - No check-in + employee weekly off → WEEKLY_OFF
+ * - No check-in + working day → ABSENT
+ * - Check-in but no check-out (1st half) → MISSING_CHECKOUT, fullDayHours credited
+ * - Check-in but no check-out (2nd half) → MISSING_CHECKOUT, halfDayHours credited
  */
 async function finalizeAttendance({ orgId, date }) {
   const prisma = getPrisma();
   const targetDate = date || getTodayDate();
+  const targetDateObj = new Date(targetDate);
+  const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayName = dayNames[targetDateObj.getDay()];
 
-  // Get all active employees for this org
+  // Get all active employees with their current assignments (shift + workSchedule)
   const activeEmployees = await prisma.employee.findMany({
     where: { orgId, isActive: true },
-    select: { id: true },
+    select: {
+      id: true,
+      gender: true,
+      assignments: {
+        where: { isCurrent: true },
+        select: {
+          shift: { select: { startTime: true, fullDayHours: true, halfDayHours: true } },
+          workSchedule: { select: { workingDays: true } },
+        },
+        take: 1,
+      },
+    },
   });
 
   // Get all attendance records for the date
   const existingRecords = await prisma.attendance.findMany({
-    where: { orgId, date: new Date(targetDate) },
-    select: { employeeId: true, id: true, checkIn: true, checkOut: true, status: true },
+    where: { orgId, date: targetDateObj },
+    select: { employeeId: true, id: true, checkIn: true, checkOut: true, status: true, notes: true },
   });
 
   const recordMap = new Map(existingRecords.map((r) => [r.employeeId, r]));
 
-  // Get org default shift for thresholds
+  // Check if this date is a public holiday
+  const holidays = await prisma.holiday.findMany({
+    where: {
+      orgId,
+      adDate: { lte: targetDateObj },
+      OR: [
+        { adDateEnd: { gte: targetDateObj } },
+        { adDateEnd: null, adDate: targetDateObj },
+      ],
+    },
+    select: { womenOnly: true },
+  });
+  const isHolidayForAll = holidays.some((h) => !h.womenOnly);
+  const isHolidayForWomen = holidays.some((h) => h.womenOnly);
+
+  // Org-level fallbacks
+  const settingsService = require('./settings.service');
+  const settings = await settingsService.getOrgSettings(orgId);
+  const orgWorkingDays = (settings.working_days || 'mon,tue,wed,thu,fri').split(',').map((d) => d.trim().toLowerCase());
+
   const defaultShift = await prisma.shift.findFirst({
     where: { orgId, isDefault: true, isActive: true },
   });
 
-  const shiftStartTime = defaultShift?.startTime || '09:00';
-  const fullDayHours = Number(defaultShift?.fullDayHours) || 8;
-  const halfDayHours = Number(defaultShift?.halfDayHours) || 4;
-
-  // Calculate the 2nd-half cutoff: shift start + half of full day hours
-  const [startH, startM] = shiftStartTime.split(':').map(Number);
-  const halfCutoffMinutes = (startH * 60 + startM) + (fullDayHours / 2) * 60;
-
   let absentCount = 0;
-  let autoCheckoutFullCount = 0;
-  let autoCheckoutHalfCount = 0;
+  let holidayCount = 0;
+  let weeklyOffCount = 0;
+  let missingCheckoutFullCount = 0;
+  let missingCheckoutHalfCount = 0;
 
   for (const emp of activeEmployees) {
     const record = recordMap.get(emp.id);
 
+    // Get employee-specific schedule and shift (fall back to org defaults)
+    const assignment = emp.assignments[0];
+    const empWorkingDays = assignment?.workSchedule?.workingDays;
+    // workingDays from DB is JSON (array), org fallback is already an array
+    const workingDaysArr = Array.isArray(empWorkingDays)
+      ? empWorkingDays.map((d) => d.toLowerCase())
+      : orgWorkingDays;
+
+    const empShift = assignment?.shift || defaultShift;
+    const shiftStartTime = empShift?.startTime || '09:00';
+    const fullDayHours = Number(empShift?.fullDayHours) || 8;
+    const halfDayHours = Number(empShift?.halfDayHours) || 4;
+
+    // Per-employee weekly off check
+    const isEmpWeeklyOff = !workingDaysArr.includes(dayName);
+
     if (!record) {
-      // No record at all → mark ABSENT
-      await prisma.attendance.create({
-        data: {
-          orgId,
-          employeeId: emp.id,
-          date: new Date(targetDate),
-          status: 'ABSENT',
-          source: 'SYSTEM',
-          notes: 'Auto-marked absent (no check-in)',
-        },
-      });
-      absentCount++;
+      // No record — determine why
+      const isEmpHoliday = isHolidayForAll || (isHolidayForWomen && emp.gender === 'female');
+
+      if (isEmpHoliday) {
+        await prisma.attendance.create({
+          data: { orgId, employeeId: emp.id, date: targetDateObj, status: 'HOLIDAY', source: 'SYSTEM', notes: 'Public holiday' },
+        });
+        holidayCount++;
+      } else if (isEmpWeeklyOff) {
+        await prisma.attendance.create({
+          data: { orgId, employeeId: emp.id, date: targetDateObj, status: 'WEEKLY_OFF', source: 'SYSTEM', notes: 'Weekly off' },
+        });
+        weeklyOffCount++;
+      } else {
+        await prisma.attendance.create({
+          data: { orgId, employeeId: emp.id, date: targetDateObj, status: 'ABSENT', source: 'SYSTEM', notes: 'Auto-marked absent (no check-in)' },
+        });
+        absentCount++;
+      }
     } else if (record.checkIn && !record.checkOut) {
-      // Checked in but forgot to check out
+      // Checked in but forgot to check out — use employee's shift for cutoff
+      const [startH, startM] = shiftStartTime.split(':').map(Number);
+      const halfCutoffMinutes = (startH * 60 + startM) + (fullDayHours / 2) * 60;
+
       const checkInTime = new Date(record.checkIn);
       const checkInParts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Asia/Kathmandu',
@@ -446,41 +697,52 @@ async function finalizeAttendance({ orgId, date }) {
       const checkInMinutes = checkInH * 60 + checkInM;
 
       if (checkInMinutes >= halfCutoffMinutes) {
-        // Checked in at 2nd half → HALF_DAY, 4hr work, no auto-checkout
         await prisma.attendance.update({
           where: { id: record.id },
           data: {
             workHours: halfDayHours,
-            status: 'HALF_DAY',
-            notes: `${record.notes || ''} [SYSTEM] Forgot checkout (2nd half, ${halfDayHours}hr credited)`.trim(),
+            status: 'MISSING_CHECKOUT',
+            notes: `${record.notes || ''} [SYSTEM] Missing checkout (2nd half, ${halfDayHours}hr credited)`.trim(),
           },
         });
-        autoCheckoutHalfCount++;
+        missingCheckoutHalfCount++;
       } else {
-        // Checked in at 1st half → default full day hours, no auto-checkout
         await prisma.attendance.update({
           where: { id: record.id },
           data: {
             workHours: fullDayHours,
-            status: record.status, // Keep PRESENT or LATE
-            notes: `${record.notes || ''} [SYSTEM] Forgot checkout (${fullDayHours}hr credited)`.trim(),
+            status: 'MISSING_CHECKOUT',
+            notes: `${record.notes || ''} [SYSTEM] Missing checkout (${fullDayHours}hr credited)`.trim(),
           },
         });
-        autoCheckoutFullCount++;
+        missingCheckoutFullCount++;
       }
     }
     // If checkIn and checkOut both exist → already finalized, skip
   }
 
-  return { date: targetDate, absentCount, autoCheckoutFullCount, autoCheckoutHalfCount };
+  return {
+    date: targetDate,
+    absentCount,
+    holidayCount,
+    weeklyOffCount,
+    missingCheckoutFullCount,
+    missingCheckoutHalfCount,
+  };
 }
 
 module.exports = {
   getNowInTimezone,
   getTodayDate,
+  getTimeMinutes,
+  parseTimeToMinutes,
   isLateCheckIn,
+  calculateLateMinutes,
+  calculateEarlyExitMinutes,
+  isAttendanceLocked,
   getEmployeeShift,
   getEmployeeTimezone,
+  getAttendanceDate,
   checkIn,
   checkOut,
   deviceAttendance,

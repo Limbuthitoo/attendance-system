@@ -72,10 +72,22 @@ export default function Attendance() {
       late: 'bg-amber-100 text-amber-700',
       absent: 'bg-red-100 text-red-700',
       'half-day': 'bg-orange-100 text-orange-700',
+      'on-leave': 'bg-purple-100 text-purple-700',
+      holiday: 'bg-blue-100 text-blue-700',
+      'weekly-off': 'bg-indigo-100 text-indigo-700',
+      'missing-checkout': 'bg-rose-100 text-rose-700',
+      'early-exit': 'bg-pink-100 text-pink-700',
+    };
+    const labels = {
+      'missing-checkout': 'Missing Checkout',
+      'on-leave': 'On Leave',
+      'weekly-off': 'Weekly Off',
+      'half-day': 'Half Day',
+      'early-exit': 'Early Exit',
     };
     return (
       <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${styles[status] || 'bg-slate-100 text-slate-700'}`}>
-        {status}
+        {labels[status] || status}
       </span>
     );
   };
