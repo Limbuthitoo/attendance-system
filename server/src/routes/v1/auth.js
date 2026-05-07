@@ -54,11 +54,30 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
+    // Fetch org modules for the response
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+    const org = await prisma.organization.findUnique({
+      where: { id: result.employee.orgId },
+      select: {
+        subscriptionStatus: true,
+        plan: { select: { name: true, code: true, maxEmployees: true, maxBranches: true, maxDevices: true } },
+        orgModules: {
+          where: { isActive: true },
+          select: { module: { select: { code: true, name: true } } },
+        },
+      },
+    });
+    const enabledModules = org?.orgModules?.map((om) => om.module.code) || [];
+
     res.json({
       user: result.employee,
       token: result.accessToken,         // backward compat for web/mobile
       accessToken: result.accessToken,   // new canonical field
       refreshToken: result.refreshToken,
+      enabledModules,
+      plan: org?.plan || null,
+      subscriptionStatus: org?.subscriptionStatus || null,
     });
   } catch (err) {
     if (err.status === 409 && err.organizations) {
@@ -142,9 +161,38 @@ router.post('/change-password', authenticate, async (req, res, next) => {
   }
 });
 
-// GET /api/v1/auth/me — Get current user profile
+// GET /api/v1/auth/me — Get current user profile + org modules + plan info
 router.get('/me', authenticate, async (req, res) => {
-  res.json({ user: req.user });
+  try {
+    const { getPrisma } = require('../../lib/prisma');
+    const prisma = getPrisma();
+
+    // Fetch org's enabled modules and plan info
+    const org = await prisma.organization.findUnique({
+      where: { id: req.user.orgId },
+      select: {
+        subscriptionStatus: true,
+        maxEmployees: true,
+        plan: { select: { name: true, code: true, maxEmployees: true, maxBranches: true, maxDevices: true } },
+        orgModules: {
+          where: { isActive: true },
+          select: { module: { select: { code: true, name: true } } },
+        },
+      },
+    });
+
+    const enabledModules = org?.orgModules?.map((om) => om.module.code) || [];
+
+    res.json({
+      user: req.user,
+      enabledModules,
+      plan: org?.plan || null,
+      subscriptionStatus: org?.subscriptionStatus || null,
+    });
+  } catch {
+    // Fallback: return user without modules if lookup fails
+    res.json({ user: req.user, enabledModules: [], plan: null });
+  }
 });
 
 // GET /api/v1/auth/profile — Get full profile with personal/bank/emergency info

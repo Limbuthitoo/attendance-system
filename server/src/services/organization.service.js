@@ -127,9 +127,15 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
   // Look up the plan from the database
   let planRecord = null;
   if (plan) {
-    planRecord = await prisma.plan.findFirst({
-      where: { OR: [{ id: plan }, { code: plan }] },
-    });
+    // Try by code first, then by UUID id
+    planRecord = await prisma.plan.findFirst({ where: { code: plan } });
+    if (!planRecord) {
+      // Only try by id if it looks like a UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(plan)) {
+        planRecord = await prisma.plan.findUnique({ where: { id: plan } });
+      }
+    }
   }
   if (!planRecord) {
     // Fall back to the first plan (sorted by sortOrder)
@@ -232,10 +238,17 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       },
     });
 
-    // 6. Enable core modules
-    const coreModuleCodes = ['attendance', 'leave', 'device', 'notice', 'holiday'];
-    const coreModules = await tx.module.findMany({ where: { code: { in: coreModuleCodes } } });
-    for (const mod of coreModules) {
+    // 6. Enable modules based on plan
+    const planModuleMap = {
+      trial: ['attendance', 'leave'],
+      starter: ['attendance', 'leave', 'device', 'notice', 'holiday', 'app_update'],
+      business: ['attendance', 'leave', 'device', 'notice', 'holiday', 'app_update', 'report', 'payroll', 'geofence'],
+      enterprise: ['attendance', 'leave', 'device', 'notice', 'holiday', 'app_update', 'report', 'payroll', 'geofence'],
+    };
+    const planCode = planRecord?.code || 'trial';
+    const moduleCodesToEnable = planModuleMap[planCode] || planModuleMap.trial;
+    const modulesToEnable = await tx.module.findMany({ where: { code: { in: moduleCodesToEnable } } });
+    for (const mod of modulesToEnable) {
       await tx.orgModule.create({
         data: { orgId: org.id, moduleId: mod.id },
       });
@@ -394,6 +407,10 @@ async function setOrgModules({ orgId, moduleCodes, platformUserId }) {
     resourceId: orgId,
     newData: { moduleCodes },
   });
+
+  // Invalidate module cache
+  const { invalidateModuleCache } = require('../middleware/moduleGuard');
+  invalidateModuleCache(orgId);
 
   return prisma.orgModule.findMany({
     where: { orgId, isActive: true },

@@ -4,6 +4,7 @@
 const { Router } = require('express');
 const { authenticate } = require('../../middleware/auth');
 const { tenantContext } = require('../../middleware/tenantContext');
+const { requireModule } = require('../../middleware/moduleGuard');
 
 const authRoutes = require('./auth');
 const attendanceRoutes = require('./attendance');
@@ -32,22 +33,22 @@ const router = Router();
 router.use('/auth', authRoutes);
 
 // Protected routes (require auth + tenant context)
-router.use('/attendance', authenticate, tenantContext, attendanceRoutes);
-router.use('/leaves', authenticate, tenantContext, leaveRoutes);
+router.use('/attendance', authenticate, tenantContext, requireModule('attendance'), attendanceRoutes);
+router.use('/leaves', authenticate, tenantContext, requireModule('leave'), leaveRoutes);
 router.use('/employees', authenticate, tenantContext, employeeRoutes);
 router.use('/dashboard', authenticate, tenantContext, dashboardRoutes);
 router.use('/devices', deviceRoutes);  // has its own mixed auth
 router.use('/settings', authenticate, tenantContext, settingsRoutes);
-router.use('/holidays', authenticate, tenantContext, holidayRoutes);
-router.use('/notices', authenticate, tenantContext, noticeRoutes);
+router.use('/holidays', authenticate, tenantContext, requireModule('holiday'), holidayRoutes);
+router.use('/notices', authenticate, tenantContext, requireModule('notice'), noticeRoutes);
 router.use('/notifications', authenticate, tenantContext, notificationRoutes);
 router.use('/branches', authenticate, tenantContext, branchRoutes);
 router.use('/roles', authenticate, tenantContext, roleRoutes);
 router.use('/qr', qrRoutes);  // has its own mixed auth (device + employee)
-router.use('/reports', authenticate, tenantContext, reportRoutes);
-router.use('/overtime', authenticate, tenantContext, overtimeRoutes);
-router.use('/geofence', authenticate, tenantContext, geofenceRoutes);
-router.use('/payroll', authenticate, tenantContext, payrollRoutes);
+router.use('/reports', authenticate, tenantContext, requireModule('report'), reportRoutes);
+router.use('/overtime', authenticate, tenantContext, requireModule('payroll'), overtimeRoutes);
+router.use('/geofence', authenticate, tenantContext, requireModule('geofence'), geofenceRoutes);
+router.use('/payroll', authenticate, tenantContext, requireModule('payroll'), payrollRoutes);
 router.use('/nfc', nfcRoutes);  // has its own mixed auth (device + admin)
 router.use('/policies', authenticate, tenantContext, policyRoutes);
 router.use('/app-update', appUpdateRoutes);  // check/download are public; upload/current need auth
