@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen } from 'lucide-react';
 
 const DEPARTMENTS = [
   'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
@@ -275,6 +275,17 @@ export default function Employees() {
     }
   };
 
+  const handleUnlock = async (emp) => {
+    if (!confirm(`Unlock account for ${emp.name}?`)) return;
+    try {
+      await api.unlockAccount(emp.id);
+      loadEmployees();
+      alert(`Account for ${emp.name} has been unlocked.`);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const openEditModal = (emp) => {
     setEditModal(emp);
     setEditForm({
@@ -411,7 +422,12 @@ export default function Employees() {
                           {emp.name.charAt(0)}
                         </div>
                         <div>
-                          <Link to={`/employees/${emp.id}`} className="font-medium text-slate-900 hover:text-primary-600 transition">{emp.name}</Link>
+                          <div className="flex items-center gap-2">
+                            <Link to={`/employees/${emp.id}`} className="font-medium text-slate-900 hover:text-primary-600 transition">{emp.name}</Link>
+                            {emp.lockedUntil && new Date(emp.lockedUntil) > new Date() && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">LOCKED</span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500">{emp.employee_id} &middot; {emp.email}</p>
                         </div>
                       </div>
@@ -450,6 +466,15 @@ export default function Employees() {
                         >
                           <KeyRound size={12} /> Reset
                         </button>
+                        {emp.lockedUntil && new Date(emp.lockedUntil) > new Date() && (
+                          <button
+                            onClick={() => handleUnlock(emp)}
+                            className="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
+                            title="Unlock Account"
+                          >
+                            <LockOpen size={12} /> Unlock
+                          </button>
+                        )}
                         <span className="w-px h-4 bg-slate-200" />
                         <button
                           onClick={() => openNfcModal(emp)}

@@ -120,6 +120,26 @@ router.post('/:id/reset-password', requireRole('org_admin'), async (req, res, ne
   }
 });
 
+// POST /api/v1/employees/:id/unlock — Admin unlock a locked account
+router.post('/:id/unlock', requireRole('org_admin'), async (req, res, next) => {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, orgId: req.orgId },
+      select: { id: true, name: true, lockedUntil: true, failedLoginAttempts: true },
+    });
+    if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+
+    res.json({ message: `Account for ${employee.name} has been unlocked.` });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // DELETE /api/v1/employees/:id — Permanently delete employee (admin)
 router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
   try {

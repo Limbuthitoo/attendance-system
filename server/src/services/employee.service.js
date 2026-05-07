@@ -39,6 +39,7 @@ async function listEmployees({ orgId, search, department, isActive, page = 1, li
         phone: true,
         avatarUrl: true,
         isActive: true,
+        lockedUntil: true,
         createdAt: true,
         employeeRoles: {
           select: { role: { select: { name: true } } },
