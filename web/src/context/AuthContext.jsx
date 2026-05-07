@@ -5,13 +5,19 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [enabledModules, setEnabledModules] = useState(null); // null = loading, [] = none
+  const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       api.getMe()
-        .then(data => setUser(data.user))
+        .then(data => {
+          setUser(data.user);
+          setEnabledModules(data.enabledModules || []);
+          setPlan(data.plan || null);
+        })
         .catch(() => {
           localStorage.removeItem('token');
         })
@@ -26,6 +32,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', data.token);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
+    setEnabledModules(data.enabledModules || []);
+    setPlan(data.plan || null);
     return data.user;
   };
 
@@ -33,10 +41,12 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     setUser(null);
+    setEnabledModules(null);
+    setPlan(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, enabledModules, plan, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

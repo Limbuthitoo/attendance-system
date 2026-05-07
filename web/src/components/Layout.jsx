@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, enabledModules, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLogo, setSidebarLogo] = useState('/favicon.svg');
@@ -77,22 +77,23 @@ export default function Layout() {
 
   const isAdmin = user?.role === 'admin';
 
+  // Module code required for each nav item (null = always visible)
   const navSections = [
     {
       label: 'Main',
       items: [
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
         { to: '/activity-log', icon: Activity, label: 'Activity Log' },
-        { to: '/notices', icon: Megaphone, label: 'Notices' },
+        { to: '/notices', icon: Megaphone, label: 'Notices', module: 'notice' },
         { to: '/policies', icon: FileText, label: 'Policies' },
       ],
     },
     {
       label: 'My Space',
       items: [
-        { to: '/attendance', icon: Clock, label: 'My Attendance' },
-        { to: '/leaves', icon: CalendarDays, label: 'My Leaves' },
-        { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar' },
+        { to: '/attendance', icon: Clock, label: 'My Attendance', module: 'attendance' },
+        { to: '/leaves', icon: CalendarDays, label: 'My Leaves', module: 'leave' },
+        { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar', module: 'leave' },
         { to: '/profile', icon: UserCircle, label: 'My Profile' },
       ],
     },
@@ -102,8 +103,8 @@ export default function Layout() {
             label: 'Team',
             items: [
               { to: '/employees', icon: Users, label: 'Employees' },
-              { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance' },
-              { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests' },
+              { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance', module: 'attendance' },
+              { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests', module: 'leave' },
             ],
           },
           {
@@ -119,23 +120,33 @@ export default function Layout() {
           {
             label: 'Reports',
             items: [
-              { to: '/reports', icon: BarChart3, label: 'Reports' },
-              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime' },
+              { to: '/reports', icon: BarChart3, label: 'Reports', module: 'report' },
+              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime', module: 'payroll' },
             ],
           },
           {
             label: 'Configuration',
             items: [
               { to: '/settings', icon: Settings, label: 'General Settings' },
-              { to: '/holidays', icon: Star, label: 'Holidays' },
-              { to: '/geofence', icon: Navigation, label: 'Geofence' },
-              { to: '/nfc', icon: CreditCard, label: 'NFC Management' },
-              { to: '/devices', icon: Smartphone, label: 'Devices' },
+              { to: '/holidays', icon: Star, label: 'Holidays', module: 'holiday' },
+              { to: '/geofence', icon: Navigation, label: 'Geofence', module: 'geofence' },
+              { to: '/nfc', icon: CreditCard, label: 'NFC Management', module: 'device' },
+              { to: '/devices', icon: Smartphone, label: 'Devices', module: 'device' },
             ],
           },
         ]
       : []),
   ];
+
+  // Filter nav items by enabled modules
+  const filteredNavSections = navSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      if (!item.module) return true; // No module restriction
+      if (!enabledModules) return true; // Still loading, show all
+      return enabledModules.includes(item.module);
+    }),
+  })).filter(section => section.items.length > 0);
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -163,7 +174,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-          {navSections.map((section, idx) => (
+          {filteredNavSections.map((section, idx) => (
             <div key={section.label}>
               {idx > 0 && <div className="border-t border-slate-100 mb-3" />}
               <p className="px-4 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
