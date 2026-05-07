@@ -262,6 +262,18 @@ export default function Employees() {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
+    // Client-side password validation (mirrors server requirements)
+    const pw = resetPassword;
+    const failures = [];
+    if (pw.length < 8) failures.push('at least 8 characters');
+    if (!/[A-Z]/.test(pw)) failures.push('one uppercase letter');
+    if (!/[a-z]/.test(pw)) failures.push('one lowercase letter');
+    if (!/[0-9]/.test(pw)) failures.push('one digit');
+    if (!/[^A-Za-z0-9]/.test(pw)) failures.push('one special character (!@#$%^&*)');
+    if (failures.length > 0) {
+      alert(`Password must contain: ${failures.join(', ')}`);
+      return;
+    }
     setResetSubmitting(true);
     try {
       await api.resetPassword(resetModal.id, resetPassword);
@@ -610,11 +622,11 @@ export default function Employees() {
                   type="password"
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
-                  placeholder="Min 8 characters"
+                  placeholder="e.g. Temp@1234"
                   required
-                  minLength={8}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
+                <p className="text-xs text-slate-400 mt-1">Min 8 chars, uppercase, lowercase, digit, and special character</p>
               </div>
               <div className="flex gap-2 justify-end">
                 <button
