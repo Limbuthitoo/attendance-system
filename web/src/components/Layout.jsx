@@ -42,13 +42,21 @@ export default function Layout() {
   }
 
   useEffect(() => {
-    // Load logo from API
-    fetch(`${apiBase}/settings/branding/logo`).then(r => {
-      if (r.ok) setSidebarLogo(`${apiBase}/settings/branding/logo?t=${Date.now()}`);
+    // Load logo from API (pass auth token for org context)
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`${apiBase}/settings/branding/logo`, { headers }).then(async r => {
+      if (r.ok) {
+        const blob = await r.blob();
+        setSidebarLogo(URL.createObjectURL(blob));
+      }
     }).catch(() => {});
     // Load favicon from API
-    fetch(`${apiBase}/settings/branding/favicon`).then(r => {
-      if (r.ok) updateFavicon(`${apiBase}/settings/branding/favicon?t=${Date.now()}`);
+    fetch(`${apiBase}/settings/branding/favicon`, { headers }).then(async r => {
+      if (r.ok) {
+        const blob = await r.blob();
+        updateFavicon(URL.createObjectURL(blob));
+      }
     }).catch(() => {});
     // Listen for branding updates from Settings page
     function onBrandingUpdate(e) {

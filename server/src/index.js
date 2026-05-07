@@ -97,8 +97,40 @@ brandingPublicRouter.get('/branding/:type', async (req, res) => {
   if (!['logo', 'favicon'].includes(type)) return res.status(400).json({ error: 'Invalid type' });
   try {
     const prisma = require('./lib/prisma').getPrisma();
+    const key = type === 'logo' ? 'branding_logo' : 'branding_favicon';
+
+    // Determine orgId: from auth token, x-org-id header, or org slug query param
+    let orgId = null;
+    // Try auth token first (for logged-in users)
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = require('jsonwebtoken').verify(authHeader.slice(7), require('./config').jwtSecret);
+        if (decoded.id) {
+          const emp = await prisma.employee.findUnique({ where: { id: decoded.id }, select: { orgId: true } });
+          if (emp) orgId = emp.orgId;
+        }
+      } catch {}
+    }
+    // Fallback: x-org-id header
+    if (!orgId && req.headers['x-org-id']) {
+      orgId = req.headers['x-org-id'];
+    }
+    // Fallback: ?org=slug query param
+    if (!orgId && req.query.org) {
+      const org = await prisma.organization.findUnique({
+        where: { slug: req.query.org },
+        select: { id: true },
+      });
+      if (org) orgId = org.id;
+    }
+
+    if (!orgId) {
+      return res.status(400).json({ error: 'Organization context required. Use ?org=slug or login first.' });
+    }
+
     const setting = await prisma.orgSetting.findFirst({
-      where: { key: type === 'logo' ? 'branding_logo' : 'branding_favicon' },
+      where: { key, orgId },
     });
     if (!setting) return res.status(404).json({ error: `No ${type} configured` });
     const filePath = path.join(brandingDir, setting.value);

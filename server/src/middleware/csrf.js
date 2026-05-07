@@ -43,6 +43,12 @@ function csrfValidate(req, res, next) {
     return next();
   }
 
+  // Skip CSRF for public auth endpoints (login, refresh, push-token registration)
+  const url = req.originalUrl || req.url;
+  if (url.match(/\/auth\/(login|refresh|organizations)/)) {
+    return next();
+  }
+
   // Skip CSRF for device auth (NFC readers, fingerprint scanners)
   if (req.headers['x-api-key'] && req.headers['x-device-serial']) {
     return next();

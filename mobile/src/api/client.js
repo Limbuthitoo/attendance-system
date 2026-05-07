@@ -72,7 +72,10 @@ export async function request(endpoint, options = {}) {
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.error || 'Request failed');
+    const err = new Error(data.error || 'Request failed');
+    if (data.organizations) err.organizations = data.organizations;
+    err.status = res.status;
+    throw err;
   }
 
   return data;

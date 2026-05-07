@@ -103,6 +103,10 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
     const adDateEnd = b.adDateEnd ?? b.ad_date_end;
     const womenOnly = b.womenOnly ?? b.women_only;
 
+    // Verify holiday belongs to this org
+    const existing = await prisma.holiday.findFirst({ where: { id: req.params.id, orgId: req.orgId } });
+    if (!existing) return res.status(404).json({ error: 'Holiday not found' });
+
     const holiday = await prisma.holiday.update({
       where: { id: req.params.id },
       data: {
@@ -126,6 +130,8 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
 router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
+    const existing = await prisma.holiday.findFirst({ where: { id: req.params.id, orgId: req.orgId } });
+    if (!existing) return res.status(404).json({ error: 'Holiday not found' });
     await prisma.holiday.delete({ where: { id: req.params.id } });
     res.json({ message: 'Holiday deleted' });
   } catch (err) {

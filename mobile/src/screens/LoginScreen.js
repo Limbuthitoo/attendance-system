@@ -13,6 +13,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [secureEntry, setSecureEntry] = useState(true);
+  const [orgOptions, setOrgOptions] = useState(null);
+  const [selectedOrg, setSelectedOrg] = useState(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -22,9 +24,14 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, selectedOrg || undefined);
     } catch (err) {
-      Alert.alert('Login Failed', err.message);
+      if (err.organizations && err.organizations.length > 0) {
+        setOrgOptions(err.organizations);
+        setSelectedOrg(err.organizations[0].slug);
+      } else {
+        Alert.alert('Login Failed', err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -83,6 +90,30 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {orgOptions && (
+            <View style={styles.orgPicker}>
+              <Text style={styles.orgPickerLabel}>
+                <Ionicons name="business-outline" size={14} color="#92400e" /> Select Organization
+              </Text>
+              {orgOptions.map(org => (
+                <TouchableOpacity
+                  key={org.slug}
+                  style={[styles.orgOption, selectedOrg === org.slug && styles.orgOptionActive]}
+                  onPress={() => setSelectedOrg(org.slug)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={selectedOrg === org.slug ? 'radio-button-on' : 'radio-button-off'}
+                    size={18}
+                    color={selectedOrg === org.slug ? colors.primary : colors.textTertiary}
+                  />
+                  <Text style={[styles.orgOptionText, selectedOrg === org.slug && styles.orgOptionTextActive]}>{org.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <Text style={styles.orgPickerHint}>Your email exists in multiple organizations. Select one and sign in again.</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -209,5 +240,44 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     fontSize: 12,
     marginTop: spacing.xxxl,
+  },
+  orgPicker: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  orgPickerLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400e',
+    marginBottom: spacing.md,
+  },
+  orgOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.sm,
+    marginBottom: 4,
+  },
+  orgOptionActive: {
+    backgroundColor: '#eff6ff',
+  },
+  orgOptionText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  orgOptionTextActive: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  orgPickerHint: {
+    fontSize: 11,
+    color: '#92400e',
+    marginTop: spacing.sm,
   },
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -9,6 +9,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [orgOptions, setOrgOptions] = useState(null); // org selection mode
+  const [selectedOrg, setSelectedOrg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,9 +18,16 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, selectedOrg || undefined);
     } catch (err) {
-      setError(err.message);
+      // If 409 with organizations, show org picker
+      if (err.organizations) {
+        setOrgOptions(err.organizations);
+        setSelectedOrg(err.organizations[0]?.slug || '');
+        setError('');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -82,10 +91,29 @@ export default function Login() {
             ) : (
               <>
                 <LogIn size={16} />
-                Sign In
+                {orgOptions ? 'Sign In to Organization' : 'Sign In'}
               </>
             )}
           </button>
+
+          {orgOptions && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
+                <Building2 size={14} className="inline mr-1" />
+                Select your organization
+              </label>
+              <select
+                value={selectedOrg}
+                onChange={(e) => setSelectedOrg(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-amber-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {orgOptions.map(org => (
+                  <option key={org.slug} value={org.slug}>{org.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-amber-600 mt-1.5">Your email exists in multiple organizations. Please select one and sign in again.</p>
+            </div>
+          )}
         </form>
 
         <p className="text-center text-xs text-slate-400 mt-6">

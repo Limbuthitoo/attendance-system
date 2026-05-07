@@ -6,8 +6,24 @@ const { authenticate } = require('../../middleware/auth');
 const { setAuthCookies, clearAuthCookies } = require('../../middleware/auth');
 const authService = require('../../services/auth.service');
 const { registerPushToken, removePushToken } = require('../../services/notification.service');
+const { getPrisma } = require('../../lib/prisma');
 
 const router = Router();
+
+// GET /api/v1/auth/organizations — Public list of active orgs (for login screen)
+router.get('/organizations', async (req, res, next) => {
+  try {
+    const prisma = getPrisma();
+    const orgs = await prisma.organization.findMany({
+      where: { isActive: true },
+      select: { slug: true, name: true, logoUrl: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ organizations: orgs });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // POST /api/v1/auth/login
 router.post('/login', async (req, res, next) => {
@@ -45,6 +61,9 @@ router.post('/login', async (req, res, next) => {
       refreshToken: result.refreshToken,
     });
   } catch (err) {
+    if (err.status === 409 && err.organizations) {
+      return res.status(409).json({ error: err.message, organizations: err.organizations });
+    }
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }

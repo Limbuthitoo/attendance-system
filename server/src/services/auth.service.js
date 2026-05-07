@@ -49,13 +49,16 @@ async function login({ email, password, orgSlug, userAgent, ipAddress }) {
         employeeRoles: {
           include: { role: { select: { name: true, permissions: true } } },
         },
+        org: { select: { slug: true, name: true } },
       },
     });
 
     if (matches.length > 1) {
+      // Return org options so the client can prompt user to pick
+      const orgs = matches.map(m => ({ slug: m.org.slug, name: m.org.name }));
       throw Object.assign(
-        new Error('Multiple organizations found for this email. Please contact your administrator.'),
-        { status: 409 }
+        new Error('Multiple organizations found. Please select your organization.'),
+        { status: 409, organizations: orgs }
       );
     }
     employee = matches[0] || null;

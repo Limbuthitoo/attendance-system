@@ -52,8 +52,22 @@ function isVersionGreater(v1, v2) {
 // Needs orgId via query param or header for multi-tenant
 router.get('/check', async (req, res, next) => {
   try {
-    // For backward compat: if no orgId header, find latest across all orgs
-    const orgId = req.headers['x-org-id'];
+    // Determine org context from header or auth token
+    let orgId = req.headers['x-org-id'];
+    if (!orgId) {
+      // Try auth token
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        try {
+          const decoded = require('jsonwebtoken').verify(authHeader.slice(7), require('../../config').jwtSecret);
+          if (decoded.id) {
+            const emp = await prisma.employee.findUnique({ where: { id: decoded.id }, select: { orgId: true } });
+            if (emp) orgId = emp.orgId;
+          }
+        } catch {}
+      }
+    }
+
     const where = orgId ? { orgId } : {};
 
     const latest = await prisma.appRelease.findFirst({
@@ -83,7 +97,19 @@ router.get('/check', async (req, res, next) => {
 // GET /download — public
 router.get('/download', async (req, res, next) => {
   try {
-    const orgId = req.headers['x-org-id'];
+    let orgId = req.headers['x-org-id'];
+    if (!orgId) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        try {
+          const decoded = require('jsonwebtoken').verify(authHeader.slice(7), require('../../config').jwtSecret);
+          if (decoded.id) {
+            const emp = await prisma.employee.findUnique({ where: { id: decoded.id }, select: { orgId: true } });
+            if (emp) orgId = emp.orgId;
+          }
+        } catch {}
+      }
+    }
     const where = orgId ? { orgId } : {};
     const latest = await prisma.appRelease.findFirst({
       where,

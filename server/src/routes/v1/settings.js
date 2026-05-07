@@ -306,7 +306,7 @@ router.post('/bulk-assign', requireRole('org_admin', 'hr_manager'), async (req, 
 // BRANDING — Logo & Favicon (public GET, admin POST/DELETE)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Serve branding files — public (no auth), called by web Layout on load
+// Serve branding files — org-scoped (uses auth token orgId, x-org-id header, or ?org=slug)
 router.get('/branding/:type', async (req, res) => {
   const { type } = req.params;
   if (!['logo', 'favicon'].includes(type)) {
@@ -314,14 +314,23 @@ router.get('/branding/:type', async (req, res) => {
   }
 
   try {
-    // Try to find org from header; fall back to first org (single-tenant compat)
-    const orgId = req.headers['x-org-id'];
+    // Determine orgId: prefer auth user, then header, then query slug
+    let orgId = req.user?.orgId || req.headers['x-org-id'] || null;
+
+    if (!orgId && req.query.org) {
+      const org = await prisma.organization.findUnique({
+        where: { slug: req.query.org },
+        select: { id: true },
+      });
+      if (org) orgId = org.id;
+    }
+
+    if (!orgId) {
+      return res.status(400).json({ error: 'Organization context required' });
+    }
+
     const key = type === 'logo' ? 'branding_logo' : 'branding_favicon';
-
-    const where = { key };
-    if (orgId) where.orgId = orgId;
-
-    const setting = await prisma.orgSetting.findFirst({ where });
+    const setting = await prisma.orgSetting.findFirst({ where: { key, orgId } });
 
     if (!setting || !setting.value) {
       return res.status(404).json({ error: `No ${type} uploaded` });

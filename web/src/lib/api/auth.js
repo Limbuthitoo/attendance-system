@@ -1,7 +1,7 @@
 import { request } from './client';
 
 export const auth = {
-  login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email, password, orgSlug) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, orgSlug }) }),
   getMe: () => request('/auth/me'),
   getMyProfile: () => request('/auth/profile'),
   updateMyProfile: (data) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),

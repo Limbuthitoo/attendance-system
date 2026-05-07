@@ -257,6 +257,11 @@ router.put('/cards/:id/deactivate', authenticate, tenantContext, requireRole('or
 
 router.put('/cards/:id/activate', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
   try {
+    const card = await prisma.employeeCredential.findFirst({
+      where: { id: req.params.id },
+      include: { employee: { select: { orgId: true } } },
+    });
+    if (!card || card.employee.orgId !== req.orgId) return res.status(404).json({ error: 'Card not found' });
     await prisma.employeeCredential.update({
       where: { id: req.params.id },
       data: { isActive: true, deactivatedAt: null },
@@ -267,6 +272,11 @@ router.put('/cards/:id/activate', authenticate, tenantContext, requireRole('org_
 
 router.delete('/cards/:id', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
   try {
+    const card = await prisma.employeeCredential.findFirst({
+      where: { id: req.params.id },
+      include: { employee: { select: { orgId: true } } },
+    });
+    if (!card || card.employee.orgId !== req.orgId) return res.status(404).json({ error: 'Card not found' });
     await prisma.employeeCredential.delete({ where: { id: req.params.id } });
     res.json({ message: 'Card removed' });
   } catch (err) { next(err); }
