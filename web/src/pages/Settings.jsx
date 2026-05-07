@@ -78,11 +78,13 @@ export default function Settings() {
   }
 
   function checkBranding() {
-    fetch(`${apiBase}/settings/branding/logo`).then(r => {
+    const token = localStorage.getItem('token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    fetch(`${apiBase}/settings/branding/logo`, { headers }).then(r => {
       if (r.ok) setLogoUrl(`${apiBase}/settings/branding/logo?t=${Date.now()}`);
       else setLogoUrl(null);
     }).catch(() => setLogoUrl(null));
-    fetch(`${apiBase}/settings/branding/favicon`).then(r => {
+    fetch(`${apiBase}/settings/branding/favicon`, { headers }).then(r => {
       if (r.ok) setFaviconUrl(`${apiBase}/settings/branding/favicon?t=${Date.now()}`);
       else setFaviconUrl(null);
     }).catch(() => setFaviconUrl(null));

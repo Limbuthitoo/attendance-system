@@ -184,6 +184,12 @@ async function createEmployee({ orgId, data, adminId, req }) {
   // Block if org subscription is not active
   await requireActiveSubscription(orgId);
 
+  // Normalize field names (frontend sends employee_id, server uses employeeCode)
+  const employeeCode = data.employeeCode || data.employee_id;
+  if (!employeeCode) {
+    throw Object.assign(new Error('Employee code is required'), { status: 400 });
+  }
+
   if (!validateEmail(data.email)) {
     throw Object.assign(new Error('Invalid email format'), { status: 400 });
   }
@@ -220,7 +226,7 @@ async function createEmployee({ orgId, data, adminId, req }) {
   const employee = await prisma.employee.create({
     data: {
       orgId,
-      employeeCode: data.employeeCode,
+      employeeCode,
       name: data.name,
       email: data.email,
       password: hash,
@@ -231,12 +237,19 @@ async function createEmployee({ orgId, data, adminId, req }) {
     },
   });
 
-  // Assign default role if specified
-  if (data.roleId) {
+  // Assign role — accept roleId (UUID) or role name (e.g. "admin", "employee")
+  let roleId = data.roleId;
+  if (!roleId && data.role) {
+    // Map legacy role names to actual role records
+    const roleName = data.role === 'admin' ? 'org_admin' : 'employee';
+    const roleRecord = await prisma.role.findFirst({ where: { name: roleName } });
+    if (roleRecord) roleId = roleRecord.id;
+  }
+  if (roleId) {
     await prisma.employeeRole.create({
       data: {
         employeeId: employee.id,
-        roleId: data.roleId,
+        roleId,
         branchId: data.branchId || null,
         grantedBy: adminId,
       },
@@ -263,7 +276,7 @@ async function createEmployee({ orgId, data, adminId, req }) {
     action: 'employee.create',
     resource: 'employee',
     resourceId: employee.id,
-    newData: { employeeCode: data.employeeCode, name: data.name, email: data.email },
+    newData: { employeeCode, name: data.name, email: data.email },
     req,
   });
 

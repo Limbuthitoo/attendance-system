@@ -348,7 +348,7 @@ export default function Employees() {
               { key: 'employee_id', label: 'Employee ID', placeholder: 'ARC-006', required: true },
               { key: 'name', label: 'Full Name', placeholder: 'John Doe', required: true },
               { key: 'email', label: 'Email', placeholder: 'john@archisys.com', required: true, type: 'email' },
-              { key: 'password', label: 'Password', placeholder: 'Min 6 characters', required: true, type: 'password' },
+              { key: 'password', label: 'Password', placeholder: 'e.g. Temp@1234', required: true, type: 'password' },
               { key: 'phone', label: 'Phone', placeholder: '9800000000' },
             ].map((field) => (
               <div key={field.key}>
