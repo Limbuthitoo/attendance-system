@@ -123,6 +123,20 @@ router.post('/tap', authenticateDevice, async (req, res, next) => {
       return res.status(400).json({ status: 'ERROR', error: 'cardUid is required' });
     }
 
+    // Reject stale taps (queued from retry when reader was offline)
+    const STALE_TAP_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    if (timestamp) {
+      const tapAge = Date.now() - new Date(timestamp).getTime();
+      if (tapAge > STALE_TAP_THRESHOLD_MS) {
+        return res.json({
+          status: 'STALE_IGNORED',
+          message: `Tap too old (${Math.round(tapAge / 60000)}m), ignored`,
+          cardUid,
+          deviceId: deviceSerial,
+        });
+      }
+    }
+
     const device = req.device; // from authenticateDevice middleware
     const tapTime = timestamp || new Date().toISOString();
 
