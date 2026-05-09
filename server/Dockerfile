@@ -17,4 +17,4 @@ RUN mkdir -p data/apk data/branding
 EXPOSE 3001
 
 # Sync schema then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node src/seed.js && node src/index.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node src/seed.js && node src/index.js"]

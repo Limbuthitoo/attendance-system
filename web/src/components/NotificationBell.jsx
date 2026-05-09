@@ -86,7 +86,7 @@ export default function NotificationBell() {
 
   const handleNotificationClick = async (notif) => {
     if (!notif.is_read) {
-      await api.markNotificationRead(notif.id).catch(() => {});
+      await api.markNotificationsRead([notif.id]).catch(() => {});
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: 1 } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
@@ -99,7 +99,10 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    await api.markAllNotificationsRead().catch(() => {});
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      await api.markNotificationsRead(unreadIds).catch(() => {});
+    }
     setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
     setUnreadCount(0);
   };
@@ -112,7 +115,7 @@ export default function NotificationBell() {
 
   const handleClearOne = async (e, id) => {
     e.stopPropagation();
-    await api.clearNotification(id).catch(() => {});
+    // Backend only supports clear-all; remove from local state
     const removed = notifications.find(n => n.id === id);
     setNotifications(prev => prev.filter(n => n.id !== id));
     if (removed && !removed.is_read) {

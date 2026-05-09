@@ -233,6 +233,9 @@ async function createEmployee({ orgId, data, adminId, req }) {
       department: data.department || 'General',
       designation: data.designation || 'Employee',
       phone: data.phone || null,
+      gender: data.gender || null,
+      joinDate: data.joinDate ? new Date(data.joinDate) : null,
+      contractType: data.contractType || null,
       mustChangePassword: true,
     },
   });

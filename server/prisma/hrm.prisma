@@ -1,0 +1,382 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// HRM — Incentives, Tasks, Projects, Referrals, Bonuses
+// ─────────────────────────────────────────────────────────────────────────────
+
+model IncentivePlan {
+  id                    String              @id @default(uuid()) @db.Uuid
+  orgId                 String              @map("org_id") @db.Uuid
+  name                  String
+  type                  IncentiveType
+  description           String?
+  calculationFrequency  String              @default("monthly") @map("calculation_frequency")
+  payoutFrequency       String              @default("same_month") @map("payout_frequency")
+  approvalRequired      Boolean             @default(true) @map("approval_required")
+  taxable               Boolean             @default(true)
+  maxCap                Decimal?            @map("max_cap") @db.Decimal(12,2)
+  applicableDepartments String[]            @default([]) @map("applicable_departments")
+  applicableDesignations String[]           @default([]) @map("applicable_designations")
+  allowProbation        Boolean             @default(false) @map("allow_probation")
+  minWorkingDays        Int                 @default(0) @map("min_working_days")
+  startDate             DateTime            @map("start_date") @db.Date
+  endDate               DateTime?           @map("end_date") @db.Date
+  status                IncentivePlanStatus @default(DRAFT)
+  rules                 Json                @default("[]")
+  createdBy             String?             @map("created_by") @db.Uuid
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  org                   Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeIncentives    EmployeeIncentive[]
+
+  @@index([orgId, status])
+  @@index([orgId, type])
+  @@map("incentive_plans")
+  @@schema("hrm")
+}
+
+enum IncentiveType {
+  ATTENDANCE
+  PERFORMANCE
+  SALES
+  TASK
+  PROJECT
+  REFERRAL
+  FESTIVAL
+  CUSTOM
+  @@schema("hrm")
+}
+
+enum IncentivePlanStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXPIRED
+  ARCHIVED
+  @@schema("hrm")
+}
+
+model EmployeeIncentive {
+  id                String           @id @default(uuid()) @db.Uuid
+  orgId             String           @map("org_id") @db.Uuid
+  employeeId        String           @map("employee_id") @db.Uuid
+  planId            String           @map("plan_id") @db.Uuid
+  periodStart       DateTime         @map("period_start") @db.Date
+  periodEnd         DateTime         @map("period_end") @db.Date
+  sourceModule      String           @map("source_module")
+  sourceData        Json?            @map("source_data")
+  calculatedAmount  Decimal          @map("calculated_amount") @db.Decimal(12,2)
+  approvedAmount    Decimal?         @map("approved_amount") @db.Decimal(12,2)
+  paidAmount        Decimal          @default(0) @map("paid_amount") @db.Decimal(12,2)
+  status            IncentiveStatus  @default(CALCULATED)
+  reviewedBy        String?          @map("reviewed_by") @db.Uuid
+  reviewNote        String?          @map("review_note")
+  reviewedAt        DateTime?        @map("reviewed_at")
+  payrollYear       Int?             @map("payroll_year")
+  payrollMonth      Int?             @map("payroll_month")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  org               Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee          Employee         @relation("employee_incentives", fields: [employeeId], references: [id], onDelete: Cascade)
+  plan              IncentivePlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  reviewer          Employee?        @relation("incentive_reviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  adjustments       IncentiveAdjustment[]
+
+  @@unique([orgId, employeeId, planId, periodStart, periodEnd])
+  @@index([orgId, status])
+  @@index([employeeId, status])
+  @@index([orgId, payrollYear, payrollMonth])
+  @@map("employee_incentives")
+  @@schema("hrm")
+}
+
+enum IncentiveStatus {
+  CALCULATED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+  PAID
+  @@schema("hrm")
+}
+
+model IncentiveAdjustment {
+  id              String         @id @default(uuid()) @db.Uuid
+  orgId           String         @map("org_id") @db.Uuid
+  incentiveId     String         @map("incentive_id") @db.Uuid
+  adjustmentType  AdjustmentType @map("adjustment_type")
+  amount          Decimal        @db.Decimal(12,2)
+  reason          String
+  createdBy       String         @map("created_by") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  org             Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  incentive       EmployeeIncentive   @relation(fields: [incentiveId], references: [id], onDelete: Cascade)
+  creator         Employee            @relation("adjustment_creator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([incentiveId])
+  @@map("incentive_adjustments")
+  @@schema("hrm")
+}
+
+enum AdjustmentType {
+  CORRECTION
+  CLAWBACK
+  BONUS_ADDITION
+  PENALTY
+  MANUAL
+  @@schema("hrm")
+}
+
+model Task {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @map("org_id") @db.Uuid
+  projectId    String?    @map("project_id") @db.Uuid
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  priority     TaskPriority @default(MEDIUM)
+  assignedTo   String?    @map("assigned_to") @db.Uuid
+  dueDate      DateTime?  @map("due_date") @db.Date
+  completedAt  DateTime?  @map("completed_at")
+  estimatedHours Decimal? @map("estimated_hours") @db.Decimal(6, 2)
+  actualHours    Decimal? @map("actual_hours") @db.Decimal(6, 2)
+  tags         Json       @default("[]")
+  createdBy    String     @map("created_by") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id])
+  assignee     Employee?    @relation("task_assignee", fields: [assignedTo], references: [id])
+  creator      Employee     @relation("task_creator", fields: [createdBy], references: [id])
+
+  @@index([orgId, status])
+  @@index([orgId, assignedTo])
+  @@index([orgId, projectId])
+  @@map("tasks")
+  @@schema("hrm")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+  @@schema("hrm")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  @@schema("hrm")
+}
+
+model Project {
+  id           String        @id @default(uuid()) @db.Uuid
+  orgId        String        @map("org_id") @db.Uuid
+  name         String
+  description  String?
+  status       ProjectStatus @default(PLANNING)
+  startDate    DateTime?     @map("start_date") @db.Date
+  endDate      DateTime?     @map("end_date") @db.Date
+  budget       Decimal?      @db.Decimal(12, 2)
+  managerId    String?       @map("manager_id") @db.Uuid
+  clientId     String?       @map("client_id") @db.Uuid
+  progress     Int           @default(0)
+  createdBy    String        @map("created_by") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  manager      Employee?     @relation("project_manager", fields: [managerId], references: [id])
+  creator      Employee      @relation("project_creator", fields: [createdBy], references: [id])
+  members      ProjectMember[]
+  tasks        Task[]
+
+  @@index([orgId, status])
+  @@map("projects")
+  @@schema("hrm")
+}
+
+model ProjectMember {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  projectId  String   @map("project_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  role       String   @default("member")
+  joinedAt   DateTime @default(now()) @map("joined_at")
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee   Employee     @relation("project_member", fields: [employeeId], references: [id])
+
+  @@unique([projectId, employeeId])
+  @@map("project_members")
+  @@schema("hrm")
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  @@schema("hrm")
+}
+
+model Referral {
+  id             String         @id @default(uuid()) @db.Uuid
+  orgId          String         @map("org_id") @db.Uuid
+  referrerId     String         @map("referrer_id") @db.Uuid
+  candidateName  String         @map("candidate_name")
+  candidateEmail String?        @map("candidate_email")
+  candidatePhone String?        @map("candidate_phone")
+  position       String
+  department     String?
+  status         ReferralStatus @default(SUBMITTED)
+  bonusAmount    Decimal?       @map("bonus_amount") @db.Decimal(12, 2)
+  bonusPaidAt    DateTime?      @map("bonus_paid_at")
+  hiredEmployeeId String?      @map("hired_employee_id") @db.Uuid
+  notes          String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  referrer       Employee     @relation("referral_referrer", fields: [referrerId], references: [id])
+  hiredEmployee  Employee?    @relation("referral_hired", fields: [hiredEmployeeId], references: [id])
+
+  @@index([orgId, referrerId])
+  @@index([orgId, status])
+  @@map("referrals")
+  @@schema("hrm")
+}
+
+enum ReferralStatus {
+  SUBMITTED
+  SCREENING
+  INTERVIEWING
+  OFFERED
+  HIRED
+  REJECTED
+  WITHDRAWN
+  @@schema("hrm")
+}
+
+model BonusPlan {
+  id                  String          @id @default(uuid()) @db.Uuid
+  orgId               String          @map("org_id") @db.Uuid
+  name                String
+  type                BonusType
+  description         String?         @db.Text
+  status              BonusPlanStatus @default(DRAFT)
+
+  baseAmount          Decimal         @map("base_amount") @db.Decimal(12, 2)
+  calculationMethod   String          @default("fixed") @map("calculation_method")
+  salaryPercentage    Decimal?        @map("salary_percentage") @db.Decimal(5, 2)
+  seniorityTiers      Json?           @map("seniority_tiers")
+  proRataEnabled      Boolean         @default(false) @map("pro_rata_enabled")
+
+  applicableDepartments  String[]     @map("applicable_departments")
+  applicableDesignations String[]     @map("applicable_designations")
+  minServiceDays      Int             @default(0) @map("min_service_days")
+  allowProbation      Boolean         @default(false) @map("allow_probation")
+  minAttendancePct    Decimal?        @map("min_attendance_pct") @db.Decimal(5, 2)
+  minPerformanceScore Decimal?        @map("min_performance_score") @db.Decimal(5, 2)
+  requireNoUnpaidLeave Boolean        @default(false) @map("require_no_unpaid_leave")
+  requireNoDisciplinary Boolean       @default(false) @map("require_no_disciplinary")
+  customCriteria      Json?           @map("custom_criteria")
+
+  fiscalYear          Int?            @map("fiscal_year")
+  bonusMonth          Int?            @map("bonus_month")
+  festivalName        String?         @map("festival_name")
+  maxCap              Decimal?        @map("max_cap") @db.Decimal(12, 2)
+  taxable             Boolean         @default(true)
+
+  createdBy           String          @map("created_by") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  org                 Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator             Employee        @relation("bonus_plan_creator", fields: [createdBy], references: [id])
+  employeeBonuses     EmployeeBonus[]
+
+  @@index([orgId, type, status])
+  @@index([orgId, fiscalYear])
+  @@map("bonus_plans")
+  @@schema("hrm")
+}
+
+model EmployeeBonus {
+  id               String        @id @default(uuid()) @db.Uuid
+  orgId            String        @map("org_id") @db.Uuid
+  employeeId       String        @map("employee_id") @db.Uuid
+  bonusPlanId      String        @map("bonus_plan_id") @db.Uuid
+  fiscalYear       Int           @map("fiscal_year")
+  bonusMonth       Int?          @map("bonus_month")
+
+  baseAmount       Decimal       @map("base_amount") @db.Decimal(12, 2)
+  proRataFactor    Decimal       @default(1) @map("pro_rata_factor") @db.Decimal(5, 4)
+  seniorityMultiplier Decimal    @default(1) @map("seniority_multiplier") @db.Decimal(5, 2)
+  adjustmentAmount Decimal       @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
+  finalAmount      Decimal       @map("final_amount") @db.Decimal(12, 2)
+  taxAmount        Decimal       @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  netAmount        Decimal       @map("net_amount") @db.Decimal(12, 2)
+
+  eligible         Boolean       @default(true)
+  ineligibleReason String?       @map("ineligible_reason")
+  criteriaSnapshot Json?         @map("criteria_snapshot")
+
+  status           BonusStatus   @default(CALCULATED)
+  approvedBy       String?       @map("approved_by") @db.Uuid
+  approvedAt       DateTime?     @map("approved_at")
+  paidAt           DateTime?     @map("paid_at")
+  notes            String?
+
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  org              Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee         Employee      @relation("employee_bonuses", fields: [employeeId], references: [id])
+  bonusPlan        BonusPlan     @relation(fields: [bonusPlanId], references: [id], onDelete: Cascade)
+  approver         Employee?     @relation("bonus_approver", fields: [approvedBy], references: [id])
+
+  @@unique([orgId, employeeId, bonusPlanId, fiscalYear, bonusMonth])
+  @@index([orgId, fiscalYear, status])
+  @@index([orgId, employeeId])
+  @@map("employee_bonuses")
+  @@schema("hrm")
+}
+
+enum BonusType {
+  FESTIVAL
+  ANNUAL
+  QUARTERLY
+  RETENTION
+  SIGNING
+  SPOT
+  CUSTOM
+  @@schema("hrm")
+}
+
+enum BonusPlanStatus {
+  DRAFT
+  ACTIVE
+  CALCULATING
+  DISTRIBUTED
+  ARCHIVED
+  @@schema("hrm")
+}
+
+enum BonusStatus {
+  CALCULATED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+  @@schema("hrm")
+}

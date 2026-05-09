@@ -32,6 +32,23 @@ const GeofenceManagement = lazy(() => import('./pages/GeofenceManagement'));
 const NfcManagement = lazy(() => import('./pages/NfcManagement'));
 const DeviceManagement = lazy(() => import('./pages/DeviceManagement'));
 const Policies = lazy(() => import('./pages/Policies'));
+const Incentives = lazy(() => import('./pages/Incentives'));
+const CRM = lazy(() => import('./pages/CRM'));
+const Performance = lazy(() => import('./pages/Performance'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Projects = lazy(() => import('./pages/Projects'));
+const Referrals = lazy(() => import('./pages/Referrals'));
+const Bonuses = lazy(() => import('./pages/Bonuses'));
+const Accounting = lazy(() => import('./pages/Accounting'));
+const OrgBilling = lazy(() => import('./pages/Billing'));
+const StatutoryCompliance = lazy(() => import('./pages/StatutoryCompliance'));
+const Recruitment = lazy(() => import('./pages/Recruitment'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Separation = lazy(() => import('./pages/Separation'));
+const Training = lazy(() => import('./pages/Training'));
+const SelfService = lazy(() => import('./pages/SelfService'));
+const CompensationPage = lazy(() => import('./pages/Compensation'));
+const OrgChart = lazy(() => import('./pages/OrgChart'));
 
 // ── Lazy-loaded platform portal (entire sub-app) ───────────────────────────
 const PlatformLogin = lazy(() => import('./platform/pages/PlatformLogin'));
@@ -293,6 +310,23 @@ export default function App() {
         <Route path="assignments" element={<AdminRoute><LazyPage name="Assignments"><EmployeeAssignments /></LazyPage></AdminRoute>} />
         <Route path="reports" element={<AdminRoute><LazyPage name="Reports"><Reports /></LazyPage></AdminRoute>} />
         <Route path="payroll" element={<AdminRoute><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
+        <Route path="incentives" element={<AdminRoute><LazyPage name="Incentives"><Incentives /></LazyPage></AdminRoute>} />
+        <Route path="crm" element={<AdminRoute><LazyPage name="CRM"><CRM /></LazyPage></AdminRoute>} />
+        <Route path="performance" element={<AdminRoute><LazyPage name="Performance"><Performance /></LazyPage></AdminRoute>} />
+        <Route path="tasks" element={<AdminRoute><LazyPage name="Tasks"><Tasks /></LazyPage></AdminRoute>} />
+        <Route path="projects" element={<AdminRoute><LazyPage name="Projects"><Projects /></LazyPage></AdminRoute>} />
+        <Route path="referrals" element={<AdminRoute><LazyPage name="Referrals"><Referrals /></LazyPage></AdminRoute>} />
+        <Route path="bonuses" element={<AdminRoute><LazyPage name="Bonuses"><Bonuses /></LazyPage></AdminRoute>} />
+        <Route path="accounting" element={<AdminRoute><LazyPage name="Accounting"><Accounting /></LazyPage></AdminRoute>} />
+        <Route path="billing" element={<AdminRoute><LazyPage name="Billing"><OrgBilling /></LazyPage></AdminRoute>} />
+        <Route path="statutory" element={<AdminRoute><LazyPage name="Statutory Compliance"><StatutoryCompliance /></LazyPage></AdminRoute>} />
+        <Route path="recruitment" element={<AdminRoute><LazyPage name="Recruitment"><Recruitment /></LazyPage></AdminRoute>} />
+        <Route path="onboarding" element={<AdminRoute><LazyPage name="Onboarding"><Onboarding /></LazyPage></AdminRoute>} />
+        <Route path="separation" element={<AdminRoute><LazyPage name="Separation"><Separation /></LazyPage></AdminRoute>} />
+        <Route path="training" element={<AdminRoute><LazyPage name="Training"><Training /></LazyPage></AdminRoute>} />
+        <Route path="self-service" element={<LazyPage name="Self Service"><SelfService /></LazyPage>} />
+        <Route path="compensation" element={<AdminRoute><LazyPage name="Compensation"><CompensationPage /></LazyPage></AdminRoute>} />
+        <Route path="org-chart" element={<LazyPage name="Org Chart"><OrgChart /></LazyPage>} />
         <Route path="geofence" element={<AdminRoute><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
         <Route path="nfc" element={<AdminRoute><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />
         <Route path="devices" element={<AdminRoute><LazyPage name="Devices"><DeviceManagement /></LazyPage></AdminRoute>} />

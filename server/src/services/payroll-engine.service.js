@@ -94,6 +94,27 @@ function r2(n) {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Determine Nepal fiscal year string from AD year/month.
+ * Nepal fiscal year runs mid-July to mid-July (Shrawan 1 to Ashadh end).
+ * Approximate: AD months Aug-Dec and Jan-Jun map to different BS fiscal years.
+ * e.g., Jan 2026 → ~Magh 2082 → FY "2082/83", Aug 2026 → ~Bhadra 2083 → FY "2083/84"
+ */
+function getNepalFiscalYear(adYear, adMonth) {
+  // Nepal calendar is ~56.7 years ahead of AD
+  // Fiscal year starts mid-July (roughly month 7 in AD)
+  const bsYearApprox = adYear + 57; // approximate BS year for Jan-Jun
+  if (adMonth >= 7) {
+    // July onwards → new fiscal year
+    const fy = bsYearApprox;
+    return `${fy}/${String(fy + 1).slice(-2)}`;
+  } else {
+    // Jan-June → still in previous fiscal year
+    const fy = bsYearApprox - 1;
+    return `${fy}/${String(fy + 1).slice(-2)}`;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SALARY STRUCTURE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -266,6 +287,30 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     where: { orgId, isActive: true },
   });
 
+  // 6b. Get active festival advances (APPROVED or DISBURSED status, with remaining > 0)
+  const festivalAdvances = await prisma.festivalAdvance.findMany({
+    where: { orgId, status: { in: ['APPROVED', 'DISBURSED'] }, remainingAmount: { gt: 0 } },
+  });
+
+  // 6c. Load TaxConfig for the active fiscal year (Nepal fiscal year: mid-July to mid-July)
+  // Determine Nepal fiscal year from the payslip month/year (e.g., Jan 2026 = FY 2082/83)
+  const nepalFY = getNepalFiscalYear(year, month);
+  const taxConfig = await prisma.taxConfig.findFirst({
+    where: { orgId, fiscalYear: nepalFY, isActive: true },
+  });
+
+  // 6d. Get active benefit plans for employer contribution calculations
+  const benefitPlans = await prisma.benefitPlan.findMany({
+    where: { orgId, isActive: true },
+  });
+
+  // 7. Get approved incentives for this month
+  const { getApprovedIncentiveForPayroll } = require('./incentive.service');
+  const incentiveByEmp = {};
+  for (const emp of employees) {
+    incentiveByEmp[emp.id] = await getApprovedIncentiveForPayroll({ orgId, employeeId: emp.id, year, month });
+  }
+
   // Calculate total working days (excluding Saturdays for Nepal)
   let totalWorkDays = 0;
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -306,6 +351,26 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     advanceByEmp[adv.employeeId] += Number(adv.monthlyDeduction);
   }
 
+  const festivalAdvByEmp = {};
+  for (const fa of festivalAdvances) {
+    if (!festivalAdvByEmp[fa.employeeId]) festivalAdvByEmp[fa.employeeId] = 0;
+    const deduction = Math.min(Number(fa.monthlyDeduction), Number(fa.remainingAmount));
+    festivalAdvByEmp[fa.employeeId] += deduction;
+  }
+
+  // Merge TaxConfig rates with payroll config (TaxConfig takes priority if present)
+  const ssfEmployeePct = taxConfig ? Number(taxConfig.ssfEmployeeRate) : config.payroll_ssf_employee_pct;
+  const ssfEmployerPct = taxConfig ? Number(taxConfig.ssfEmployerRate) : config.payroll_ssf_employer_pct;
+  const pfEmployeePct = taxConfig ? Number(taxConfig.pfEmployeeRate) : 0;
+  const pfEmployerPct = taxConfig ? Number(taxConfig.pfEmployerRate) : 0;
+  const citEmployeePct = taxConfig ? Number(taxConfig.citEmployeeRate) : 0;
+  const ssfEnabled = taxConfig ? true : config.payroll_ssf_enabled;
+  const singleSlabs = taxConfig && Array.isArray(taxConfig.taxSlabs) && taxConfig.taxSlabs.length > 0
+    ? JSON.stringify(taxConfig.taxSlabs) : config.payroll_tax_slabs_single;
+  const marriedSlabs = taxConfig && Array.isArray(taxConfig.marriedTaxSlabs) && taxConfig.marriedTaxSlabs.length > 0
+    ? JSON.stringify(taxConfig.marriedTaxSlabs) : config.payroll_tax_slabs_married;
+  const gratuityRate = taxConfig && taxConfig.gratuityEnabled ? Number(taxConfig.gratuityRate) : 0;
+
   // ─── Calculate payslip for each employee ───────────────────────────────────
   const payslips = [];
   const advanceUpdates = [];
@@ -337,20 +402,33 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     const hourlyRate = gross / (totalWorkDays * config.payroll_working_hours_per_day);
     const overtimeAmount = r2(otData.hours * hourlyRate * config.payroll_overtime_multiplier);
 
-    const grossEarnings = r2(gross + overtimeAmount);
+    // Incentive amount (approved incentives for this month)
+    const empIncentive = incentiveByEmp[emp.id] || { total: 0 };
+    const incentiveAmount = r2(empIncentive.total);
+
+    const grossEarnings = r2(gross + overtimeAmount + incentiveAmount);
 
     // ── DEDUCTIONS ──
-    // SSF
-    const employeeSsf = config.payroll_ssf_enabled ? r2(basic * config.payroll_ssf_employee_pct / 100) : 0;
-    const employerSsf = config.payroll_ssf_enabled ? r2(basic * config.payroll_ssf_employer_pct / 100) : 0;
+    // SSF (from TaxConfig if available, else from payroll config)
+    const employeeSsf = ssfEnabled ? r2(basic * ssfEmployeePct / 100) : 0;
+    const employerSsf = ssfEnabled ? r2(basic * ssfEmployerPct / 100) : 0;
+
+    // PF (Provident Fund) — from TaxConfig
+    const employeePf = r2(basic * pfEmployeePct / 100);
+    const employerPf = r2(basic * pfEmployerPct / 100);
+
+    // CIT (Citizen Investment Trust) — from TaxConfig
+    const employeeCit = r2(basic * citEmployeePct / 100);
 
     // TDS (Tax Deducted at Source)
-    // Annual taxable = (gross - employee_ssf) * 12
+    // Annual taxable = (gross - employee_ssf - employee_pf - employee_cit) * 12
     const annualGross = grossEarnings * 12;
     const annualSsf = employeeSsf * 12;
-    const annualTaxable = annualGross - annualSsf;
-    // Select tax slabs based on marital status (if available, default to single)
-    const taxSlabs = config.payroll_tax_slabs_single; // TODO: marital status per employee
+    const annualPf = employeePf * 12;
+    const annualCit = employeeCit * 12;
+    const annualTaxable = annualGross - annualSsf - annualPf - annualCit;
+    // Select tax slabs based on marital status
+    const taxSlabs = (emp.gender === 'female' || emp.maritalStatus === 'married') ? marriedSlabs : singleSlabs;
     const annualTax = calculateAnnualTax(Math.max(0, annualTaxable), taxSlabs);
     const tds = r2(annualTax / 12);
 
@@ -364,14 +442,20 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     // Advance salary deduction
     const advanceSalaryDeduction = r2(advanceByEmp[emp.id] || 0);
 
-    // Total deductions
-    const totalDeductions = r2(employeeSsf + tds + unpaidLeaveDeduction + absenceDeduction + advanceSalaryDeduction);
+    // Festival advance deduction
+    const festivalAdvanceDeduction = r2(festivalAdvByEmp[emp.id] || 0);
+
+    // Gratuity (employer contribution, calculated but not deducted from employee)
+    const employerGratuity = r2(basic * gratuityRate / 100);
+
+    // Total deductions (PF + CIT are additional employee deductions)
+    const totalDeductions = r2(employeeSsf + employeePf + employeeCit + tds + unpaidLeaveDeduction + absenceDeduction + advanceSalaryDeduction + festivalAdvanceDeduction);
 
     // Net salary
     const netSalary = r2(grossEarnings - totalDeductions);
 
-    // Company cost
-    const companyCost = r2(grossEarnings + employerSsf);
+    // Company cost (includes employer SSF + employer PF + gratuity)
+    const companyCost = r2(grossEarnings + employerSsf + employerPf + employerGratuity);
 
     payslips.push({
       orgId,
@@ -381,6 +465,7 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       basicSalary: basic,
       allowances,
       overtimeAmount,
+      incentiveAmount,
       bonus: 0,
       grossEarnings,
       employeeSsf,
@@ -389,7 +474,13 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       unpaidLeaveDeduction,
       absenceDeduction,
       advanceSalaryDeduction,
-      otherDeductions: {},
+      otherDeductions: {
+        employeePf: employeePf,
+        employerPf: employerPf,
+        employeeCit: employeeCit,
+        festivalAdvanceDeduction: festivalAdvanceDeduction,
+        employerGratuity: employerGratuity,
+      },
       totalDeductions,
       netSalary,
       companyCost,
@@ -405,7 +496,14 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     for (const adv of advances.filter(a => a.employeeId === emp.id && a.isActive)) {
       const deduction = Number(adv.monthlyDeduction);
       const newRemaining = Math.max(0, Number(adv.remainingAmount) - deduction);
-      advanceUpdates.push({ id: adv.id, remaining: newRemaining, close: newRemaining <= 0 });
+      advanceUpdates.push({ id: adv.id, remaining: newRemaining, close: newRemaining <= 0, type: 'advance' });
+    }
+
+    // Track festival advance deductions to update remaining
+    for (const fa of festivalAdvances.filter(a => a.employeeId === emp.id && Number(a.remainingAmount) > 0)) {
+      const deduction = Math.min(Number(fa.monthlyDeduction), Number(fa.remainingAmount));
+      const newRemaining = Math.max(0, Number(fa.remainingAmount) - deduction);
+      advanceUpdates.push({ id: fa.id, remaining: newRemaining, close: newRemaining <= 0, type: 'festival' });
     }
   }
 
@@ -429,12 +527,22 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       })
     ),
     // Update advance salary remaining amounts
-    ...advanceUpdates.map(u =>
+    ...advanceUpdates.filter(u => u.type === 'advance').map(u =>
       prisma.advanceSalary.update({
         where: { id: u.id },
         data: {
           remainingAmount: u.remaining,
           isActive: !u.close,
+        },
+      })
+    ),
+    // Update festival advance remaining amounts
+    ...advanceUpdates.filter(u => u.type === 'festival').map(u =>
+      prisma.festivalAdvance.update({
+        where: { id: u.id },
+        data: {
+          remainingAmount: u.remaining,
+          status: u.close ? 'COMPLETED' : 'DISBURSED',
         },
       })
     ),
@@ -558,6 +666,10 @@ async function markAsPaid({ orgId, year, month, adminId, req }) {
     data: { status: 'PAID' },
   });
 
+  // Mark linked incentives as PAID
+  const { markIncentivesPaid } = require('./incentive.service');
+  await markIncentivesPaid({ orgId, year, month });
+
   await auditLog({
     orgId,
     actorId: adminId,
@@ -579,37 +691,45 @@ async function exportPayslips({ orgId, year, month }) {
 
   const header = [
     'Employee Code', 'Name', 'Department', 'Designation',
-    'Basic Salary', 'Allowances', 'Overtime', 'Gross Earnings',
-    'SSF (Employee)', 'SSF (Employer)', 'TDS',
-    'Unpaid Leave Ded.', 'Absence Ded.', 'Advance Salary Ded.',
+    'Basic Salary', 'Allowances', 'Overtime', 'Incentive', 'Gross Earnings',
+    'SSF (Employee)', 'SSF (Employer)', 'PF (Employee)', 'PF (Employer)', 'CIT', 'TDS',
+    'Unpaid Leave Ded.', 'Absence Ded.', 'Advance Salary Ded.', 'Festival Advance Ded.',
     'Total Deductions', 'Net Salary', 'Company Cost',
     'Work Days', 'Present', 'Absent', 'OT Hours', 'Status',
   ];
 
-  const rows = payslips.map(p => [
-    p.employee.employeeCode,
-    p.employee.name,
-    p.employee.department,
-    p.employee.designation,
-    Number(p.basicSalary),
-    Object.values(p.allowances || {}).reduce((a, b) => a + Number(b), 0),
-    Number(p.overtimeAmount),
-    Number(p.grossEarnings),
-    Number(p.employeeSsf),
-    Number(p.employerSsf),
-    Number(p.tds),
-    Number(p.unpaidLeaveDeduction),
-    Number(p.absenceDeduction),
-    Number(p.advanceSalaryDeduction),
-    Number(p.totalDeductions),
-    Number(p.netSalary),
-    Number(p.companyCost),
-    p.totalWorkDays,
-    p.presentDays,
-    p.absentDays,
-    Number(p.overtimeHours),
-    p.status,
-  ]);
+  const rows = payslips.map(p => {
+    const other = p.otherDeductions || {};
+    return [
+      p.employee.employeeCode,
+      p.employee.name,
+      p.employee.department,
+      p.employee.designation,
+      Number(p.basicSalary),
+      Object.values(p.allowances || {}).reduce((a, b) => a + Number(b), 0),
+      Number(p.overtimeAmount),
+      Number(p.incentiveAmount || 0),
+      Number(p.grossEarnings),
+      Number(p.employeeSsf),
+      Number(p.employerSsf),
+      Number(other.employeePf || 0),
+      Number(other.employerPf || 0),
+      Number(other.employeeCit || 0),
+      Number(p.tds),
+      Number(p.unpaidLeaveDeduction),
+      Number(p.absenceDeduction),
+      Number(p.advanceSalaryDeduction),
+      Number(other.festivalAdvanceDeduction || 0),
+      Number(p.totalDeductions),
+      Number(p.netSalary),
+      Number(p.companyCost),
+      p.totalWorkDays,
+      p.presentDays,
+      p.absentDays,
+      Number(p.overtimeHours),
+      p.status,
+    ];
+  });
 
   return { header, rows, totalRecords: rows.length };
 }

@@ -24,11 +24,13 @@ async function refreshAccessToken() {
 
   const data = await res.json();
   localStorage.setItem('token', data.token);
-  localStorage.setItem('refreshToken', data.refreshToken);
+  if (data.refreshToken) {
+    localStorage.setItem('refreshToken', data.refreshToken);
+  }
   return data.token;
 }
 
-export async function request(endpoint, options = {}) {
+export async function request(endpoint, options = {}, raw = false) {
   const token = localStorage.getItem('token');
   const isFormData = options.body instanceof FormData;
   const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
@@ -39,8 +41,20 @@ export async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
+  // Serialize params to query string
+  let url = `${API_BASE}${endpoint}`;
+  if (options.params && typeof options.params === 'object') {
+    const qs = new URLSearchParams();
+    Object.entries(options.params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+    });
+    const qsStr = qs.toString();
+    if (qsStr) url += (url.includes('?') ? '&' : '?') + qsStr;
+  }
+
+  const { params, ...fetchOptions } = options;
+  const res = await fetch(url, {
+    ...fetchOptions,
     headers,
   });
 
@@ -63,6 +77,15 @@ export async function request(endpoint, options = {}) {
     } catch {
       // Refresh failed, propagate the original error
     }
+  }
+
+  // Handle raw responses (e.g., CSV exports)
+  if (raw) {
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || 'Request failed');
+    }
+    return res;
   }
 
   const data = await res.json();

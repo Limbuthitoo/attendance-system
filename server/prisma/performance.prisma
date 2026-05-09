@@ -1,0 +1,112 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// PERFORMANCE — KPIs, Scores, Review Cycles, Performance Reviews
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KpiDefinition {
+  id               String   @id @default(uuid()) @db.Uuid
+  orgId            String   @map("org_id") @db.Uuid
+  name             String
+  description      String?
+  unit             String   @default("number")
+  targetValue      Decimal  @default(0) @map("target_value") @db.Decimal(12, 2)
+  weight           Decimal  @default(1) @map("weight") @db.Decimal(5, 2)
+  department       String?
+  designation      String?
+  frequency        String   @default("monthly")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdBy        String   @map("created_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator          Employee     @relation("kpi_creator", fields: [createdBy], references: [id])
+  scores           KpiScore[]
+
+  @@unique([orgId, name])
+  @@map("kpi_definitions")
+  @@schema("performance")
+}
+
+model KpiScore {
+  id             String   @id @default(uuid()) @db.Uuid
+  orgId          String   @map("org_id") @db.Uuid
+  kpiId          String   @map("kpi_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  year           Int
+  month          Int
+  actualValue    Decimal  @default(0) @map("actual_value") @db.Decimal(12, 2)
+  score          Decimal  @default(0) @db.Decimal(5, 2)
+  notes          String?
+  scoredBy       String?  @map("scored_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  org            Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  kpi            KpiDefinition @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  employee       Employee      @relation("kpi_employee", fields: [employeeId], references: [id])
+  scorer         Employee?     @relation("kpi_scorer", fields: [scoredBy], references: [id])
+
+  @@unique([kpiId, employeeId, year, month])
+  @@index([orgId, employeeId, year, month])
+  @@map("kpi_scores")
+  @@schema("performance")
+}
+
+model ReviewCycle {
+  id            String       @id @default(uuid()) @db.Uuid
+  orgId         String       @map("org_id") @db.Uuid
+  name          String
+  description   String?
+  year          Int
+  quarter       Int?
+  startDate     DateTime     @map("start_date") @db.Date
+  endDate       DateTime     @map("end_date") @db.Date
+  status        ReviewStatus @default(DRAFT)
+  createdBy     String       @map("created_by") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator       Employee     @relation("review_creator", fields: [createdBy], references: [id])
+  reviews       PerformanceReview[]
+
+  @@index([orgId, year])
+  @@map("review_cycles")
+  @@schema("performance")
+}
+
+model PerformanceReview {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  cycleId        String       @map("cycle_id") @db.Uuid
+  employeeId     String       @map("employee_id") @db.Uuid
+  reviewerId     String?      @map("reviewer_id") @db.Uuid
+  overallScore   Decimal?     @map("overall_score") @db.Decimal(5, 2)
+  selfRating     Decimal?     @map("self_rating") @db.Decimal(5, 2)
+  managerRating  Decimal?     @map("manager_rating") @db.Decimal(5, 2)
+  strengths      String?
+  improvements   String?
+  comments       String?
+  status         ReviewStatus @default(DRAFT)
+  completedAt    DateTime?    @map("completed_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  org            Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cycle          ReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee       Employee         @relation("review_employee", fields: [employeeId], references: [id])
+  reviewer       Employee?        @relation("review_reviewer", fields: [reviewerId], references: [id])
+
+  @@unique([cycleId, employeeId])
+  @@index([orgId, employeeId])
+  @@map("performance_reviews")
+  @@schema("performance")
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  @@schema("performance")
+}

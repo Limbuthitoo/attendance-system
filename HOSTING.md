@@ -1,6 +1,6 @@
-# Archisys Attendance — Hosting & Deployment Guide
+# Archisys — Hosting & Deployment Guide
 
-Production hosting guide for the multi-tenant attendance SaaS platform.
+Production hosting guide for the multi-tenant HR & Business SaaS platform.
 
 ---
 
@@ -23,7 +23,7 @@ Production hosting guide for the multi-tenant attendance SaaS platform.
 
 | Requirement | Minimum |
 |-------------|---------|
-| VPS | Ubuntu 22.04+, 2 vCPU, 2 GB RAM, 40 GB SSD |
+| VPS | Ubuntu 22.04+, 2 vCPU, 4 GB RAM, 60 GB SSD |
 | Domain | A domain with DNS pointing to your VPS IP |
 | Docker | Docker Engine 24+ with Compose V2 |
 | Git | Access to the repository |
@@ -112,16 +112,18 @@ VITE_API_URL=https://yourdomain.com
 
 ### 3.2 Docker Compose Services
 
-The `docker-compose.yml` runs 6 services:
+The `docker-compose.yml` runs 8 services:
 
-| Service | Image | Purpose |
-|---------|-------|---------|
-| `postgres` | postgres:16-alpine | Primary database |
-| `redis` | redis:7-alpine | Cache, session store, job queue |
-| `api` | ./server (Dockerfile) | Express API server on :3001 |
-| `worker` | ./server (Dockerfile) | BullMQ background worker (email, push, scheduler) |
-| `web` | ./web (Dockerfile) | Nginx serving the React SPA on :8080 |
-| `backup` | postgres:16-alpine | Daily database backups at 2 AM UTC |
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| `postgres` | postgres:16-alpine | 5432 | Primary database (12 schemas, 96 models) |
+| `redis` | redis:7-alpine | 6379 | Cache, session store, job queue, pub/sub |
+| `api` | ./server (Dockerfile) | 3001 | Main Express API server (auth, attendance, leaves, payroll, HRM, etc.) |
+| `worker` | ./server (Dockerfile) | — | BullMQ background worker (email, push, scheduler) |
+| `accounting` | ./server (Dockerfile) | 3010 | Accounting & Billing microservice |
+| `crm` | ./server (Dockerfile) | 3011 | CRM microservice (pipelines, leads, deals, campaigns) |
+| `web` | ./web (Dockerfile) | 8080 | Nginx serving the React SPA + reverse proxy to microservices |
+| `backup` | postgres:16-alpine | — | Daily database backups at 2 AM UTC |
 
 ### 3.3 Start All Services
 
@@ -280,12 +282,12 @@ sudo systemctl enable --now attendance-webhook
 `deploy.sh` performs:
 1. Pre-deploy database backup
 2. `git pull origin main`
-3. `prisma migrate deploy` (inside the API container)
-4. Rebuild and restart `api` + `worker` containers
-5. Health check
+3. `prisma db push` (inside the API container)
+4. Rebuild and restart `api`, `worker`, `accounting`, `crm` containers
+5. Health check on all services
 6. `npm install && npm run build` for the web frontend
-7. Copy built assets to the Nginx document root
-8. Reload Nginx
+7. Rebuild and restart the `web` container
+8. Verify all endpoints respond
 
 To deploy manually:
 ```bash
@@ -522,6 +524,8 @@ docker compose exec api npx prisma migrate deploy
 | Large database | Add read replicas, enable connection pooling (PgBouncer) |
 | Many orgs | Consider partitioning by org; the current shared-DB model handles hundreds of orgs |
 | Queue bottleneck | Run multiple worker containers |
+| CRM/Accounting load | Scale microservices independently (separate containers) |
+| Storage growth | Monitor `app-data` volume (branding, APKs); add object storage (S3) for large files |
 
 ---
 

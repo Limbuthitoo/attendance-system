@@ -18,6 +18,7 @@ const { closeQueues } = require('./config/queue');
 
 const v1Routes = require('./routes/v1');
 const platformRoutes = require('./routes/platform');
+const { initModules, getEventSubscriptions } = require('./modules');
 
 const app = express();
 
@@ -76,14 +77,17 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  // Default per-IP key generator handles IPv6 correctly
 });
 
 // ── Health check ────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
+  const { eventBus } = require('./lib/eventBus');
   res.json({
     status: 'ok',
     version: '2.0.0',
     timestamp: new Date().toISOString(),
+    eventBus: eventBus.status(),
   });
 });
 
@@ -183,11 +187,22 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // ── Start server ────────────────────────────────────────────────────────────
+// Initialize all modules (registers event subscriptions)
+initModules();
+
+// Connect event bus to Redis pub/sub (graceful fallback to in-process)
+const { eventBus } = require('./lib/eventBus');
+eventBus.connectRedis().catch(() => {});
+
 const server = app.listen(config.port, () => {
   console.log(`✓ Attendance SaaS API running on port ${config.port} [${config.nodeEnv}]`);
   console.log(`  API v1:     http://localhost:${config.port}/api/v1`);
   console.log(`  Platform:   http://localhost:${config.port}/api/platform`);
   console.log(`  Health:     http://localhost:${config.port}/api/health`);
+  const subs = getEventSubscriptions();
+  if (Object.keys(subs).length > 0) {
+    console.log(`  Events:     ${Object.entries(subs).map(([e, m]) => `${e} → [${m.join(', ')}]`).join(', ')}`);
+  }
 });
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────

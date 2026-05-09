@@ -80,13 +80,17 @@ export default function Settings() {
   function checkBranding() {
     const token = localStorage.getItem('token');
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    fetch(`${apiBase}/settings/branding/logo`, { headers }).then(r => {
-      if (r.ok) setLogoUrl(`${apiBase}/settings/branding/logo?t=${Date.now()}`);
-      else setLogoUrl(null);
+    fetch(`${apiBase}/settings/branding/logo`, { headers }).then(async r => {
+      if (r.ok) {
+        const blob = await r.blob();
+        setLogoUrl(URL.createObjectURL(blob));
+      } else setLogoUrl(null);
     }).catch(() => setLogoUrl(null));
-    fetch(`${apiBase}/settings/branding/favicon`, { headers }).then(r => {
-      if (r.ok) setFaviconUrl(`${apiBase}/settings/branding/favicon?t=${Date.now()}`);
-      else setFaviconUrl(null);
+    fetch(`${apiBase}/settings/branding/favicon`, { headers }).then(async r => {
+      if (r.ok) {
+        const blob = await r.blob();
+        setFaviconUrl(URL.createObjectURL(blob));
+      } else setFaviconUrl(null);
     }).catch(() => setFaviconUrl(null));
   }
 
@@ -187,9 +191,15 @@ export default function Settings() {
         await uploadFile('logo', pendingLogo.file);
         URL.revokeObjectURL(pendingLogo.preview);
         setPendingLogo(null);
-        const newLogoUrl = `${apiBase}/settings/branding/logo?t=${Date.now()}`;
-        setLogoUrl(newLogoUrl);
-        logoDetail = newLogoUrl;
+        // Fetch the newly uploaded logo as blob for display
+        const token = localStorage.getItem('token');
+        const logoRes = await fetch(`${apiBase}/settings/branding/logo`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (logoRes.ok) {
+          const blob = await logoRes.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setLogoUrl(blobUrl);
+          logoDetail = blobUrl;
+        }
       } else if (removeLogo) {
         await api._request('/settings/branding/logo', { method: 'DELETE' });
         setLogoUrl(null);
@@ -203,9 +213,15 @@ export default function Settings() {
         await uploadFile('favicon', pendingFavicon.file);
         URL.revokeObjectURL(pendingFavicon.preview);
         setPendingFavicon(null);
-        const newFaviconUrl = `${apiBase}/settings/branding/favicon?t=${Date.now()}`;
-        setFaviconUrl(newFaviconUrl);
-        faviconDetail = newFaviconUrl;
+        // Fetch the newly uploaded favicon as blob for display
+        const token = localStorage.getItem('token');
+        const favRes = await fetch(`${apiBase}/settings/branding/favicon`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (favRes.ok) {
+          const blob = await favRes.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setFaviconUrl(blobUrl);
+          faviconDetail = blobUrl;
+        }
       } else if (removeFavicon) {
         await api._request('/settings/branding/favicon', { method: 'DELETE' });
         setFaviconUrl(null);

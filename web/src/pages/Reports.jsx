@@ -79,7 +79,8 @@ export default function Reports() {
 
   const handleExport = async () => {
     try {
-      const blob = await api.exportAttendanceCsv(startDate, endDate, branchId);
+      const res = await api.exportAttendanceCsv(startDate, endDate, branchId);
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

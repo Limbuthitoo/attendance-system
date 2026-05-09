@@ -13,7 +13,7 @@ const { getPrisma } = require('../lib/prisma');
  *
  * Populates req.user with employee + org context.
  */
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   const cookieToken = req.cookies?.access_token;
   const queryToken = req.query.token;  // SSE fallback
@@ -35,7 +35,7 @@ function authenticate(req, res, next) {
     }
 
     const prisma = getPrisma();
-    prisma.employee.findFirst({
+    const user = await prisma.employee.findFirst({
       where: { id: decoded.id, isActive: true },
       select: {
         id: true,
@@ -47,7 +47,6 @@ function authenticate(req, res, next) {
         designation: true,
         mustChangePassword: true,
         employeeRoles: {
-          where: { role: { isActive: undefined } },  // all roles
           select: {
             branchId: true,
             role: { select: { name: true, permissions: true } },
@@ -63,46 +62,47 @@ function authenticate(req, res, next) {
           take: 1,
         },
       },
-    }).then((user) => {
-      if (!user) {
-        return res.status(401).json({ error: 'User not found or inactive' });
-      }
+    });
 
-      // Flatten roles and permissions
-      const roles = user.employeeRoles.map((er) => er.role.name);
-      const permissions = new Set();
-      for (const er of user.employeeRoles) {
-        const perms = Array.isArray(er.role.permissions) ? er.role.permissions : [];
-        perms.forEach((p) => permissions.add(p));
-      }
+    if (!user) {
+      return res.status(401).json({ error: 'User not found or inactive' });
+    }
 
-      // Backward compat: derive legacy 'role' string for old web/mobile clients
-      const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
+    // Flatten roles and permissions
+    const roles = user.employeeRoles.map((er) => er.role.name);
+    const permissions = new Set();
+    for (const er of user.employeeRoles) {
+      const perms = Array.isArray(er.role.permissions) ? er.role.permissions : [];
+      perms.forEach((p) => permissions.add(p));
+    }
+
+    // Backward compat: derive legacy 'role' string for old web/mobile clients
+    const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
         ? 'admin'
         : 'employee';
 
-      req.user = {
-        id: user.id,
-        orgId: user.orgId,
-        employeeCode: user.employeeCode,
-        name: user.name,
-        email: user.email,
-        department: user.department,
-        designation: user.designation,
-        mustChangePassword: user.mustChangePassword,
-        role,         // backward compat: 'admin' or 'employee'
-        roles,
-        permissions: [...permissions],
-        currentAssignment: user.assignments[0] || null,
-      };
+    req.user = {
+      id: user.id,
+      orgId: user.orgId,
+      employeeCode: user.employeeCode,
+      name: user.name,
+      email: user.email,
+      department: user.department,
+      designation: user.designation,
+      mustChangePassword: user.mustChangePassword,
+      role,         // backward compat: 'admin' or 'employee'
+      roles,
+      permissions: [...permissions],
+      currentAssignment: user.assignments[0] || null,
+    };
 
-      next();
-    }).catch((err) => {
-      console.error('Auth lookup error:', err);
-      return res.status(500).json({ error: 'Internal server error' });
-    });
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    next();
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    console.error('Auth lookup error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 

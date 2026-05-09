@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, BarChart3, DollarSign, Navigation, CreditCard, FileText, ChevronDown, Lock, HelpCircle
+  LayoutDashboard, Clock, CalendarDays, Users, ClipboardCheck, LogOut, Menu, X, Activity, Settings, UserCircle, CalendarRange, Star, Smartphone, Megaphone, ClipboardList, MapPin, Shield, BarChart3, DollarSign, Navigation, CreditCard, FileText, ChevronDown, Lock, HelpCircle, Trophy, Target, TrendingUp, CheckSquare, FolderKanban, UserPlus, Gift, Calculator, Receipt, BookOpen, UserMinus, Briefcase, Package, GitBranch
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell';
@@ -94,6 +94,7 @@ export default function Layout() {
         { to: '/attendance', icon: Clock, label: 'My Attendance', module: 'attendance' },
         { to: '/leaves', icon: CalendarDays, label: 'My Leaves', module: 'leave' },
         { to: '/leave-calendar', icon: CalendarRange, label: 'Monthly Calendar', module: 'leave' },
+        { to: '/self-service', icon: Package, label: 'Self Service' },
         { to: '/profile', icon: UserCircle, label: 'My Profile' },
       ],
     },
@@ -108,6 +109,54 @@ export default function Layout() {
             ],
           },
           {
+            label: 'HR & Payroll',
+            items: [
+              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime', module: 'payroll' },
+              { to: '/statutory', icon: Calculator, label: 'Statutory (SSF/CIT/PF)' },
+              { to: '/compensation', icon: TrendingUp, label: 'Compensation' },
+              { to: '/incentives', icon: Trophy, label: 'Incentives', module: 'incentive' },
+              { to: '/bonuses', icon: Gift, label: 'Bonuses', module: 'bonus' },
+              { to: '/referrals', icon: UserPlus, label: 'Referrals', module: 'referral' },
+              { to: '/performance', icon: Target, label: 'Performance', module: 'performance' },
+            ],
+          },
+          {
+            label: 'HR Lifecycle',
+            items: [
+              { to: '/recruitment', icon: Briefcase, label: 'Recruitment' },
+              { to: '/onboarding', icon: UserPlus, label: 'Onboarding' },
+              { to: '/separation', icon: UserMinus, label: 'Separation' },
+              { to: '/training', icon: BookOpen, label: 'Training' },
+              { to: '/org-chart', icon: GitBranch, label: 'Org Chart' },
+            ],
+          },
+          {
+            label: 'Projects & Tasks',
+            items: [
+              { to: '/projects', icon: FolderKanban, label: 'Projects', module: 'project' },
+              { to: '/tasks', icon: CheckSquare, label: 'Tasks', module: 'task' },
+            ],
+          },
+          {
+            label: 'Finance',
+            items: [
+              { to: '/accounting', icon: Calculator, label: 'Accounting', module: 'accounting' },
+              { to: '/billing', icon: Receipt, label: 'Billing', module: 'billing' },
+            ],
+          },
+          {
+            label: 'CRM',
+            items: [
+              { to: '/crm', icon: Target, label: 'CRM', module: 'crm' },
+            ],
+          },
+          {
+            label: 'Reports',
+            items: [
+              { to: '/reports', icon: BarChart3, label: 'Reports', module: 'report' },
+            ],
+          },
+          {
             label: 'Organization',
             items: [
               { to: '/branches', icon: MapPin, label: 'Branches' },
@@ -118,20 +167,13 @@ export default function Layout() {
             ],
           },
           {
-            label: 'Reports',
-            items: [
-              { to: '/reports', icon: BarChart3, label: 'Reports', module: 'report' },
-              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime', module: 'payroll' },
-            ],
-          },
-          {
             label: 'Configuration',
             items: [
               { to: '/settings', icon: Settings, label: 'General Settings' },
               { to: '/holidays', icon: Star, label: 'Holidays', module: 'holiday' },
               { to: '/geofence', icon: Navigation, label: 'Geofence', module: 'geofence' },
-              { to: '/nfc', icon: CreditCard, label: 'NFC Management', module: 'device' },
               { to: '/devices', icon: Smartphone, label: 'Devices', module: 'device' },
+              { to: '/nfc', icon: CreditCard, label: 'NFC Management', module: 'device' },
             ],
           },
         ]

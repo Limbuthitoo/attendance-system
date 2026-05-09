@@ -46,8 +46,9 @@ function requireModule(...moduleCodes) {
       }
 
       next();
-    } catch {
-      next();
+    } catch (err) {
+      console.error('Module guard error:', err.message);
+      return res.status(500).json({ error: 'Unable to verify module access' });
     }
   };
 }

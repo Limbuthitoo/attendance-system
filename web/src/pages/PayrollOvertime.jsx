@@ -293,7 +293,13 @@ function PayslipDetailModal({ payslip, onClose }) {
             <h4 className="text-sm font-semibold text-red-700 border-b border-red-100 pb-2 mb-3">Deductions</h4>
             <div className="space-y-2 text-sm">
               {Number(p.employeeSsf) > 0 && (
-                <div className="flex justify-between"><span className="text-slate-600">SSF (Employee 11%)</span><span>Rs. {fmt(p.employeeSsf)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">SSF (Employee)</span><span>Rs. {fmt(p.employeeSsf)}</span></div>
+              )}
+              {Number((p.otherDeductions || {}).employeePf) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-600">Provident Fund (Employee)</span><span>Rs. {fmt(p.otherDeductions.employeePf)}</span></div>
+              )}
+              {Number((p.otherDeductions || {}).employeeCit) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-600">CIT (Employee)</span><span>Rs. {fmt(p.otherDeductions.employeeCit)}</span></div>
               )}
               {Number(p.tds) > 0 && (
                 <div className="flex justify-between"><span className="text-slate-600">TDS (Income Tax)</span><span>Rs. {fmt(p.tds)}</span></div>
@@ -307,6 +313,9 @@ function PayslipDetailModal({ payslip, onClose }) {
               {Number(p.advanceSalaryDeduction) > 0 && (
                 <div className="flex justify-between"><span className="text-slate-600">Advance Salary</span><span>Rs. {fmt(p.advanceSalaryDeduction)}</span></div>
               )}
+              {Number((p.otherDeductions || {}).festivalAdvanceDeduction) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-600">Festival Advance</span><span>Rs. {fmt(p.otherDeductions.festivalAdvanceDeduction)}</span></div>
+              )}
               <div className="flex justify-between font-bold pt-2 border-t border-red-100">
                 <span>Total Deductions</span><span className="text-red-700">Rs. {fmt(p.totalDeductions)}</span>
               </div>
@@ -316,15 +325,27 @@ function PayslipDetailModal({ payslip, onClose }) {
 
         {/* Summary */}
         <div className="mt-6 bg-slate-50 rounded-xl p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
               <span className="text-xs text-slate-500 block">Net Salary</span>
               <span className="text-xl font-bold text-primary-700">Rs. {fmt(p.netSalary)}</span>
             </div>
             <div>
-              <span className="text-xs text-slate-500 block">Employer SSF (20%)</span>
+              <span className="text-xs text-slate-500 block">Employer SSF</span>
               <span className="text-lg font-semibold text-slate-700">Rs. {fmt(p.employerSsf)}</span>
             </div>
+            {Number((p.otherDeductions || {}).employerPf) > 0 && (
+              <div>
+                <span className="text-xs text-slate-500 block">Employer PF</span>
+                <span className="text-lg font-semibold text-slate-700">Rs. {fmt(p.otherDeductions.employerPf)}</span>
+              </div>
+            )}
+            {Number((p.otherDeductions || {}).employerGratuity) > 0 && (
+              <div>
+                <span className="text-xs text-slate-500 block">Gratuity</span>
+                <span className="text-lg font-semibold text-slate-700">Rs. {fmt(p.otherDeductions.employerGratuity)}</span>
+              </div>
+            )}
             <div>
               <span className="text-xs text-slate-500 block">Company Cost</span>
               <span className="text-lg font-semibold text-slate-700">Rs. {fmt(p.companyCost)}</span>
@@ -444,7 +465,8 @@ export default function PayrollOvertime() {
 
   const handleExportPayslips = async () => {
     try {
-      const blob = await api.exportPayslipsCsv(year, month);
+      const res = await api.exportPayslipsCsv(year, month);
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = `payslips-${year}-${String(month).padStart(2, '0')}.csv`;
@@ -874,6 +896,12 @@ export default function PayrollOvertime() {
           <h3 className="text-lg font-semibold">Payroll Configuration</h3>
           <p className="text-sm text-slate-500">These settings control how payslips are calculated. Changes apply to future generations.</p>
 
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            <strong>Note:</strong> SSF rates, PF rates, CIT rates, and tax slabs are now managed per fiscal year in{' '}
+            <a href="/statutory" className="font-medium text-amber-900 underline hover:text-amber-700">Nepal Statutory Compliance</a>.
+            The payroll engine automatically picks the correct rates for each payslip based on the fiscal year. The fallback defaults below are used only if no fiscal year tax config exists.
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Basic Salary %</label>
@@ -881,20 +909,6 @@ export default function PayrollOvertime() {
                 onChange={e => setConfig(c => ({ ...c, payroll_basic_salary_pct: parseFloat(e.target.value) }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
               <span className="text-xs text-slate-500">Basic = Gross x this %</span>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">SSF Employee %</label>
-              <input type="number" step="0.5" value={config.payroll_ssf_employee_pct}
-                onChange={e => setConfig(c => ({ ...c, payroll_ssf_employee_pct: parseFloat(e.target.value) }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-              <span className="text-xs text-slate-500">Employee contribution on basic</span>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">SSF Employer %</label>
-              <input type="number" step="0.5" value={config.payroll_ssf_employer_pct}
-                onChange={e => setConfig(c => ({ ...c, payroll_ssf_employer_pct: parseFloat(e.target.value) }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-              <span className="text-xs text-slate-500">Employer contribution on basic</span>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">OT Rate Multiplier</label>
@@ -908,27 +922,49 @@ export default function PayrollOvertime() {
                 onChange={e => setConfig(c => ({ ...c, payroll_working_hours_per_day: parseFloat(e.target.value) }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
             </div>
-            <div>
-              <label className="flex items-center gap-2 mt-6">
-                <input type="checkbox" checked={config.payroll_ssf_enabled}
-                  onChange={e => setConfig(c => ({ ...c, payroll_ssf_enabled: e.target.checked }))}
-                  className="rounded" />
-                <span className="text-sm text-slate-700">SSF Enabled</span>
-              </label>
-            </div>
           </div>
 
-          <TaxSlabEditor
-            label="Nepal Tax Slabs (Single) — Annual"
-            value={config.payroll_tax_slabs_single}
-            onChange={val => setConfig(c => ({ ...c, payroll_tax_slabs_single: val }))}
-          />
+          <details className="border border-slate-200 rounded-lg">
+            <summary className="px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer hover:bg-slate-50">
+              Fallback Defaults (used when no fiscal year tax config exists)
+            </summary>
+            <div className="p-4 space-y-4 border-t border-slate-200 bg-slate-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">SSF Employee %</label>
+                  <input type="number" step="0.5" value={config.payroll_ssf_employee_pct}
+                    onChange={e => setConfig(c => ({ ...c, payroll_ssf_employee_pct: parseFloat(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">SSF Employer %</label>
+                  <input type="number" step="0.5" value={config.payroll_ssf_employer_pct}
+                    onChange={e => setConfig(c => ({ ...c, payroll_ssf_employer_pct: parseFloat(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 mt-6">
+                    <input type="checkbox" checked={config.payroll_ssf_enabled}
+                      onChange={e => setConfig(c => ({ ...c, payroll_ssf_enabled: e.target.checked }))}
+                      className="rounded" />
+                    <span className="text-sm text-slate-700">SSF Enabled</span>
+                  </label>
+                </div>
+              </div>
 
-          <TaxSlabEditor
-            label="Nepal Tax Slabs (Married) — Annual"
-            value={config.payroll_tax_slabs_married}
-            onChange={val => setConfig(c => ({ ...c, payroll_tax_slabs_married: val }))}
-          />
+              <TaxSlabEditor
+                label="Fallback Tax Slabs (Single) — Annual"
+                value={config.payroll_tax_slabs_single}
+                onChange={val => setConfig(c => ({ ...c, payroll_tax_slabs_single: val }))}
+              />
+
+              <TaxSlabEditor
+                label="Fallback Tax Slabs (Married) — Annual"
+                value={config.payroll_tax_slabs_married}
+                onChange={val => setConfig(c => ({ ...c, payroll_tax_slabs_married: val }))}
+              />
+            </div>
+          </details>
 
           <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">
             Save Configuration

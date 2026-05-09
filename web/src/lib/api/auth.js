@@ -8,5 +8,5 @@ export const auth = {
   addEmergencyContact: (data) => request('/auth/profile/emergency-contacts', { method: 'POST', body: JSON.stringify(data) }),
   deleteEmergencyContact: (id) => request(`/auth/profile/emergency-contacts/${id}`, { method: 'DELETE' }),
   changePassword: (currentPassword, newPassword) =>
-    request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
+    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 };

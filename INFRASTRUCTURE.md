@@ -1,6 +1,6 @@
 # Infrastructure — System Architecture
 
-Detailed view of the Archisys Attendance platform infrastructure, service topology, and data flow.
+Detailed view of the Archisys platform infrastructure, service topology, and data flow.
 
 ---
 
@@ -17,56 +17,75 @@ Detailed view of the Archisys Attendance platform infrastructure, service topolo
                             │              HOST: Nginx Reverse Proxy               │
                             │              (Let's Encrypt SSL/TLS)                 │
                             │                                                      │
-                            │   /api/*  ──►  127.0.0.1:3001 (API container)       │
-                            │   /*      ──►  127.0.0.1:8080 (Web container)       │
-                            └────────────┬───────────────────┬────────────────────┘
-                                         │                   │
-                         ┌───────────────┘                   └───────────────┐
-                         ▼                                                   ▼
-            ┌────────────────────────┐                          ┌──────────────────┐
-            │   Docker: api (:3001)  │                          │ Docker: web (:80) │
-            │                        │                          │                   │
-            │  Express + Prisma      │                          │ Nginx + React SPA │
-            │  ├── /api/v1/*         │                          │ (Vite build)      │
-            │  ├── /api/platform/*   │                          └──────────────────┘
-            │  ├── /api/nfc/*        │
-            │  └── /api/health       │
-            │                        │
-            │  Middleware:            │
-            │  ├── JWT auth          │
-            │  ├── CSRF protection   │
-            │  ├── Tenant context    │
-            │  ├── Device auth       │
-            │  ├── Rate limiting     │
-            │  ├── XSS sanitize      │
-            │  └── Helmet            │
-            └───────┬──────┬─────────┘
-                    │      │
-          ┌─────────┘      └──────────┐
-          ▼                           ▼
-┌──────────────────┐       ┌───────────────────┐
-│ Docker: postgres │       │  Docker: redis    │
-│ PostgreSQL 16    │       │  Redis 7          │
-│                  │       │                   │
-│ 31 Prisma models │       │ ├── Session cache │
-│ Shared-DB multi- │       │ ├── BullMQ queues │
-│ tenancy (orgId)  │       │ └── Pub/Sub (SSE) │
-│                  │       │                   │
-│ Vol: pg-data     │       │ Vol: redis-data   │
-└──────────────────┘       └────────┬──────────┘
-                                    │
-                           ┌────────┘
-                           ▼
-                ┌───────────────────┐
-                │ Docker: worker    │
-                │                   │
-                │ BullMQ Workers:   │
-                │ ├── Email queue   │
-                │ ├── Push notif    │
-                │ └── Scheduler     │
-                │   (forgot-checkout│
-                │    trial-expiry)  │
-                └───────────────────┘
+                            │   /api/*  ──►  127.0.0.1:8080 (Web Nginx container) │
+                            │   /*      ──►  127.0.0.1:8080 (Web Nginx container) │
+                            └─────────────────────────┬───────────────────────────┘
+                                                      │
+                                                      ▼
+                            ┌─────────────────────────────────────────────────────┐
+                            │         Docker: web (:80) — Nginx + React SPA       │
+                            │                                                      │
+                            │   /api/(v1/)?accounting|billing  ──► accounting:3010 │
+                            │   /api/(v1/)?crm                 ──► crm:3011       │
+                            │   /api/*                         ──► api:3001       │
+                            │   /*                             ──► React SPA      │
+                            └────────┬───────────────┬────────────────┬───────────┘
+                                     │               │                │
+                    ┌────────────────┘               │                └────────────────┐
+                    ▼                                ▼                                 ▼
+       ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────────┐
+       │   Docker: api (:3001)  │  │ Docker: accounting     │  │   Docker: crm (:3011)      │
+       │                        │  │         (:3010)         │  │                            │
+       │  Express + Prisma      │  │ Express + Prisma        │  │  Express + Prisma          │
+       │  ├── /api/v1/*         │  │ ├── /api/v1/accounting  │  │  ├── /api/v1/crm/*         │
+       │  ├── /api/platform/*   │  │ ├── /api/v1/billing     │  │  │   Pipelines, Clients    │
+       │  ├── /api/nfc/*        │  │ └── Journals, Ledger,   │  │  │   Leads, Deals          │
+       │  └── /api/health       │  │     Trial Balance, P&L  │  │  │   Activities, Campaigns │
+       │                        │  │                         │  │  └── /api/health           │
+       │  Modules:              │  └────────────┬────────────┘  └──────────────┬─────────────┘
+       │  ├── Auth & RBAC       │               │                              │
+       │  ├── Attendance        │               │                              │
+       │  ├── Leaves            │               │                              │
+       │  ├── Payroll           │               │                              │
+       │  ├── HRM              │               │                              │
+       │  ├── Performance       │               │                              │
+       │  ├── Recruitment       │               │                              │
+       │  ├── Training          │               │                              │
+       │  ├── NFC / Devices     │               │                              │
+       │  ├── Notifications     │               │                              │
+       │  └── Settings          │               │                              │
+       └───────┬──────┬─────────┘               │                              │
+               │      │                         │                              │
+     ┌─────────┘      └─────────────────────────┼──────────────────────────────┘
+     ▼                                          ▼
+┌──────────────────┐                  ┌───────────────────┐
+│ Docker: postgres │                  │  Docker: redis    │
+│ PostgreSQL 16    │                  │  Redis 7          │
+│                  │                  │                   │
+│ 12 schemas:      │                  │ ├── Session cache │
+│ ├── core         │                  │ ├── BullMQ queues │
+│ ├── attendance   │                  │ ├── Pub/Sub (SSE) │
+│ ├── payroll      │                  │ └── Event bus     │
+│ ├── crm          │                  │                   │
+│ ├── accounting   │                  │ Vol: redis-data   │
+│ ├── billing      │                  └────────┬──────────┘
+│ ├── hrm          │                           │
+│ ├── performance  │                  ┌────────┘
+│ ├── devices      │                  ▼
+│ ├── platform     │       ┌────────────────────────────┐
+│ ├── recruitment  │       │ Docker: worker             │
+│ └── training-ess │       │                            │
+│                  │       │ 6 BullMQ Queues:           │
+│ 96 models total  │       │ ├── email (SMTP send)      │
+│                  │       │ ├── push (Expo Push)       │
+│ Vol: pg-data     │       │ ├── campaign (dispatch +   │
+└──────────────────┘       │ │   lead scoring)          │
+                           │ ├── report (async CSV)     │
+                           │ ├── payroll (async gen)    │
+                           │ └── scheduler (15 cron)    │
+                           │                            │
+                           │ Vol: app-data (shared)     │
+                           └────────────────────────────┘
 
                 ┌───────────────────┐
                 │ Docker: backup    │
@@ -84,25 +103,25 @@ Detailed view of the Archisys Attendance platform infrastructure, service topolo
 ## Network Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Docker Network: internal (bridge)                                  │
-│                                                                     │
-│  ┌──────────┐  ┌───────┐  ┌─────┐  ┌────────┐  ┌─────┐  ┌──────┐ │
-│  │ postgres │  │ redis │  │ api │  │ worker │  │ web │  │backup│ │
-│  │ :5432    │  │ :6379 │  │:3001│  │  (bg)  │  │ :80 │  │(cron)│ │
-│  └──────────┘  └───────┘  └──┬──┘  └────────┘  └──┬──┘  └──────┘ │
-│                               │                    │               │
-└───────────────────────────────┼────────────────────┼───────────────┘
-                                │                    │
-                    Host port 127.0.0.1:3001    Host port 127.0.0.1:8080
-                                │                    │
-                    ┌───────────┴────────────────────┴──────────────┐
-                    │         Host: Nginx (port 80/443)             │
-                    │         Public-facing reverse proxy            │
-                    └──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Docker Network: internal (bridge)                                               │
+│                                                                                  │
+│  ┌────────┐ ┌─────┐ ┌─────┐ ┌──────────┐ ┌─────┐ ┌─────┐ ┌──────┐ ┌────────┐ │
+│  │postgres│ │redis│ │ api │ │accounting│ │ crm │ │ web │ │worker│ │ backup │ │
+│  │ :5432  │ │:6379│ │:3001│ │  :3010   │ │:3011│ │ :80 │ │ (bg) │ │ (cron) │ │
+│  └────────┘ └─────┘ └──┬──┘ └────┬─────┘ └──┬──┘ └──┬──┘ └──────┘ └────────┘ │
+│                         │         │           │       │                          │
+└─────────────────────────┼─────────┼───────────┼───────┼──────────────────────────┘
+                          │         │           │       │
+              Host port :3001   Host :3010  Host :3011  Host port :8080
+                          │         │           │       │
+                    ┌─────┴─────────┴───────────┴───────┴──────────────┐
+                    │         Host: Nginx (port 80/443)                 │
+                    │         Public-facing reverse proxy                │
+                    └──────────────────────────────────────────────────┘
 ```
 
-All Docker services communicate on the `internal` bridge network. Only `api` (:3001) and `web` (:8080) bind to the host loopback. The host Nginx is the sole public entry point.
+All Docker services communicate on the `internal` bridge network. The `web` container acts as the internal reverse proxy, routing API requests to the appropriate microservice. The host Nginx handles SSL termination and is the sole public entry point.
 
 ---
 
@@ -139,15 +158,51 @@ NFC Reader ──POST /api/nfc/heartbeat──► API ──► PostgreSQL (UPDA
                                                  └──► Reader Status page shows online/offline
 ```
 
-### Background Worker
+### Background Worker (6 Queues, 15 Cron Jobs)
 
 ```
-API ──enqueue──► Redis (BullMQ) ──► Worker
-                                      ├── Email worker: SMTP → employee/admin
-                                      ├── Push worker: Expo Push → mobile devices
-                                      └── Scheduler:
-                                            ├── Forgot-checkout reminders
-                                            └── Trial expiry processing
+API ──enqueue──► Redis (BullMQ) ──► Worker Process
+                                      │
+                                      ├── Email queue
+                                      │   └── SMTP send (org-specific or env config, 3 retries)
+                                      │
+                                      ├── Push queue
+                                      │   ├── send-push → Expo Push API → mobile devices
+                                      │   └── send-push-admins → all org admins
+                                      │
+                                      ├── Campaign queue
+                                      │   ├── dispatch-campaign-emails → batch send to members
+                                      │   │   (personalization: {{name}}, {{email}})
+                                      │   │   Updates sentCount/deliveredCount per batch
+                                      │   └── calculate-lead-scores → status + campaign engagement
+                                      │
+                                      ├── Report queue
+                                      │   └── generate-report → CSV file → app-data volume
+                                      │       Types: attendance-summary, attendance-export,
+                                      │       payroll-export, leave-report, late-arrivals,
+                                      │       department-summary
+                                      │       Notifies requester when complete
+                                      │
+                                      ├── Payroll queue
+                                      │   └── generate-payroll → async computation
+                                      │       Notifies admin on success/failure
+                                      │
+                                      └── Scheduler (15 repeatable cron jobs)
+                                            ├── finalize-attendance     (daily 23:55 NPT)
+                                            ├── check-trial-expiry      (daily 00:00 NPT)
+                                            ├── leave-accrual           (monthly 1st)
+                                            ├── leave-carryover         (yearly Jan 1)
+                                            ├── device-health-check     (every 2 min)
+                                            ├── calculate-incentives    (monthly 1st 01:00)
+                                            ├── check-probation-expiry  (daily 00:30 NPT)
+                                            ├── activity-reminders      (every 30 min)
+                                            ├── birthday-anniversary    (daily 07:00 NPT)
+                                            ├── attendance-anomaly      (daily 06:00 NPT)
+                                            ├── database-cleanup        (weekly Sunday)
+                                            ├── invoice-auto-generation (monthly 1st)
+                                            ├── backup-verification     (weekly Sunday)
+                                            ├── campaign-analytics      (daily 23:30 NPT)
+                                            └── document-expiry-alerts  (daily 08:00 NPT)
 ```
 
 ---
@@ -198,27 +253,35 @@ Headers:
 ┌──────────────────────────────────────────────────────────────────┐
 │                     PostgreSQL (single instance)                  │
 │                                                                  │
-│  ┌──────────────────────┐     ┌──────────────────────┐          │
-│  │ Platform Tables       │     │ Org-Scoped Tables     │          │
-│  │ (no orgId)            │     │ (filtered by orgId)   │          │
-│  │                       │     │                       │          │
-│  │ ├── PlatformUser      │     │ ├── Employee          │          │
-│  │ ├── Organization      │     │ ├── Attendance        │          │
-│  │ ├── Plan              │     │ ├── Leave             │          │
-│  │ ├── Invoice           │     │ ├── Device            │          │
-│  │ ├── Module            │     │ ├── NfcCard (via emp) │          │
-│  │ └── AppRelease        │     │ ├── Branch            │          │
-│  │                       │     │ ├── Holiday           │          │
-│  └──────────────────────┘     │ ├── Notice            │          │
-│                                │ ├── OrgSetting        │          │
-│                                │ ├── Shift             │          │
-│                                │ ├── Role              │          │
-│                                │ └── ... (31 total)    │          │
-│                                └──────────────────────┘          │
+│  ┌──────────────────────┐     ┌──────────────────────────────┐  │
+│  │ Platform Tables       │     │ Org-Scoped Tables             │  │
+│  │ (no orgId)            │     │ (filtered by orgId)           │  │
+│  │                       │     │                               │  │
+│  │ ├── PlatformUser      │     │ core: Employee, Organization, │  │
+│  │ ├── Organization      │     │   Role, Branch, OrgSetting…  │  │
+│  │ ├── Plan              │     │ attendance: Attendance,       │  │
+│  │ ├── Invoice           │     │   Leave, Correction, QR…     │  │
+│  │ ├── Module            │     │ payroll: SalaryStructure,     │  │
+│  │ └── AppRelease        │     │   Payslip, Bonus, Incentive… │  │
+│  │                       │     │ crm: Pipeline, Client, Lead,  │  │
+│  └──────────────────────┘     │   Deal, Activity, Campaign…  │  │
+│                                │ accounting: Account, Journal, │  │
+│                                │   JournalEntry…              │  │
+│                                │ billing: Invoice, Payment…    │  │
+│                                │ hrm: Document, Policy,        │  │
+│                                │   Separation, Clearance…     │  │
+│                                │ performance: KPI, Review…     │  │
+│                                │ recruitment: Job, Applicant…  │  │
+│                                │ training: Session, Cert…      │  │
+│                                │ devices: Device, NfcCard…     │  │
+│                                │                               │  │
+│                                │ 96 models across 12 schemas   │  │
+│                                └──────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 
 Tenant isolation: tenantContext middleware injects orgId from JWT into
 every request. All queries include WHERE orgId = req.orgId.
+Microservices share the same database and verify JWT independently.
 ```
 
 ---
@@ -264,19 +327,81 @@ every request. All queries include WHERE orgId = req.orgId.
 
 ---
 
+## Microservice Communication
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Web Container (Nginx) — Internal Reverse Proxy                     │
+│                                                                     │
+│  Route Rules:                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  /api/(v1/)?(accounting|billing)  ──► http://accounting:3010  │  │
+│  │  /api/(v1/)?crm                   ──► http://crm:3011        │  │
+│  │  /api/*                           ──► http://api:3001        │  │
+│  │  /*                               ──► React SPA (static)     │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  All microservices:                                                 │
+│  ├── Share the same PostgreSQL database (different schemas)         │
+│  ├── Share the same Redis instance (event bus pub/sub)              │
+│  ├── Verify JWT independently (same JWT_SECRET)                     │
+│  └── Have independent health checks and restart policies            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### CRM Campaign Flow
+
+```
+Admin creates Campaign (type: TELEMARKETING | EMAIL | DIGITAL | SOCIAL | ...)
+  │
+  ├── POST /api/v1/crm/campaigns ──► CRM service ──► PostgreSQL (crm.crm_campaigns)
+  │
+  ├── Add members (contacts to target)
+  │   POST /api/v1/crm/campaigns/:id/members
+  │   └── PostgreSQL (crm.crm_campaign_members)
+  │
+  ├── Dispatch emails to all targeted members
+  │   POST /api/v1/crm/campaigns/:id/dispatch { subject, html }
+  │   └── Enqueues to Campaign queue ──► Worker batch-sends with personalization
+  │       ├── Updates member status: TARGETED → SENT
+  │       ├── Updates campaign sentCount/deliveredCount
+  │       └── Emails routed through Email queue for retry resilience
+  │
+  ├── Trigger lead scoring
+  │   POST /api/v1/crm/campaigns/:id/score-leads
+  │   └── Worker recalculates scores (status + campaign conversion rate)
+  │       Score: NEW=10, CONTACTED=25, QUALIFIED=40, CONVERTED=60, high-conv campaign +20
+  │
+  ├── Track funnel metrics (manual or auto from dispatch)
+  │   PUT /api/v1/crm/campaigns/:id  { sentCount, openedCount, ... }
+  │
+  ├── Generated leads link back to campaign
+  │   POST /api/v1/crm/leads  { campaignId: "..." }
+  │
+  ├── Nightly analytics snapshot (scheduler job)
+  │   └── Captures ROI, funnel metrics, lead/member counts → stored in campaign tags
+  │
+  └── Campaign stats aggregated via GET /api/v1/crm/campaigns/stats
+      └── ROI, conversion rate, by type/status breakdown
+```
+
+---
+
 ## Port Map
 
 | Service | Container Port | Host Binding | Public |
 |---------|---------------|--------------|--------|
 | PostgreSQL | 5432 | 127.0.0.1:5433 | No |
 | Redis | 6379 | 127.0.0.1:6379 | No |
-| API | 3001 | 127.0.0.1:3001 | No |
+| API (main) | 3001 | 127.0.0.1:3001 | No |
+| Accounting | 3010 | 127.0.0.1:3010 | No |
+| CRM | 3011 | 127.0.0.1:3011 | No |
 | Web (Docker Nginx) | 80 | 127.0.0.1:8080 | No |
 | Host Nginx | 80, 443 | 0.0.0.0 | **Yes** |
 | Worker | — | — | No |
 | Backup | — | — | No |
 
-Only the host Nginx (port 80/443) is exposed to the internet. All Docker services bind to loopback only.
+Only the host Nginx (port 80/443) is exposed to the internet. All Docker services bind to loopback only. The `web` container's internal Nginx handles routing between microservices based on URL prefix.
 
 ---
 
@@ -286,8 +411,10 @@ Only the host Nginx (port 80/443) is exposed to the internet. All Docker service
 |--------|---------|--------|
 | `pg-data` | PostgreSQL data directory | Daily via backup service |
 | `redis-data` | Redis RDB persistence | Not backed up (cache/queue, reconstructible) |
-| `app-data` | APK uploads, branding assets | Include in file-level backup |
+| `app-data` | APK uploads, branding assets, generated reports | Include in file-level backup |
 | `backup-data` | Database backup archives | Offsite sync recommended |
+
+> Note: `app-data` is shared between `api` and `worker` containers so generated report files are accessible for download via the API.
 
 ---
 

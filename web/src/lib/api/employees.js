@@ -10,3 +10,17 @@ export const employees = {
   unlockAccount: (id) => request(`/employees/${id}/unlock`, { method: 'POST' }),
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
 };
+
+export const departments = {
+  getDepartments: () => request('/departments'),
+  createDepartment: (data) => request('/departments', { method: 'POST', body: JSON.stringify(data) }),
+  updateDepartment: (id, data) => request(`/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteDepartment: (id) => request(`/departments/${id}`, { method: 'DELETE' }),
+};
+
+export const designations = {
+  getDesignations: () => request('/designations'),
+  createDesignation: (data) => request('/designations', { method: 'POST', body: JSON.stringify(data) }),
+  updateDesignation: (id, data) => request(`/designations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteDesignation: (id) => request(`/designations/${id}`, { method: 'DELETE' }),
+};

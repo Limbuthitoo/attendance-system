@@ -249,8 +249,6 @@ export default function Notices() {
                 key={notice.id}
                 onClick={() => {
                   setSelectedNotice(notice);
-                  // Auto-mark notification as read
-                  api.getNotice(notice.id).catch(() => {});
                 }}
                 className={`bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer group
                   ${notice.type === 'urgent' ? 'border-l-4 border-l-red-500' : ''}`}

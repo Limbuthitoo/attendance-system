@@ -1,0 +1,315 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// CRM — Pipelines, Clients, Contacts, Leads, Deals, Activities, Campaigns
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CrmPipeline {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  name        String
+  description String?
+  stages      Json     @default("[]")
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deals       CrmDeal[]
+
+  @@unique([orgId, name])
+  @@map("crm_pipelines")
+  @@schema("crm")
+}
+
+model CrmClient {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  name        String
+  email       String?
+  phone       String?
+  company     String?
+  address     String?
+  website     String?
+  industry    String?
+  type        ClientType @default(COMPANY)
+  notes       String?
+  tags        Json     @default("[]")
+  createdBy   String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator     Employee     @relation("client_creator", fields: [createdBy], references: [id])
+  contacts    CrmContact[]
+  leads       CrmLead[]
+  deals       CrmDeal[]
+  activities  CrmActivity[] @relation("activity_client")
+  campaignMemberships CrmCampaignMember[] @relation("campaign_member_client")
+
+  @@index([orgId])
+  @@map("crm_clients")
+  @@schema("crm")
+}
+
+model CrmContact {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  name        String
+  email       String?
+  phone       String?
+  designation String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client      CrmClient    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, clientId])
+  @@map("crm_contacts")
+  @@schema("crm")
+}
+
+model CrmLead {
+  id          String       @id @default(uuid()) @db.Uuid
+  orgId       String       @map("org_id") @db.Uuid
+  clientId    String?      @map("client_id") @db.Uuid
+  campaignId  String?      @map("campaign_id") @db.Uuid
+  title       String
+  source      String?
+  status      LeadStatus   @default(NEW)
+  priority    LeadPriority @default(MEDIUM)
+  value       Decimal?     @db.Decimal(12, 2)
+  score       Int          @default(0)
+  assignedTo  String?      @map("assigned_to") @db.Uuid
+  notes       String?
+  convertedDealId String?  @map("converted_deal_id") @db.Uuid
+  nextFollowUp DateTime?   @map("next_follow_up")
+  lastContactedAt DateTime? @map("last_contacted_at")
+  createdBy   String       @map("created_by") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client      CrmClient?   @relation(fields: [clientId], references: [id])
+  campaign    CrmCampaign? @relation(fields: [campaignId], references: [id])
+  assignee    Employee?    @relation("lead_assignee", fields: [assignedTo], references: [id])
+  creator     Employee     @relation("lead_creator", fields: [createdBy], references: [id])
+  activities  CrmActivity[] @relation("activity_lead")
+
+  @@index([orgId, status])
+  @@index([orgId, assignedTo])
+  @@map("crm_leads")
+  @@schema("crm")
+}
+
+model CrmDeal {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @map("org_id") @db.Uuid
+  pipelineId   String     @map("pipeline_id") @db.Uuid
+  clientId     String?    @map("client_id") @db.Uuid
+  title        String
+  value        Decimal    @default(0) @db.Decimal(12, 2)
+  currency     String     @default("NPR")
+  stage        String     @default("new")
+  status       DealStatus @default(OPEN)
+  probability  Int        @default(0)
+  expectedCloseDate DateTime? @map("expected_close_date") @db.Date
+  actualCloseDate   DateTime? @map("actual_close_date") @db.Date
+  assignedTo   String?    @map("assigned_to") @db.Uuid
+  notes        String?
+  wonAmount    Decimal?   @db.Decimal(12, 2) @map("won_amount")
+  lostReason   String?    @map("lost_reason")
+  tags         Json       @default("[]")
+  createdBy    String     @map("created_by") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  pipeline     CrmPipeline  @relation(fields: [pipelineId], references: [id])
+  client       CrmClient?   @relation(fields: [clientId], references: [id])
+  assignee     Employee?    @relation("deal_assignee", fields: [assignedTo], references: [id])
+  creator      Employee     @relation("deal_creator", fields: [createdBy], references: [id])
+  activities   CrmActivity[] @relation("activity_deal")
+
+  @@index([orgId, status])
+  @@index([orgId, assignedTo])
+  @@index([orgId, pipelineId])
+  @@map("crm_deals")
+  @@schema("crm")
+}
+
+model CrmActivity {
+  id          String       @id @default(uuid()) @db.Uuid
+  orgId       String       @map("org_id") @db.Uuid
+  type        ActivityType
+  subject     String
+  description String?
+  clientId    String?      @map("client_id") @db.Uuid
+  leadId      String?      @map("lead_id") @db.Uuid
+  dealId      String?      @map("deal_id") @db.Uuid
+  dueDate     DateTime?    @map("due_date")
+  completed   Boolean      @default(false)
+  completedAt DateTime?    @map("completed_at")
+  createdBy   String       @map("created_by") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client      CrmClient?   @relation("activity_client", fields: [clientId], references: [id])
+  lead        CrmLead?     @relation("activity_lead", fields: [leadId], references: [id])
+  deal        CrmDeal?     @relation("activity_deal", fields: [dealId], references: [id])
+  creator     Employee     @relation("activity_creator", fields: [createdBy], references: [id])
+
+  @@index([orgId, createdAt])
+  @@index([orgId, dealId])
+  @@index([orgId, leadId])
+  @@index([orgId, clientId])
+  @@map("crm_activities")
+  @@schema("crm")
+}
+
+enum ClientType {
+  COMPANY
+  INDIVIDUAL
+  @@schema("crm")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+  LOST
+  @@schema("crm")
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  @@schema("crm")
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+  STALE
+  @@schema("crm")
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  FOLLOW_UP
+  @@schema("crm")
+}
+
+// ── Campaigns ────────────────────────────────────────────────────────────────
+
+model CrmCampaign {
+  id             String         @id @default(uuid()) @db.Uuid
+  orgId          String         @map("org_id") @db.Uuid
+  name           String
+  type           CampaignType
+  channel        String?
+  status         CampaignStatus @default(DRAFT)
+  description    String?
+  targetAudience String?        @map("target_audience")
+  businessCategory String?      @map("business_category")
+  budget         Decimal?       @db.Decimal(12, 2)
+  actualCost     Decimal?       @db.Decimal(12, 2) @map("actual_cost")
+  startDate      DateTime?      @map("start_date") @db.Date
+  endDate        DateTime?      @map("end_date") @db.Date
+  tags           Json           @default("[]")
+  // Metrics
+  sentCount      Int            @default(0) @map("sent_count")
+  deliveredCount Int            @default(0) @map("delivered_count")
+  openedCount    Int            @default(0) @map("opened_count")
+  clickedCount   Int            @default(0) @map("clicked_count")
+  respondedCount Int            @default(0) @map("responded_count")
+  convertedCount Int            @default(0) @map("converted_count")
+  revenue        Decimal        @default(0) @db.Decimal(12, 2)
+  createdBy      String         @map("created_by") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  org            Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator        Employee       @relation("campaign_creator", fields: [createdBy], references: [id])
+  leads          CrmLead[]
+  members        CrmCampaignMember[]
+
+  @@index([orgId, status])
+  @@index([orgId, type])
+  @@map("crm_campaigns")
+  @@schema("crm")
+}
+
+model CrmCampaignMember {
+  id           String              @id @default(uuid()) @db.Uuid
+  orgId        String              @map("org_id") @db.Uuid
+  campaignId   String              @map("campaign_id") @db.Uuid
+  clientId     String?             @map("client_id") @db.Uuid
+  contactName  String?             @map("contact_name")
+  contactEmail String?             @map("contact_email")
+  contactPhone String?             @map("contact_phone")
+  status       CampaignMemberStatus @default(TARGETED)
+  respondedAt  DateTime?           @map("responded_at")
+  convertedAt  DateTime?           @map("converted_at")
+  notes        String?
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  org          Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  campaign     CrmCampaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  client       CrmClient?          @relation("campaign_member_client", fields: [clientId], references: [id])
+
+  @@index([orgId, campaignId])
+  @@map("crm_campaign_members")
+  @@schema("crm")
+}
+
+enum CampaignType {
+  TELEMARKETING
+  EMAIL_MARKETING
+  DIGITAL_MARKETING
+  SOCIAL_MEDIA
+  CONTENT_MARKETING
+  EVENT
+  DIRECT_MAIL
+  SMS
+  REFERRAL_PROGRAM
+  OTHER
+  @@schema("crm")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  @@schema("crm")
+}
+
+enum CampaignMemberStatus {
+  TARGETED
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  RESPONDED
+  CONVERTED
+  OPTED_OUT
+  BOUNCED
+  @@schema("crm")
+}

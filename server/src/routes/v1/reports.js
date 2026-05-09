@@ -91,4 +91,36 @@ router.get('/export/attendance', requireRole('org_admin', 'hr_manager'), async (
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/reports/generate — Async report generation (queued)
+router.post('/generate', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+  try {
+    const { type, params } = req.body;
+    const validTypes = ['attendance-summary', 'attendance-export', 'payroll-export', 'leave-report', 'late-arrivals', 'department-summary'];
+    if (!type || !validTypes.includes(type)) {
+      return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
+    }
+    const { enqueueReport } = require('../../config/queue');
+    const jobId = await enqueueReport({ orgId: req.orgId, type, params: params || {}, requestedBy: req.user.id });
+    res.json({ success: true, jobId, message: 'Report generation queued. You will be notified when ready.' });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/reports/download/:filename — Download generated report file
+router.get('/download/:filename', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9_\-\.]/g, ''); // Sanitize
+    const filepath = path.join(__dirname, '../../../data/reports', filename);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'Report file not found or expired' });
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    fs.createReadStream(filepath).pipe(res);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

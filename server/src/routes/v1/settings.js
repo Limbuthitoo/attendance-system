@@ -363,6 +363,17 @@ router.post('/branding/:type', requireRole('org_admin'), (req, res) => {
 
     try {
       const key = type === 'logo' ? 'branding_logo' : 'branding_favicon';
+
+      // Clean up old file on re-upload
+      const existing = await prisma.orgSetting.findFirst({
+        where: { orgId: req.orgId, key },
+        select: { value: true },
+      });
+      if (existing && existing.value && existing.value !== req.file.filename) {
+        const oldPath = path.join(brandingDir, existing.value);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+
       await prisma.orgSetting.upsert({
         where: { orgId_key: { orgId: req.orgId, key } },
         update: { value: req.file.filename },

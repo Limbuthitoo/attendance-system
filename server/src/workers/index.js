@@ -1,5 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BullMQ Worker Process — Handles async jobs (email, push, scheduled tasks)
+// BullMQ Worker Process — Handles async jobs (email, push, scheduled tasks,
+// campaigns, reports, payroll)
 // Run separately: node src/workers/index.js
 // ─────────────────────────────────────────────────────────────────────────────
 require('dotenv').config();
@@ -33,18 +34,39 @@ function getTransporter() {
 }
 
 const emailWorker = new Worker('email', async (job) => {
-  const { to, subject, html } = job.data;
-  const transport = getTransporter();
+  const { to, subject, html, orgId } = job.data;
+
+  // Try org-specific SMTP first, then fall back to env transporter
+  let transport = null;
+  let from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  if (orgId) {
+    try {
+      const { getOrgSmtpConfig } = require('../mailer');
+      const cfg = await getOrgSmtpConfig(orgId);
+      if (cfg) {
+        transport = nodemailer.createTransport({
+          host: cfg.host,
+          port: cfg.port,
+          secure: cfg.port === 465,
+          auth: { user: cfg.user, pass: cfg.pass },
+        });
+        from = cfg.from;
+      }
+    } catch (e) {
+      // Fall through to env transporter
+    }
+  }
+
+  if (!transport) {
+    transport = getTransporter();
+  }
+
   if (!transport) {
     console.warn('⚠ Email not sent — SMTP not configured');
     return;
   }
-  await transport.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-  });
+  await transport.sendMail({ from, to, subject, html });
   console.log(`✉ Email sent to ${to}: ${subject}`);
 }, { connection });
 
@@ -76,6 +98,17 @@ pushWorker.on('failed', (job, err) => {
 });
 
 // ── Scheduler Worker (cron-like jobs) ───────────────────────────────────────
+const {
+  handleActivityReminders,
+  handleBirthdayAnniversary,
+  handleAttendanceAnomalyDetection,
+  handleDatabaseCleanup,
+  handleInvoiceAutoGeneration,
+  handleBackupVerification,
+  handleCampaignAnalyticsSnapshot,
+  handleDocumentExpiryAlerts,
+} = require('./scheduler-handlers');
+
 const schedulerWorker = new Worker('scheduler', async (job) => {
   if (job.name === 'forgot-checkout') {
     await handleForgotCheckout(job.data);
@@ -95,6 +128,37 @@ const schedulerWorker = new Worker('scheduler', async (job) => {
   if (job.name === 'device-health-check') {
     const { updateDeviceHealthStatuses } = require('../services/device.service');
     await updateDeviceHealthStatuses();
+  }
+  if (job.name === 'calculate-monthly-incentives') {
+    await handleMonthlyIncentiveCalculation();
+  }
+  if (job.name === 'check-probation-expiry') {
+    await handleProbationExpiry();
+  }
+  // ── New scheduler jobs ──
+  if (job.name === 'activity-reminders') {
+    await handleActivityReminders();
+  }
+  if (job.name === 'birthday-anniversary') {
+    await handleBirthdayAnniversary();
+  }
+  if (job.name === 'attendance-anomaly-detection') {
+    await handleAttendanceAnomalyDetection();
+  }
+  if (job.name === 'database-cleanup') {
+    await handleDatabaseCleanup();
+  }
+  if (job.name === 'invoice-auto-generation') {
+    await handleInvoiceAutoGeneration();
+  }
+  if (job.name === 'backup-verification') {
+    await handleBackupVerification();
+  }
+  if (job.name === 'campaign-analytics-snapshot') {
+    await handleCampaignAnalyticsSnapshot();
+  }
+  if (job.name === 'document-expiry-alerts') {
+    await handleDocumentExpiryAlerts();
   }
 }, { connection });
 
@@ -187,6 +251,99 @@ async function handleFinalizeAttendance() {
   }
 
   console.log(`📋 Attendance finalization complete: ${totalAbsent} absent, ${totalMissingFull}+${totalMissingHalf} missing-checkout, ${totalHoliday} holiday, ${totalWeeklyOff} weekly-off across ${orgs.length} orgs`);
+}
+
+// ── Monthly Incentive Calculation ───────────────────────────────────────────
+async function handleMonthlyIncentiveCalculation() {
+  const { getPrisma } = require('../lib/prisma');
+  const { calculateIncentives } = require('../services/incentive.service');
+
+  const prisma = getPrisma();
+
+  // Get orgs with incentive module enabled
+  const orgs = await prisma.organization.findMany({
+    where: {
+      isActive: true,
+      orgModules: {
+        some: { isActive: true, module: { code: 'incentive' } },
+      },
+    },
+    select: { id: true, name: true },
+  });
+
+  // Calculate for the previous month
+  const now = new Date();
+  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // JS months 0-indexed
+  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+  let totalCalculated = 0;
+
+  for (const org of orgs) {
+    try {
+      // Find ACTIVE plans for this org
+      const plans = await prisma.incentivePlan.findMany({
+        where: { orgId: org.id, status: 'ACTIVE' },
+        select: { id: true, name: true },
+      });
+
+      for (const plan of plans) {
+        try {
+          const result = await calculateIncentives({
+            orgId: org.id, planId: plan.id,
+            year: prevYear, month: prevMonth,
+            adminId: null, // system-triggered
+          });
+          totalCalculated += result.calculated;
+          if (result.calculated > 0) {
+            console.log(`  💰 ${org.name} → ${plan.name}: ${result.calculated} incentives calculated`);
+          }
+        } catch (err) {
+          console.error(`  ✗ Incentive calculation failed for ${org.name}/${plan.name}: ${err.message}`);
+        }
+      }
+    } catch (err) {
+      console.error(`  ✗ Incentive processing failed for ${org.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`💰 Monthly incentive calculation complete: ${totalCalculated} records across ${orgs.length} orgs`);
+}
+
+// ── Probation Expiry Handler ────────────────────────────────────────────────
+async function handleProbationExpiry() {
+  const { getPrisma } = require('../lib/prisma');
+  const prisma = getPrisma();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Find employees whose probation end date has passed and are still on probation
+  const expiredProbation = await prisma.employee.findMany({
+    where: {
+      isActive: true,
+      employmentStatus: 'probation',
+      probationEndDate: { lte: today },
+    },
+    select: { id: true, name: true, orgId: true, probationEndDate: true },
+  });
+
+  if (expiredProbation.length === 0) {
+    console.log('✓ No probation expirations today');
+    return;
+  }
+
+  for (const emp of expiredProbation) {
+    try {
+      await prisma.employee.update({
+        where: { id: emp.id },
+        data: { employmentStatus: 'active' },
+      });
+      console.log(`  ✓ ${emp.name} — probation ended, status → active`);
+    } catch (err) {
+      console.error(`  ✗ Failed to update ${emp.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`✅ Probation check complete: ${expiredProbation.length} employees transitioned to active`);
 }
 
 schedulerWorker.on('failed', (job, err) => {
@@ -366,7 +523,6 @@ async function registerRepeatableJobs() {
   });
 
   // Finalize attendance daily at 23:55 NPT (18:10 UTC)
-  // Marks absent for no-shows, auto-checkouts for forgot checkouts
   await schedulerQueue.add('finalize-attendance', {}, {
     repeat: { pattern: '10 18 * * *' },  // 23:55 NPT = 18:10 UTC
     jobId: 'finalize-attendance-daily',
@@ -390,15 +546,86 @@ async function registerRepeatableJobs() {
     jobId: 'device-health-check',
   });
 
-  console.log('✓ Repeatable jobs registered');
+  // Auto-calculate monthly incentives on 1st of every month at 01:00 NPT (19:15 UTC)
+  await schedulerQueue.add('calculate-monthly-incentives', {}, {
+    repeat: { pattern: '15 19 1 * *' },
+    jobId: 'incentive-monthly-calc',
+  });
+
+  // Check probation expiry daily at 00:30 NPT (18:45 UTC)
+  await schedulerQueue.add('check-probation-expiry', {}, {
+    repeat: { pattern: '45 18 * * *' },
+    jobId: 'probation-expiry-daily',
+  });
+
+  // ── New Scheduled Jobs ──────────────────────────────────────────────────
+
+  // CRM Activity Reminders — every 30 minutes
+  await schedulerQueue.add('activity-reminders', {}, {
+    repeat: { pattern: '*/30 * * * *' },
+    jobId: 'activity-reminders-30m',
+  });
+
+  // Birthday & Anniversary — daily at 07:00 NPT (01:15 UTC)
+  await schedulerQueue.add('birthday-anniversary', {}, {
+    repeat: { pattern: '15 1 * * *' },
+    jobId: 'birthday-anniversary-daily',
+  });
+
+  // Attendance Anomaly Detection — daily at 06:00 NPT (00:15 UTC)
+  await schedulerQueue.add('attendance-anomaly-detection', {}, {
+    repeat: { pattern: '15 0 * * *' },
+    jobId: 'attendance-anomaly-daily',
+  });
+
+  // Database Cleanup — every Sunday at 02:00 NPT (20:15 UTC Saturday)
+  await schedulerQueue.add('database-cleanup', {}, {
+    repeat: { pattern: '15 20 * * 6' },
+    jobId: 'database-cleanup-weekly',
+  });
+
+  // Invoice Auto-Generation — 1st of every month at 02:00 NPT (20:15 UTC)
+  await schedulerQueue.add('invoice-auto-generation', {}, {
+    repeat: { pattern: '15 20 1 * *' },
+    jobId: 'invoice-auto-generation-monthly',
+  });
+
+  // Backup Verification — every Sunday at 04:00 NPT (22:15 UTC Saturday)
+  await schedulerQueue.add('backup-verification', {}, {
+    repeat: { pattern: '15 22 * * 6' },
+    jobId: 'backup-verification-weekly',
+  });
+
+  // Campaign Analytics Snapshot — daily at 23:30 NPT (17:45 UTC)
+  await schedulerQueue.add('campaign-analytics-snapshot', {}, {
+    repeat: { pattern: '45 17 * * *' },
+    jobId: 'campaign-analytics-daily',
+  });
+
+  // Document Expiry Alerts — daily at 08:00 NPT (02:15 UTC)
+  await schedulerQueue.add('document-expiry-alerts', {}, {
+    repeat: { pattern: '15 2 * * *' },
+    jobId: 'document-expiry-daily',
+  });
+
+  console.log('✓ Repeatable jobs registered (15 total)');
   await schedulerQueue.close();
 }
+
+// ── Initialize Campaign, Report, Payroll Workers ─────────────────────────────
+const { createCampaignWorker } = require('./campaign.worker');
+const { createReportWorker } = require('./report.worker');
+const { createPayrollWorker } = require('./payroll.worker');
+
+const campaignWorker = createCampaignWorker(connection);
+const reportWorker = createReportWorker(connection);
+const payrollWorker = createPayrollWorker(connection);
 
 registerRepeatableJobs().catch((err) => {
   console.error('Failed to register repeatable jobs:', err.message);
 });
 
-console.log('✓ Workers started: email, push, scheduler');
+console.log('✓ Workers started: email, push, scheduler, campaign, report, payroll');
 
 // Graceful shutdown
 async function shutdown() {
@@ -407,6 +634,9 @@ async function shutdown() {
     emailWorker.close(),
     pushWorker.close(),
     schedulerWorker.close(),
+    campaignWorker.close(),
+    reportWorker.close(),
+    payrollWorker.close(),
   ]);
   process.exit(0);
 }

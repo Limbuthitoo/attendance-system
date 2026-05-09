@@ -1,19 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen } from 'lucide-react';
+import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen, Building2, Briefcase, Search } from 'lucide-react';
 import NfcModal from '../components/employees/NfcModal';
 import ResetPasswordModal from '../components/employees/ResetPasswordModal';
 import EditEmployeeModal from '../components/employees/EditEmployeeModal';
 import DeleteConfirmModal from '../components/employees/DeleteConfirmModal';
 
-const DEPARTMENTS = [
+// Fallback lists used when org has no custom departments/designations yet
+const DEFAULT_DEPARTMENTS = [
   'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
   'Sales', 'Human Resources', 'Finance', 'Operations', 'Quality Assurance',
   'DevOps', 'Product', 'Customer Support', 'Administration', 'Data & Analytics',
 ];
 
-const DESIGNATIONS = [
+const DEFAULT_DESIGNATIONS = [
   'CEO', 'CTO', 'COO', 'CFO', 'Director', 'Vice President',
   'Senior Manager', 'Manager', 'Assistant Manager', 'Team Lead',
   'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer',
@@ -41,13 +42,13 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [nfcModal, setNfcModal] = useState(null); // employee object or null
+  const [nfcModal, setNfcModal] = useState(null);
   const [nfcCards, setNfcCards] = useState([]);
   const [nfcForm, setNfcForm] = useState({ card_uid: '', label: '' });
   const [nfcSubmitting, setNfcSubmitting] = useState(false);
 
   const [sseConnected, setSseConnected] = useState(false);
-  const [readerOnline, setReaderOnline] = useState(null); // null=unknown, true=connected, false=disconnected
+  const [readerOnline, setReaderOnline] = useState(null);
   const [detectedUid, setDetectedUid] = useState(null);
   const sseRef = useRef(null);
   const sseConnectedRef = useRef(false);
@@ -57,16 +58,63 @@ export default function Employees() {
   const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', department: '', designation: '', role: '', phone: '' });
   const [editSubmitting, setEditSubmitting] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(null); // employee object or null
+  const [deleteModal, setDeleteModal] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  // Master data
+  const [deptList, setDeptList] = useState([]);
+  const [desigList, setDesigList] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [schedules, setSchedules] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+
+  // Add new dept/desig inline
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDesigName, setNewDesigName] = useState('');
+  const [addingDept, setAddingDept] = useState(false);
+  const [addingDesig, setAddingDesig] = useState(false);
+
   const [form, setForm] = useState({
     employee_id: '', name: '', email: '', password: '',
-    department: '', designation: '', role: 'employee', phone: ''
+    department: '', designation: '', role: 'employee', phone: '',
+    branchId: '', shiftId: '', workScheduleId: '',
+    gender: '', joinDate: '', contractType: '',
   });
+
+  // Computed department & designation lists (DB records or fallback defaults)
+  const departmentNames = deptList.length > 0
+    ? deptList.filter(d => d.isActive !== false).map(d => d.name)
+    : DEFAULT_DEPARTMENTS;
+  const designationNames = desigList.length > 0
+    ? desigList.filter(d => d.isActive !== false).map(d => d.name)
+    : DEFAULT_DESIGNATIONS;
+
+  const loadMasterData = useCallback(async () => {
+    try {
+      const [deptRes, desigRes, brRes, shRes, scRes, roleRes] = await Promise.all([
+        api.getDepartments().catch(() => ({ departments: [] })),
+        api.getDesignations().catch(() => ({ designations: [] })),
+        api._request('/branches').catch(() => ({ branches: [] })),
+        api._request('/settings/shifts').catch(() => ({ shifts: [] })),
+        api._request('/settings/work-schedules').catch(() => ({ schedules: [] })),
+        api._request('/roles').catch(() => ({ roles: [] })),
+      ]);
+      setDeptList(deptRes.departments || []);
+      setDesigList(desigRes.designations || []);
+      setBranches(brRes.branches || brRes.data || []);
+      setShifts(shRes.shifts || shRes.data || []);
+      setSchedules(scRes.schedules || scRes.data || []);
+      setRoles(roleRes.roles || roleRes.data || []);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+    loadMasterData();
+  }, [loadMasterData]);
 
   const loadEmployees = async () => {
     setLoading(true);
@@ -84,14 +132,59 @@ export default function Employees() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.createEmployee(form);
+      const payload = { ...form };
+      // Clean empty optional fields
+      if (!payload.branchId) delete payload.branchId;
+      if (!payload.shiftId) delete payload.shiftId;
+      if (!payload.workScheduleId) delete payload.workScheduleId;
+      if (!payload.gender) delete payload.gender;
+      if (!payload.joinDate) delete payload.joinDate;
+      if (!payload.contractType) delete payload.contractType;
+      await api.createEmployee(payload);
       setShowForm(false);
-      setForm({ employee_id: '', name: '', email: '', password: '', department: '', designation: '', role: 'employee', phone: '' });
+      setForm({
+        employee_id: '', name: '', email: '', password: '',
+        department: '', designation: '', role: 'employee', phone: '',
+        branchId: '', shiftId: '', workScheduleId: '',
+        gender: '', joinDate: '', contractType: '',
+      });
       loadEmployees();
     } catch (err) {
       alert(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDeptName.trim()) return;
+    setAddingDept(true);
+    try {
+      await api.createDepartment({ name: newDeptName.trim() });
+      setNewDeptName('');
+      setForm(f => ({ ...f, department: newDeptName.trim() }));
+      const res = await api.getDepartments();
+      setDeptList(res.departments || []);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setAddingDept(false);
+    }
+  };
+
+  const handleAddDesignation = async () => {
+    if (!newDesigName.trim()) return;
+    setAddingDesig(true);
+    try {
+      await api.createDesignation({ name: newDesigName.trim() });
+      setNewDesigName('');
+      setForm(f => ({ ...f, designation: newDesigName.trim() }));
+      const res = await api.getDesignations();
+      setDesigList(res.designations || []);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setAddingDesig(false);
     }
   };
 
@@ -353,71 +446,179 @@ export default function Employees() {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">New Employee</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            {[
-              { key: 'employee_id', label: 'Employee ID', placeholder: 'ARC-006', required: true },
-              { key: 'name', label: 'Full Name', placeholder: 'John Doe', required: true },
-              { key: 'email', label: 'Email', placeholder: 'john@archisys.com', required: true, type: 'email' },
-              { key: 'password', label: 'Password', placeholder: 'e.g. Temp@1234', required: true, type: 'password' },
-              { key: 'phone', label: 'Phone', placeholder: '9800000000' },
-            ].map((field) => (
-              <div key={field.key}>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">{field.label}</label>
-                <input
-                  type={field.type || 'text'}
-                  value={form[field.key]}
-                  onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                  placeholder={field.placeholder}
-                  required={field.required}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+
+          {/* Section 1: Basic Info */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Basic Information</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
+                  placeholder="ARC-007" required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
-            ))}
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
-              <select
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Select Department</option>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
-              <select
-                value={form.designation}
-                onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Select Designation</option>
-                {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="employee">Employee</option>
-                <option value="admin">Admin</option>
-              </select>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="John Doe" required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Email <span className="text-red-500">*</span></label>
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="john@archisys.com" required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Password <span className="text-red-500">*</span></label>
+                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="e.g. Temp@1234" required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Phone</label>
+                <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="9800000000" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Gender</label>
+                <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-          >
-            {submitting ? 'Creating...' : 'Create Employee'}
-          </button>
+
+          {/* Section 2: Department & Designation */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Department & Role</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
+                <div className="flex gap-2">
+                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Select Department</option>
+                    {departmentNames.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                {/* Inline add */}
+                <div className="flex gap-1.5 mt-1.5">
+                  <input type="text" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)}
+                    placeholder="+ New department" className="flex-1 px-2 py-1 rounded border border-dashed border-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDepartment())} />
+                  {newDeptName && (
+                    <button type="button" onClick={handleAddDepartment} disabled={addingDept}
+                      className="px-2 py-1 rounded bg-primary-50 text-primary-600 text-xs font-medium hover:bg-primary-100 transition disabled:opacity-50">
+                      {addingDept ? '...' : 'Add'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
+                <div className="flex gap-2">
+                  <select value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Select Designation</option>
+                    {designationNames.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className="flex gap-1.5 mt-1.5">
+                  <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)}
+                    placeholder="+ New designation" className="flex-1 px-2 py-1 rounded border border-dashed border-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDesignation())} />
+                  {newDesigName && (
+                    <button type="button" onClick={handleAddDesignation} disabled={addingDesig}
+                      className="px-2 py-1 rounded bg-primary-50 text-primary-600 text-xs font-medium hover:bg-primary-100 transition disabled:opacity-50">
+                      {addingDesig ? '...' : 'Add'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
+                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                  {roles.filter(r => !['org_admin', 'employee'].includes(r.name)).map(r => (
+                    <option key={r.id} value={r.id}>{r.displayName || r.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Assignment (Branch/Shift/Schedule) */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Assignment <span className="text-slate-400 font-normal normal-case">(optional)</span></p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Branch</label>
+                <select value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">Select Branch</option>
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Shift</label>
+                <select value={form.shiftId} onChange={(e) => setForm({ ...form, shiftId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">Select Shift</option>
+                  {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.startTime}–{s.endTime})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Work Schedule</label>
+                <select value={form.workScheduleId} onChange={(e) => setForm({ ...form, workScheduleId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">Select Schedule</option>
+                  {schedules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Join Date</label>
+                <input type="date" value={form.joinDate} onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50">
+              {submitting ? 'Creating...' : 'Create Employee'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
       <div className="bg-white rounded-xl border border-slate-200">
+        {/* Search & Filter Bar */}
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-slate-100">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email, ID..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </div>
+          <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">All Departments</option>
+            {[...new Set(employees.map(e => e.department).filter(Boolean))].sort().map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400">
+            {employees.length} employee{employees.length !== 1 ? 's' : ''}
+          </span>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" />
@@ -436,7 +637,19 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {employees.map((emp) => (
+                {employees
+                  .filter(emp => {
+                    if (filterDept && emp.department !== filterDept) return false;
+                    if (searchQuery) {
+                      const q = searchQuery.toLowerCase();
+                      return emp.name.toLowerCase().includes(q) ||
+                        emp.email.toLowerCase().includes(q) ||
+                        (emp.employee_id || '').toLowerCase().includes(q) ||
+                        (emp.designation || '').toLowerCase().includes(q);
+                    }
+                    return true;
+                  })
+                  .map((emp) => (
                   <tr key={emp.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -545,7 +758,7 @@ export default function Employees() {
         editModal={editModal} setEditModal={setEditModal}
         editForm={editForm} setEditForm={setEditForm}
         editSubmitting={editSubmitting} handleEditSubmit={handleEditSubmit}
-        departments={DEPARTMENTS} designations={DESIGNATIONS}
+        departments={departmentNames} designations={designationNames}
       />
 
       {/* Delete Confirmation Modal */}

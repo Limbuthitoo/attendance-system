@@ -47,6 +47,11 @@ async function seed() {
         'holiday.manage', 'notice.manage', 'report.view',
         'branch.manage', 'shift.manage', 'schedule.manage',
         'role.manage', 'audit.view',
+        'incentive.manage', 'incentive.approve',
+        'crm.manage', 'performance.manage', 'task.manage', 'project.manage', 'referral.manage',
+        'bonus.manage', 'bonus.approve',
+        'accounting.view', 'accounting.manage',
+        'billing.view', 'billing.manage',
       ],
       isSystem: true,
     },
@@ -164,6 +169,15 @@ async function seed() {
     { code: 'report', name: 'Reports & Analytics', description: 'Attendance and leave reports' },
     { code: 'payroll', name: 'Payroll Integration', description: 'Salary calculation and overtime' },
     { code: 'geofence', name: 'Geofencing', description: 'GPS-based attendance verification' },
+    { code: 'incentive', name: 'Incentive Management', description: 'Employee incentives, bonuses, and reward programs' },
+    { code: 'crm', name: 'CRM', description: 'Leads, deals, pipelines, and client management' },
+    { code: 'performance', name: 'Performance Management', description: 'KPIs, scorecards, and performance reviews' },
+    { code: 'task', name: 'Task Management', description: 'Task tracking and assignment' },
+    { code: 'project', name: 'Project Management', description: 'Project tracking with members and milestones' },
+    { code: 'referral', name: 'Referral Program', description: 'Employee referral tracking and rewards' },
+    { code: 'bonus', name: 'Bonus Management', description: 'Festival bonuses, annual bonuses, and employee reward management' },
+    { code: 'accounting', name: 'Accounting', description: 'Double-entry bookkeeping, chart of accounts, journal entries, trial balance, P&L, balance sheet' },
+    { code: 'billing', name: 'Billing', description: 'Nepal VAT billing, invoices, payments, parties, aging reports, VAT summary for IRD' },
   ];
 
   for (const mod of modules) {

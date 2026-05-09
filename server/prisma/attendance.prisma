@@ -1,0 +1,204 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ATTENDANCE — Attendance, Leaves, Holidays, Leave Quotas
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Attendance {
+  id               String           @id @default(uuid()) @db.Uuid
+  orgId            String           @map("org_id") @db.Uuid
+  employeeId       String           @map("employee_id") @db.Uuid
+  branchId         String?          @map("branch_id") @db.Uuid
+  date             DateTime         @db.Date
+  checkIn          DateTime?        @map("check_in")
+  checkOut         DateTime?        @map("check_out")
+  status           AttendanceStatus @default(PRESENT)
+  source           AttendanceSource @default(MANUAL)
+  workHours        Decimal?         @default(0) @map("work_hours") @db.Decimal(5,2)
+  breakMinutes     Int?             @default(0) @map("break_minutes")
+  lateMinutes      Int?             @default(0) @map("late_minutes")
+  earlyExitMinutes Int?             @default(0) @map("early_exit_minutes")
+  isLocked         Boolean          @default(false) @map("is_locked")
+  notes            String?
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  org        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch     Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  deviceEvents DeviceEvent[]
+  corrections AttendanceCorrection[]
+
+  @@unique([employeeId, date])
+  @@index([orgId, date])
+  @@index([employeeId, date])
+  @@map("attendance")
+  @@schema("attendance")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+  ON_LEAVE
+  HOLIDAY
+  WEEKLY_OFF
+  MISSING_CHECKOUT
+  EARLY_EXIT
+  @@schema("attendance")
+}
+
+enum AttendanceSource {
+  MANUAL
+  NFC
+  FINGERPRINT
+  QR_CODE
+  FACE_ID
+  SYSTEM
+  @@schema("attendance")
+}
+
+model AttendanceCorrection {
+  id            String           @id @default(uuid()) @db.Uuid
+  orgId         String           @map("org_id") @db.Uuid
+  employeeId    String           @map("employee_id") @db.Uuid
+  attendanceId  String?          @map("attendance_id") @db.Uuid
+  date          DateTime         @db.Date
+  correctionType CorrectionType  @map("correction_type")
+  requestedCheckIn  DateTime?    @map("requested_check_in")
+  requestedCheckOut DateTime?    @map("requested_check_out")
+  reason        String
+  status        CorrectionStatus @default(PENDING)
+  reviewedBy    String?          @map("reviewed_by") @db.Uuid
+  reviewNote    String?          @map("review_note")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  org           Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee      Employee      @relation("employee_corrections", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer      Employee?     @relation("correction_reviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  attendance    Attendance?   @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, status])
+  @@index([employeeId, date])
+  @@map("attendance_corrections")
+  @@schema("attendance")
+}
+
+enum CorrectionType {
+  MISSED_CHECKIN
+  MISSED_CHECKOUT
+  WRONG_TIME
+  OTHER
+  @@schema("attendance")
+}
+
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  @@schema("attendance")
+}
+
+model AttendancePenaltyPolicy {
+  id                      String   @id @default(uuid()) @db.Uuid
+  orgId                   String   @unique @map("org_id") @db.Uuid
+  maxLatePerMonth         Int      @default(3) @map("max_late_per_month")
+  latePenaltyType         String   @default("half_day_deduction") @map("late_penalty_type")
+  maxEarlyExitPerMonth    Int      @default(3) @map("max_early_exit_per_month")
+  earlyExitPenaltyType    String   @default("half_day_deduction") @map("early_exit_penalty_type")
+  isActive                Boolean  @default(true) @map("is_active")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  org                     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_penalty_policies")
+  @@schema("attendance")
+}
+
+model Leave {
+  id          String      @id @default(uuid()) @db.Uuid
+  orgId       String      @map("org_id") @db.Uuid
+  employeeId  String      @map("employee_id") @db.Uuid
+  leaveType   LeaveType   @map("leave_type")
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime    @map("end_date") @db.Date
+  days        Float
+  isHalfDay   Boolean     @default(false) @map("is_half_day")
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  reviewedBy  String?     @map("reviewed_by") @db.Uuid
+  reviewNote  String?     @map("review_note")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee    Employee     @relation("employee_leaves", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    Employee?    @relation("reviewed_leaves", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([orgId, status])
+  @@index([employeeId, status])
+  @@map("leaves")
+  @@schema("attendance")
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  EARNED
+  MATERNITY
+  PATERNITY
+  UNPAID
+  OTHER
+  @@schema("attendance")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  @@schema("attendance")
+}
+
+model Holiday {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  bsYear     Int      @map("bs_year")
+  bsMonth    Int      @map("bs_month")
+  bsDay      Int      @map("bs_day")
+  bsDayEnd   Int?     @map("bs_day_end")
+  bsMonthEnd Int?     @map("bs_month_end")
+  name       String
+  nameNp     String?  @map("name_np")
+  adDate     DateTime? @map("ad_date") @db.Date
+  adDateEnd  DateTime? @map("ad_date_end") @db.Date
+  womenOnly  Boolean  @default(false) @map("women_only")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, bsYear])
+  @@index([orgId, bsYear, bsMonth])
+  @@map("holidays")
+  @@schema("attendance")
+}
+
+model LeaveQuota {
+  id          String    @id @default(uuid()) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  employeeId  String?   @map("employee_id") @db.Uuid
+  leaveType   LeaveType @map("leave_type")
+  year        Int
+  totalDays   Float     @map("total_days")
+  usedDays    Float     @default(0) @map("used_days")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee    Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, employeeId, leaveType, year])
+  @@map("leave_quotas")
+  @@schema("attendance")
+}

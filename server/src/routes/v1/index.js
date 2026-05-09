@@ -26,6 +26,25 @@ const payrollRoutes = require('./payroll');
 const nfcRoutes = require('./nfc');
 const appUpdateRoutes = require('./app-update');
 const policyRoutes = require('./policies');
+const incentiveRoutes = require('./incentives');
+// CRM extracted to crm-service microservice
+const performanceRoutes = require('./performance');
+const taskRoutes = require('./tasks');
+const projectRoutes = require('./projects');
+const referralRoutes = require('./referrals');
+const bonusRoutes = require('./bonuses');
+const departmentRoutes = require('./departments');
+const designationRoutes = require('./designations');
+const taxConfigRoutes = require('./tax-config');
+const festivalAdvanceRoutes = require('./festival-advances');
+const recruitmentRoutes = require('./recruitment');
+const onboardingRoutes = require('./onboarding');
+const separationRoutes = require('./separation');
+const trainingRoutes = require('./training');
+const essRoutes = require('./ess');
+const compensationRoutes = require('./compensation');
+const orgChartRoutes = require('./org-chart');
+// Accounting + Billing extracted to accounting-service microservice
 
 const router = Router();
 
@@ -49,6 +68,25 @@ router.use('/reports', authenticate, tenantContext, requireModule('report'), rep
 router.use('/overtime', authenticate, tenantContext, requireModule('payroll'), overtimeRoutes);
 router.use('/geofence', authenticate, tenantContext, requireModule('geofence'), geofenceRoutes);
 router.use('/payroll', authenticate, tenantContext, requireModule('payroll'), payrollRoutes);
+router.use('/incentives', authenticate, tenantContext, requireModule('incentive'), incentiveRoutes);
+// CRM extracted to crm-service
+router.use('/performance', authenticate, tenantContext, requireModule('performance'), performanceRoutes);
+router.use('/tasks', authenticate, tenantContext, requireModule('task'), taskRoutes);
+router.use('/projects', authenticate, tenantContext, requireModule('project'), projectRoutes);
+router.use('/referrals', authenticate, tenantContext, requireModule('referral'), referralRoutes);
+router.use('/bonuses', authenticate, tenantContext, requireModule('bonus'), bonusRoutes);
+router.use('/departments', authenticate, tenantContext, departmentRoutes);
+router.use('/designations', authenticate, tenantContext, designationRoutes);
+router.use('/tax-config', authenticate, tenantContext, taxConfigRoutes);
+router.use('/festival-advances', authenticate, tenantContext, festivalAdvanceRoutes);
+router.use('/recruitment', authenticate, tenantContext, recruitmentRoutes);
+router.use('/onboarding', authenticate, tenantContext, onboardingRoutes);
+router.use('/separation', authenticate, tenantContext, separationRoutes);
+router.use('/training', authenticate, tenantContext, trainingRoutes);
+router.use('/ess', authenticate, tenantContext, essRoutes);
+router.use('/compensation', authenticate, tenantContext, compensationRoutes);
+router.use('/org-chart', authenticate, tenantContext, orgChartRoutes);
+// Accounting + Billing extracted to accounting-service
 router.use('/nfc', nfcRoutes);  // has its own mixed auth (device + admin)
 router.use('/policies', authenticate, tenantContext, policyRoutes);
 router.use('/app-update', appUpdateRoutes);  // check/download are public; upload/current need auth

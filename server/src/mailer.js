@@ -280,9 +280,14 @@ async function sendLeaveApplicationEmail({ employeeName, empCode, department, le
     </html>
   `;
 
-  // Fire and forget — don't block the API response
+  // Route through the email queue for retries and reliability
   const notifyTo = await getNotifyEmail(orgId);
-  sendMail({ to: notifyTo, subject, html, orgId });
+  const { enqueueEmail } = require('./config/queue');
+  enqueueEmail({ to: notifyTo, subject, html, orgId }).catch(err => {
+    console.error('Failed to enqueue leave email:', err.message);
+    // Fallback: fire and forget directly
+    sendMail({ to: notifyTo, subject, html, orgId });
+  });
 }
 
 module.exports = { sendMail, sendLeaveApplicationEmail, getNotifyEmail, getOrgSmtpConfig, invalidateOrgTransporter, NOTIFY_EMAIL };
