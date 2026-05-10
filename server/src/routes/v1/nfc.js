@@ -8,13 +8,12 @@ const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const deviceService = require('../../services/device.service');
 const prisma = require('../../lib/prisma').getPrisma();
-const EventEmitter = require('events');
+const { getRedis, getSubscriber } = require('../../config/redis');
 
 const router = Router();
 
-// In-memory event bus for real-time SSE tap events
-const nfcEventBus = new EventEmitter();
-nfcEventBus.setMaxListeners(50);
+// Redis pub/sub channel for NFC tap events (works across containers)
+const NFC_CHANNEL = 'nfc:tap';
 
 // ─── Reader Heartbeat ───────────────────────────────────────────────────────
 
@@ -78,18 +77,25 @@ router.get('/events', authenticate, tenantContext, requireRole('org_admin'), (re
   res.write(':\n\n');
 
   const orgId = req.orgId;
-  const onTap = (data) => {
-    if (data.orgId === orgId) {
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
-    }
+  const sub = getSubscriber();
+
+  const onMessage = (ch, raw) => {
+    if (ch !== NFC_CHANNEL) return;
+    try {
+      const data = JSON.parse(raw);
+      if (data.orgId === orgId) {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      }
+    } catch (e) { /* ignore parse errors */ }
   };
 
-  nfcEventBus.on('nfc:tap', onTap);
+  sub.subscribe(NFC_CHANNEL);
+  sub.on('message', onMessage);
 
   const keepAlive = setInterval(() => { res.write(':\n\n'); }, 15000);
 
   req.on('close', () => {
-    nfcEventBus.off('nfc:tap', onTap);
+    sub.off('message', onMessage);
     clearInterval(keepAlive);
   });
 });
@@ -181,8 +187,9 @@ router.post('/tap', authenticateDevice, async (req, res, next) => {
       };
     }
 
-    // Emit SSE event
-    nfcEventBus.emit('nfc:tap', { ...payload, orgId: device.orgId });
+    // Publish SSE event via Redis (reaches all API containers)
+    const tapData = { ...payload, orgId: device.orgId };
+    getRedis().publish(NFC_CHANNEL, JSON.stringify(tapData)).catch(() => {});
 
     res.json(payload);
   } catch (err) { next(err); }

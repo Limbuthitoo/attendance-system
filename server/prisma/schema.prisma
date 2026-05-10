@@ -1015,6 +1015,15 @@ enum NotificationType {
   LEAVE
   SYSTEM
   CHECKOUT_REMINDER
+  REPORT_READY
+  PAYROLL_READY
+  PAYROLL_ERROR
+  BIRTHDAY
+  ANNIVERSARY
+  ATTENDANCE_ANOMALY
+  CRM_ACTIVITY_REMINDER
+  CONTRACT_EXPIRY
+  BACKUP_ERROR
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

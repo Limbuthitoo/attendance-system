@@ -63,12 +63,28 @@ app.use(csrfSetToken);
 app.use(csrfValidate);
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
+const { RedisStore } = require('rate-limit-redis');
+const { getRedis } = require('./config/redis');
+
+function createRedisStore(prefix) {
+  try {
+    return new RedisStore({
+      sendCommand: (...args) => getRedis().call(...args),
+      prefix: `rl:${prefix}:`,
+    });
+  } catch (e) {
+    console.warn(`⚠ Redis rate-limit store unavailable for ${prefix}, using in-memory`);
+    return undefined;
+  }
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   message: { error: 'Too many login attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  store: createRedisStore('auth'),
 });
 
 const apiLimiter = rateLimit({
@@ -77,7 +93,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  // Default per-IP key generator handles IPv6 correctly
+  store: createRedisStore('api'),
 });
 
 // ── Health check ────────────────────────────────────────────────────────────

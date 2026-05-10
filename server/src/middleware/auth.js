@@ -4,6 +4,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { getPrisma } = require('../lib/prisma');
+const { getUserCache, setUserCache } = require('./cache');
 
 /**
  * Authenticate a request via:
@@ -34,67 +35,76 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ error: 'Invalid token type' });
     }
 
-    const prisma = getPrisma();
-    const user = await prisma.employee.findFirst({
-      where: { id: decoded.id, isActive: true },
-      select: {
-        id: true,
-        orgId: true,
-        employeeCode: true,
-        name: true,
-        email: true,
-        department: true,
-        designation: true,
-        mustChangePassword: true,
-        employeeRoles: {
-          select: {
-            branchId: true,
-            role: { select: { name: true, permissions: true } },
+    // Try Redis cache first (avoids Prisma query on every request)
+    let userData = await getUserCache(decoded.id);
+
+    if (!userData) {
+      const prisma = getPrisma();
+      const user = await prisma.employee.findFirst({
+        where: { id: decoded.id, isActive: true },
+        select: {
+          id: true,
+          orgId: true,
+          employeeCode: true,
+          name: true,
+          email: true,
+          department: true,
+          designation: true,
+          mustChangePassword: true,
+          employeeRoles: {
+            select: {
+              branchId: true,
+              role: { select: { name: true, permissions: true } },
+            },
+          },
+          assignments: {
+            where: { isCurrent: true },
+            select: {
+              branchId: true,
+              shiftId: true,
+              workScheduleId: true,
+            },
+            take: 1,
           },
         },
-        assignments: {
-          where: { isCurrent: true },
-          select: {
-            branchId: true,
-            shiftId: true,
-            workScheduleId: true,
-          },
-          take: 1,
-        },
-      },
-    });
+      });
 
-    if (!user) {
-      return res.status(401).json({ error: 'User not found or inactive' });
+      if (!user) {
+        return res.status(401).json({ error: 'User not found or inactive' });
+      }
+
+      // Flatten roles and permissions
+      const roles = user.employeeRoles.map((er) => er.role.name);
+      const permissions = new Set();
+      for (const er of user.employeeRoles) {
+        const perms = Array.isArray(er.role.permissions) ? er.role.permissions : [];
+        perms.forEach((p) => permissions.add(p));
+      }
+
+      const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
+          ? 'admin'
+          : 'employee';
+
+      userData = {
+        id: user.id,
+        orgId: user.orgId,
+        employeeCode: user.employeeCode,
+        name: user.name,
+        email: user.email,
+        department: user.department,
+        designation: user.designation,
+        mustChangePassword: user.mustChangePassword,
+        role,
+        roles,
+        permissions: [...permissions],
+        currentAssignment: user.assignments[0] || null,
+      };
+
+      // Cache for 2 min — saves ~5-10 queries per request cycle
+      setUserCache(decoded.id, userData).catch(() => {});
     }
 
-    // Flatten roles and permissions
-    const roles = user.employeeRoles.map((er) => er.role.name);
-    const permissions = new Set();
-    for (const er of user.employeeRoles) {
-      const perms = Array.isArray(er.role.permissions) ? er.role.permissions : [];
-      perms.forEach((p) => permissions.add(p));
-    }
-
-    // Backward compat: derive legacy 'role' string for old web/mobile clients
-    const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
-        ? 'admin'
-        : 'employee';
-
-    req.user = {
-      id: user.id,
-      orgId: user.orgId,
-      employeeCode: user.employeeCode,
-      name: user.name,
-      email: user.email,
-      department: user.department,
-      designation: user.designation,
-      mustChangePassword: user.mustChangePassword,
-      role,         // backward compat: 'admin' or 'employee'
-      roles,
-      permissions: [...permissions],
-      currentAssignment: user.assignments[0] || null,
-    };
+    req.user = userData;
 
     next();
   } catch (err) {

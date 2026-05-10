@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { getPrisma } = require('../lib/prisma');
 const { auditLog } = require('../lib/audit');
+const { invalidateUserCache } = require('../middleware/cache');
 
 // All available permissions in the system
 const ALL_PERMISSIONS = [
@@ -234,6 +235,9 @@ async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, admin
     req,
   });
 
+  // Bust auth cache so new role takes effect immediately
+  invalidateUserCache(employeeId).catch(() => {});
+
   return assignment;
 }
 
@@ -259,6 +263,8 @@ async function removeRoleFromEmployee({ employeeId, roleId, branchId, orgId, adm
     newData: { employeeId, roleId, branchId },
     req,
   });
+
+  invalidateUserCache(employeeId).catch(() => {});
 }
 
 /**

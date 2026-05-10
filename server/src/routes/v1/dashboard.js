@@ -4,6 +4,7 @@
 const { Router } = require('express');
 const { requireRole } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
+const { responseCache, orgKey, userOrgKey, userKey } = require('../../middleware/cache');
 
 const router = Router();
 
@@ -13,7 +14,7 @@ function todayDate() {
 }
 
 // GET /api/v1/dashboard/stats — Admin: org stats, Employee: own stats
-router.get('/stats', async (req, res, next) => {
+router.get('/stats', responseCache({ ttl: 30, keyFn: userOrgKey }), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;
@@ -83,7 +84,7 @@ router.get('/stats', async (req, res, next) => {
 });
 
 // GET /api/v1/dashboard/weekly-trend
-router.get('/weekly-trend', async (req, res, next) => {
+router.get('/weekly-trend', responseCache({ ttl: 60, keyFn: userOrgKey }), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;
@@ -135,7 +136,7 @@ router.get('/weekly-trend', async (req, res, next) => {
 });
 
 // GET /api/v1/dashboard/department-stats (admin only)
-router.get('/department-stats', async (req, res, next) => {
+router.get('/department-stats', responseCache({ ttl: 30, keyFn: orgKey }), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;
@@ -172,7 +173,7 @@ router.get('/department-stats', async (req, res, next) => {
 });
 
 // GET /api/v1/dashboard/leave-stats
-router.get('/leave-stats', async (req, res, next) => {
+router.get('/leave-stats', responseCache({ ttl: 60, keyFn: userOrgKey }), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;

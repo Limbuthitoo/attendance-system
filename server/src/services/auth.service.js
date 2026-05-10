@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { getPrisma } = require('../lib/prisma');
 const { validatePassword } = require('../lib/validation');
 const { auditLog } = require('../lib/audit');
+const { invalidateUserCache } = require('../middleware/cache');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -251,6 +252,9 @@ async function changePassword({ employeeId, currentPassword, newPassword, req })
     data: { password: hash, mustChangePassword: false },
   });
 
+  // Bust auth cache so mustChangePassword=false takes effect
+  invalidateUserCache(employeeId).catch(() => {});
+
   // Revoke all refresh tokens so other sessions must re-login
   await revokeAllTokens(employeeId);
 
@@ -290,6 +294,8 @@ async function adminResetPassword({ adminId, employeeId, newPassword, req }) {
     where: { id: employeeId },
     data: { password: hash, mustChangePassword: true },
   });
+
+  invalidateUserCache(employeeId).catch(() => {});
 
   await revokeAllTokens(employeeId);
 
