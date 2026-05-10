@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getPlans, createPlan, updatePlan, deletePlan } from '../api';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, HardDrive } from 'lucide-react';
 
 const EMPTY_PLAN = {
   name: '', code: '', description: '',
   price: '', currency: 'NPR', billingCycle: 'monthly',
   maxEmployees: '', maxBranches: '', maxDevices: '',
   trialDays: 0, sortOrder: 0, isActive: true, features: [],
+  backupRetentionDays: 7,
 };
 
 export default function Plans() {
@@ -56,6 +57,7 @@ export default function Plans() {
       sortOrder: plan.sortOrder || 0,
       isActive: plan.isActive,
       features: plan.features || [],
+      backupRetentionDays: plan.backupRetentionDays || 7,
     });
     setFeatureInput('');
     setShowModal(true);
@@ -86,6 +88,7 @@ export default function Plans() {
         maxDevices: Number(form.maxDevices),
         trialDays: Number(form.trialDays),
         sortOrder: Number(form.sortOrder),
+        backupRetentionDays: Number(form.backupRetentionDays),
       };
       if (editing) {
         await updatePlan(editing, payload);
@@ -183,6 +186,10 @@ export default function Plans() {
               {plan.trialDays > 0 && (
                 <div><strong>{plan.trialDays}</strong>-day trial</div>
               )}
+              <div className="flex items-center gap-1">
+                <HardDrive className="w-3.5 h-3.5 text-gray-400" />
+                <strong>{plan.backupRetentionDays || 7}</strong>-day backup retention
+              </div>
             </div>
 
             {plan.features?.length > 0 && (
@@ -337,6 +344,17 @@ export default function Plans() {
                     className="w-full border rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Backup Retention (days)</label>
+                <input
+                  type="number" min="1" max="365"
+                  value={form.backupRetentionDays}
+                  onChange={(e) => setForm({ ...form, backupRetentionDays: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-400 mt-0.5">Organizations on this plan will retain backups for this many days</p>
               </div>
 
               <div>

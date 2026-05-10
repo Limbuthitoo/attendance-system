@@ -126,24 +126,28 @@ async function seed() {
       code: 'trial', name: 'Trial', description: '14-day free trial',
       price: 0, currency: 'NPR', billingCycle: 'monthly',
       maxEmployees: 15, maxBranches: 2, maxDevices: 3, trialDays: 14,
+      backupRetentionDays: 1,
       sortOrder: 0, features: ['Core attendance', 'Leave management', 'Basic reports'],
     },
     {
       code: 'starter', name: 'Starter', description: 'For small teams up to 30 employees',
       price: 150000, currency: 'NPR', billingCycle: 'monthly',
       maxEmployees: 30, maxBranches: 3, maxDevices: 5, trialDays: 0,
+      backupRetentionDays: 7,
       sortOrder: 1, features: ['Everything in Trial', 'NFC/QR devices', 'Holiday calendar', 'Notices', 'App distribution'],
     },
     {
       code: 'business', name: 'Business', description: 'For growing organizations up to 100 employees',
       price: 400000, currency: 'NPR', billingCycle: 'monthly',
       maxEmployees: 100, maxBranches: 10, maxDevices: 20, trialDays: 0,
+      backupRetentionDays: 30,
       sortOrder: 2, features: ['Everything in Starter', 'Advanced reports', 'Payroll integration', 'Geofencing', 'Multiple branches'],
     },
     {
       code: 'enterprise', name: 'Enterprise', description: 'For large organizations with custom needs',
       price: 1000000, currency: 'NPR', billingCycle: 'monthly',
       maxEmployees: 500, maxBranches: 50, maxDevices: 100, trialDays: 0,
+      backupRetentionDays: 90,
       sortOrder: 3, features: ['Everything in Business', 'Unlimited support', 'Custom integrations', 'Dedicated account manager'],
     },
   ];

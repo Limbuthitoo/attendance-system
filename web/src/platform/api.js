@@ -262,3 +262,19 @@ export const platformApi = {
 };
 
 export { getToken, setToken };
+
+// ── Settings ────────────────────────────────────────────────────────────────
+export async function getBackupSettings() {
+  return request('/settings/backup');
+}
+
+export async function updateBackupSettings(data) {
+  return request('/settings/backup', { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function updatePlanRetention(planId, retentionDays) {
+  return request(`/settings/backup/plan/${planId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ retentionDays }),
+  });
+}

@@ -63,6 +63,7 @@ const PlatformUsers = lazy(() => import('./platform/pages/PlatformUsers'));
 const AppUpdateManager = lazy(() => import('./platform/pages/AppUpdateManager'));
 const PlatformDevices = lazy(() => import('./platform/pages/PlatformDevices'));
 const DeviceCatalog = lazy(() => import('./platform/pages/DeviceCatalog'));
+const PlatformSettings = lazy(() => import('./platform/pages/PlatformSettings'));
 
 // Platform auth — eagerly loaded (small, needed for route guards)
 import { PlatformAuthProvider, usePlatformAuth } from './platform/PlatformAuthContext';
@@ -286,6 +287,7 @@ export default function App() {
         <Route path="app-update" element={<LazyPage name="App Update"><AppUpdateManager /></LazyPage>} />
         <Route path="devices" element={<LazyPage name="Devices"><PlatformDevices /></LazyPage>} />
         <Route path="device-catalog" element={<LazyPage name="Device Catalog"><DeviceCatalog /></LazyPage>} />
+        <Route path="settings" element={<LazyPage name="Settings"><PlatformSettings /></LazyPage>} />
       </Route>
 
       {/* Org-level routes */}

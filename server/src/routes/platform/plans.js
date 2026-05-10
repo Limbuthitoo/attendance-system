@@ -50,7 +50,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { name, code, description, price, currency, billingCycle, maxEmployees, maxBranches, maxDevices, trialDays, features, sortOrder } = req.body;
+    const { name, code, description, price, currency, billingCycle, maxEmployees, maxBranches, maxDevices, trialDays, features, sortOrder, backupRetentionDays } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ error: 'name and code are required' });
@@ -70,6 +70,7 @@ router.post('/', requireSuperAdmin, async (req, res, next) => {
         trialDays: parseInt(trialDays) || 0,
         features: features || [],
         sortOrder: parseInt(sortOrder) || 0,
+        backupRetentionDays: parseInt(backupRetentionDays) || 7,
       },
     });
     res.status(201).json({ plan, message: 'Plan created' });
@@ -86,7 +87,7 @@ router.put('/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const data = {};
-    const { name, description, price, currency, billingCycle, maxEmployees, maxBranches, maxDevices, trialDays, features, sortOrder, isActive } = req.body;
+    const { name, description, price, currency, billingCycle, maxEmployees, maxBranches, maxDevices, trialDays, features, sortOrder, isActive, backupRetentionDays } = req.body;
 
     if (name !== undefined) data.name = name;
     if (description !== undefined) data.description = description;
@@ -100,6 +101,7 @@ router.put('/:id', requireSuperAdmin, async (req, res, next) => {
     if (features !== undefined) data.features = features;
     if (sortOrder !== undefined) data.sortOrder = parseInt(sortOrder);
     if (typeof isActive === 'boolean') data.isActive = isActive;
+    if (backupRetentionDays !== undefined) data.backupRetentionDays = parseInt(backupRetentionDays);
 
     const plan = await prisma.plan.update({
       where: { id: req.params.id },
