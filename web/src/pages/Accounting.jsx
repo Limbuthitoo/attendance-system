@@ -60,6 +60,7 @@ function FiscalYearsTab() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name || !form.startDate || !form.endDate) { alert('Please fill all required fields'); return; }
     try { await api.createFiscalYear(form); setShowForm(false); setForm({ name: '', startDate: '', endDate: '', isCurrent: false }); load(); } catch (e) { alert(e.message); }
   };
 
@@ -90,19 +91,19 @@ function FiscalYearsTab() {
         </button>
       </div>
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name (e.g. 2082/83)</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-              <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" required />
+              <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-              <DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" required />
+              <DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" />
             </div>
             <div className="flex items-end gap-2">
               <label className="flex items-center gap-2">
@@ -351,9 +352,9 @@ function JournalEntriesTab() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Voucher Type</label><select value={form.voucherType} onChange={e => setForm({ ...form, voucherType: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{VOUCHER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference</label><input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Invoice #, Voucher #" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Narration *</label><input value={form.narration} onChange={e => setForm({ ...form, narration: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Description / Particulars" /></div>
