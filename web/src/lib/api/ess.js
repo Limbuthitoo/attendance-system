@@ -20,5 +20,5 @@ export const ess = {
 
 export const orgChart = {
   getOrgChart: () => request('/org-chart'),
-  updateManager: (employeeId, managerId) => request(`/org-chart/${employeeId}/manager`, { method: 'PUT', body: JSON.stringify({ managerId }) }),
+  updateDepartment: (employeeId, data) => request(`/org-chart/${employeeId}/department`, { method: 'PUT', body: JSON.stringify(data) }),
 };
