@@ -192,7 +192,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
 
   return (
     <div className={`relative ${className}`} ref={ref}>
-      {required && <input type="text" value={value || ''} required tabIndex={-1} className="sr-only" onChange={() => {}} />}
+      {required && <input type="text" value={value || ''} required title="Please select a date" tabIndex={-1} className="sr-only" aria-hidden="true" onChange={() => {}} />}
 
       <button
         type="button"

@@ -107,7 +107,7 @@ export default function Employees() {
       setDesigList(desigRes.designations || []);
       setBranches(brRes.branches || brRes.data || []);
       setShifts(shRes.shifts || shRes.data || []);
-      setSchedules(scRes.schedules || scRes.data || []);
+      setSchedules(scRes.workSchedules || scRes.schedules || scRes.data || []);
       setRoles(roleRes.roles || roleRes.data || []);
     } catch { /* ignore */ }
   }, []);
@@ -134,6 +134,11 @@ export default function Employees() {
     setSubmitting(true);
     try {
       const payload = { ...form };
+      // Map custom role UUIDs to roleId field
+      if (payload.role && !['admin', 'employee'].includes(payload.role)) {
+        payload.roleId = payload.role;
+        delete payload.role;
+      }
       // Clean empty optional fields
       if (!payload.branchId) delete payload.branchId;
       if (!payload.shiftId) delete payload.shiftId;

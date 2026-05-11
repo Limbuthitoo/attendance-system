@@ -17,6 +17,19 @@ async function listFiscalYears(orgId) {
 
 async function createFiscalYear({ orgId, data, adminId, req }) {
   const prisma = getPrisma();
+
+  if (!data.name || !data.startDate || !data.endDate) {
+    throw Object.assign(new Error('Name, start date, and end date are required'), { status: 400 });
+  }
+  const startDate = new Date(data.startDate);
+  const endDate = new Date(data.endDate);
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw Object.assign(new Error('Invalid date format. Please select valid dates.'), { status: 400 });
+  }
+  if (endDate <= startDate) {
+    throw Object.assign(new Error('End date must be after start date'), { status: 400 });
+  }
+
   // If setting as current, unset all others
   if (data.isCurrent) {
     await prisma.fiscalYear.updateMany({ where: { orgId, isCurrent: true }, data: { isCurrent: false } });
@@ -24,7 +37,7 @@ async function createFiscalYear({ orgId, data, adminId, req }) {
   const fy = await prisma.fiscalYear.create({
     data: {
       orgId, name: data.name,
-      startDate: new Date(data.startDate), endDate: new Date(data.endDate),
+      startDate, endDate,
       isCurrent: data.isCurrent || false, status: data.status || 'OPEN',
     },
   });
@@ -41,8 +54,16 @@ async function updateFiscalYear({ orgId, fyId, data, adminId, req }) {
   }
   const updateData = {};
   if (data.name !== undefined) updateData.name = data.name;
-  if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
-  if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
+  if (data.startDate !== undefined) {
+    const d = new Date(data.startDate);
+    if (isNaN(d.getTime())) throw Object.assign(new Error('Invalid start date'), { status: 400 });
+    updateData.startDate = d;
+  }
+  if (data.endDate !== undefined) {
+    const d = new Date(data.endDate);
+    if (isNaN(d.getTime())) throw Object.assign(new Error('Invalid end date'), { status: 400 });
+    updateData.endDate = d;
+  }
   if (data.isCurrent !== undefined) updateData.isCurrent = data.isCurrent;
   if (data.status !== undefined) updateData.status = data.status;
   const fy = await prisma.fiscalYear.update({ where: { id: fyId }, data: updateData });
@@ -224,6 +245,11 @@ async function createJournalEntry({ orgId, data, adminId, req }) {
     throw Object.assign(new Error(`Debit (${totalDebit}) ≠ Credit (${totalCredit}). Entry must balance.`), { status: 400 });
   }
 
+  if (!data.narration) throw Object.assign(new Error('Narration is required'), { status: 400 });
+  if (!data.date) throw Object.assign(new Error('Date is required'), { status: 400 });
+  const entryDate = new Date(data.date);
+  if (isNaN(entryDate.getTime())) throw Object.assign(new Error('Invalid date format'), { status: 400 });
+
   // Get next entry number
   const lastEntry = await prisma.journalEntry.findFirst({
     where: { orgId, fiscalYearId: fy.id },
@@ -235,7 +261,7 @@ async function createJournalEntry({ orgId, data, adminId, req }) {
   const entry = await prisma.journalEntry.create({
     data: {
       orgId, fiscalYearId: fy.id, entryNumber,
-      date: new Date(data.date), narration: data.narration, reference: data.reference || null,
+      date: entryDate, narration: data.narration, reference: data.reference || null,
       voucherType: data.voucherType || 'JOURNAL',
       status: data.status || 'DRAFT',
       totalDebit, totalCredit,
