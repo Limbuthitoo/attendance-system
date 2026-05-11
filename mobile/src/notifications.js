@@ -37,15 +37,30 @@ export async function registerForPushNotifications() {
     return null;
   }
 
-  // Android notification channel
+  // Android notification channels — one per notification type
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#2563eb',
-      sound: 'default',
-    });
+    const channels = [
+      { id: 'leave-updates', name: 'Leave Updates', description: 'Leave applications, approvals, rejections' },
+      { id: 'attendance', name: 'Attendance', description: 'Check-out reminders and anomalies' },
+      { id: 'notices', name: 'Notices', description: 'Company announcements' },
+      { id: 'system', name: 'System', description: 'System alerts and errors' },
+      { id: 'birthdays', name: 'Birthdays & Anniversaries', description: 'Birthday and anniversary wishes' },
+      { id: 'payroll', name: 'Payroll', description: 'Payslip and payroll alerts' },
+      { id: 'reports', name: 'Reports', description: 'Generated report notifications' },
+      { id: 'crm', name: 'CRM', description: 'CRM activity reminders' },
+      { id: 'default', name: 'Default', description: 'General notifications' },
+    ];
+
+    for (const ch of channels) {
+      await Notifications.setNotificationChannelAsync(ch.id, {
+        name: ch.name,
+        description: ch.description,
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2563eb',
+        sound: 'default',
+      });
+    }
   }
 
   try {

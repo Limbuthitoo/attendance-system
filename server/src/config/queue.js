@@ -66,17 +66,17 @@ async function enqueueEmail({ to, subject, html, orgId }) {
 /**
  * Enqueue a push notification job
  */
-async function enqueuePush({ employeeIds, title, body, data }) {
+async function enqueuePush({ employeeIds, title, body, data, orgId, notificationType }) {
   const queue = getPushQueue();
-  await queue.add('send-push', { employeeIds, title, body, data });
+  await queue.add('send-push', { employeeIds, title, body, data, orgId, notificationType });
 }
 
 /**
  * Enqueue a push notification to all admins of an org
  */
-async function enqueuePushToAdmins({ orgId, title, body, data }) {
+async function enqueuePushToAdmins({ orgId, title, body, data, notificationType }) {
   const queue = getPushQueue();
-  await queue.add('send-push-admins', { orgId, title, body, data });
+  await queue.add('send-push-admins', { orgId, title, body, data, notificationType });
 }
 
 /**

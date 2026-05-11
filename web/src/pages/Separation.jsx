@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, UserMinus, CheckCircle2, AlertCircle } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const STATUS_COLORS = {
   INITIATED: 'bg-blue-100 text-blue-800',
@@ -11,6 +14,7 @@ const STATUS_COLORS = {
 };
 
 export default function Separation() {
+  const { dateFormat } = useSettings();
   const [separations, setSeparations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -92,7 +96,7 @@ export default function Separation() {
                 <tr key={s.id}>
                   <td className="px-4 py-3"><div className="font-medium">{s.employee?.name}</div><div className="text-xs text-gray-500">{s.employee?.employeeCode}</div></td>
                   <td className="px-4 py-3 text-sm">{s.type}</td>
-                  <td className="px-4 py-3 text-sm">{s.lastWorkingDate ? new Date(s.lastWorkingDate).toLocaleDateString() : '—'}</td>
+                  <td className="px-4 py-3 text-sm">{s.lastWorkingDate ? formatDate(s.lastWorkingDate, dateFormat) : '—'}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span></td>
                   <td className="px-4 py-3 text-right space-x-2">
                     <button onClick={() => handleViewClearance(s)} className="text-xs text-blue-600 hover:underline">Clearance</button>
@@ -150,7 +154,7 @@ export default function Separation() {
                 <option value="CONTRACT_END">Contract End</option>
               </select>
               <textarea placeholder="Reason" value={form.reason || ''} onChange={e => setForm({ ...form, reason: e.target.value })} className="w-full border rounded px-3 py-2" rows="2" />
-              <input type="date" value={form.lastWorkingDate || ''} onChange={e => setForm({ ...form, lastWorkingDate: e.target.value })} className="w-full border rounded px-3 py-2" />
+              <DatePicker value={form.lastWorkingDate || ''} onChange={v => setForm({ ...form, lastWorkingDate: v })} placeholder="Last Working Date" />
               <input type="number" placeholder="Notice Period (days)" value={form.noticePeriodDays || ''} onChange={e => setForm({ ...form, noticePeriodDays: e.target.value })} className="w-full border rounded px-3 py-2" />
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>

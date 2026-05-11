@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, X, Trash2 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 
 export default function Leaves() {
+  const { dateFormat } = useSettings();
   const [leaves, setLeaves] = useState([]);
   const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -227,8 +230,8 @@ export default function Leaves() {
                     {statusBadge(leave.status)}
                   </div>
                   <p className="text-xs text-slate-500 mb-1">
-                    {new Date(leave.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    {leave.start_date !== leave.end_date && ` — ${new Date(leave.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    {formatDate(leave.start_date, dateFormat)}
+                    {leave.start_date !== leave.end_date && ` — ${formatDate(leave.end_date, dateFormat)}`}
                     {' '}&middot; {leave.days} day{leave.days > 1 ? 's' : ''}
                   </p>
                   <p className="text-sm text-slate-600">{leave.reason}</p>

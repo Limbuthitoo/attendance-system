@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, FileText, Receipt, Package } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const STATUS_COLORS = {
   PENDING: 'bg-yellow-100 text-yellow-800',
@@ -16,6 +19,7 @@ const STATUS_COLORS = {
 };
 
 export default function SelfService() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('documents');
   const [documents, setDocuments] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -120,7 +124,7 @@ export default function SelfService() {
                   <td className="px-4 py-3 font-medium">{d.type}</td>
                   <td className="px-4 py-3 text-sm">{d.employee?.name}</td>
                   <td className="px-4 py-3 text-sm">{d.purpose || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(d.createdAt, dateFormat)}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[d.status] || 'bg-gray-100'}`}>{d.status}</span></td>
                   <td className="px-4 py-3 text-right">
                     {d.status === 'PENDING' && (
@@ -159,7 +163,7 @@ export default function SelfService() {
                   <td className="px-4 py-3 text-sm">{ex.description}</td>
                   <td className="px-4 py-3 text-sm">{ex.employee?.name}</td>
                   <td className="px-4 py-3 text-sm">NPR {Number(ex.amount).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(ex.expenseDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(ex.expenseDate, dateFormat)}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[ex.status] || 'bg-gray-100'}`}>{ex.status}</span></td>
                   <td className="px-4 py-3 text-right">
                     {ex.status === 'PENDING' && (
@@ -232,7 +236,7 @@ export default function SelfService() {
                 </select>
                 <textarea placeholder="Description" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full border rounded px-3 py-2" rows="2" required />
                 <input placeholder="Amount (NPR)" type="number" value={form.amount || ''} onChange={e => setForm({ ...form, amount: e.target.value })} className="w-full border rounded px-3 py-2" required />
-                <input type="date" value={form.expenseDate || ''} onChange={e => setForm({ ...form, expenseDate: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <DatePicker value={form.expenseDate || ''} onChange={v => setForm({ ...form, expenseDate: v })} placeholder="Expense Date" />
               </> : <>
                 <input placeholder="Asset Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <select value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full border rounded px-3 py-2" required>

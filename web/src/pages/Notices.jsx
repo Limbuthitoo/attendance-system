@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { formatDateTime } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import {
   Megaphone, Plus, Trash2, Send, X, AlertTriangle, FileText, PartyPopper, Shield,
   Clock, ChevronDown, Users, User
@@ -27,6 +29,7 @@ function timeAgo(dateStr) {
 
 export default function Notices() {
   const { user } = useAuth();
+  const { dateFormat } = useSettings();
   const isAdmin = user?.role === 'admin';
   const [notices, setNotices] = useState([]);
   const [total, setTotal] = useState(0);
@@ -221,7 +224,7 @@ export default function Notices() {
               <h2 className="text-xl font-bold text-slate-900 mb-2">{selectedNotice.title}</h2>
               <div className="flex items-center gap-3 text-xs text-slate-500 mb-4">
                 <span className="flex items-center gap-1"><User size={12} /> {selectedNotice.published_by_name || 'Admin'}</span>
-                <span className="flex items-center gap-1"><Clock size={12} /> {new Date(selectedNotice.created_at).toLocaleString()}</span>
+                <span className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(selectedNotice.created_at, dateFormat)}</span>
               </div>
               <div className="prose prose-sm text-slate-700 whitespace-pre-wrap">{selectedNotice.body}</div>
             </div>

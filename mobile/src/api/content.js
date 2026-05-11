@@ -24,4 +24,17 @@ export const notifications = {
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
   clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
   clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
+  getChannels: () => request('/notifications/channels'),
+  getPreferences: () => request('/notifications/preferences'),
+  updatePreferences: (preferences) =>
+    request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ preferences }),
+    }),
+  getOrgNotificationSettings: () => request('/notifications/org-settings'),
+  updateOrgNotificationSettings: (settings) =>
+    request('/notifications/org-settings', {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
+    }),
 };

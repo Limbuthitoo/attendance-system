@@ -145,6 +145,8 @@ async function handleBirthdayAnniversary() {
           ? `Happy Birthday to ${emps[0].name}!`
           : `Happy Birthday to ${names}!`,
         data: { type: 'birthday' },
+        orgId,
+        notificationType: 'BIRTHDAY',
       });
     }
   }
@@ -182,6 +184,8 @@ async function handleBirthdayAnniversary() {
           ? `Congratulations to ${emps[0].name} on their work anniversary!`
           : `${emps.length} colleagues celebrating work anniversaries today!`,
         data: { type: 'anniversary' },
+        orgId,
+        notificationType: 'ANNIVERSARY',
       });
     }
   }
@@ -269,6 +273,7 @@ async function handleAttendanceAnomalyDetection() {
         title: '⚠️ Attendance Anomalies Detected',
         body: body.trim(),
         data: { type: 'attendance_anomaly' },
+        notificationType: 'ATTENDANCE_ANOMALY',
       });
 
       // Also create in-app notification for admins
@@ -649,6 +654,7 @@ async function handleDocumentExpiryAlerts() {
       title,
       body,
       data: { type: 'contract_expiry', employeeId: emp.id },
+      notificationType: 'CONTRACT_EXPIRY',
     });
 
     // Also notify the employee themselves
@@ -685,6 +691,7 @@ async function handleDocumentExpiryAlerts() {
       title: `📋 Probation Ending — ${emp.name}`,
       body: `${emp.name}'s probation period ends in ${daysLeft} day${daysLeft > 1 ? 's' : ''}. Review and confirm status.`,
       data: { type: 'probation_ending', employeeId: emp.id },
+      notificationType: 'CONTRACT_EXPIRY',
     });
 
     alertsSent++;

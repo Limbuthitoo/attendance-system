@@ -1,22 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Users, UserPlus, Filter, MapPin, Clock, CalendarDays, History, X, Check, AlertTriangle } from 'lucide-react';
+import { request } from '../lib/api/client';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 
-const API_BASE = '/api/v1';
-
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json();
-}
+const apiFetch = (path, options = {}) => request(`/v1${path}`, options);
 
 export default function EmployeeAssignments() {
+  const { dateFormat } = useSettings();
   const [assignments, setAssignments] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -271,7 +262,7 @@ export default function EmployeeAssignments() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    {a.effectiveFrom && new Date(a.effectiveFrom).toLocaleDateString()}
+                    {a.effectiveFrom && formatDate(a.effectiveFrom, dateFormat)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
@@ -319,7 +310,7 @@ export default function EmployeeAssignments() {
               </button>
             </div>
 
-            <form onSubmit={handleAssign} className="flex-1 overflow-auto p-6 space-y-4">
+            <form id="assign-form" onSubmit={handleAssign} className="flex-1 overflow-auto p-6 space-y-4">
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 text-sm rounded-lg">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
@@ -415,7 +406,7 @@ export default function EmployeeAssignments() {
               <button type="button" onClick={() => setShowAssignModal(false)}
                 className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
               >Cancel</button>
-              <button onClick={handleAssign} disabled={saving}
+              <button type="submit" form="assign-form" disabled={saving}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
@@ -461,8 +452,8 @@ export default function EmployeeAssignments() {
                         </div>
                       </div>
                       <p className="text-xs text-slate-400 mt-2">
-                        {h.effectiveFrom && new Date(h.effectiveFrom).toLocaleDateString()}
-                        {h.effectiveTo && ` → ${new Date(h.effectiveTo).toLocaleDateString()}`}
+                        {h.effectiveFrom && formatDate(h.effectiveFrom, dateFormat)}
+                        {h.effectiveTo && ` → ${formatDate(h.effectiveTo, dateFormat)}`}
                         {!h.effectiveTo && h.isCurrent && ' → present'}
                       </p>
                     </div>

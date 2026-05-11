@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const PARTY_TYPES = ['CUSTOMER', 'VENDOR', 'BOTH'];
 const INVOICE_TYPES = ['SALES', 'PURCHASE', 'SALES_RETURN', 'PURCHASE_RETURN'];
@@ -10,13 +13,14 @@ function useBillingSettings() {
   const [settings, setSettings] = useState(null);
   useEffect(() => {
     (async () => {
-      try { const s = await api.billing.getSettings(); setSettings(s); } catch { /* use defaults */ }
+      try { const s = await api.getSettings(); setSettings(s); } catch { /* use defaults */ }
     })();
   }, []);
   return settings || { defaultVatRate: 13, currency: 'NPR', salesPrefix: 'INV', purchasePrefix: 'PUR', creditNotePrefix: 'CN', debitNotePrefix: 'DN', receiptPrefix: 'RCV', paymentVoucherPrefix: 'PAY', invoiceSeqPadding: 4, receiptSeqPadding: 5, cashAccountCode: '1101', bankAccountCode: '1102', receivableAccountCode: '1201', payableAccountCode: '2101', salesRevenueCode: '4100', purchaseExpenseCode: '5700', vatPayableCode: '2201', vatReceivableCode: '1500', tdsReceivableCode: '1500', tdsPayableCode: '2202' };
 }
 
 export default function Billing() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('invoices');
   const settings = useBillingSettings();
   const tabs = [
@@ -55,6 +59,7 @@ export default function Billing() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PartiesTab({ settings }) {
+  const { dateFormat } = useSettings();
   const cur = settings.currency || 'NPR';
   const [parties, setParties] = useState([]);
   const [filterType, setFilterType] = useState('');
@@ -86,7 +91,7 @@ function PartiesTab({ settings }) {
   };
 
   const handleStatement = async (p) => {
-    try { const data = await api.billing.getPartyStatement(p.id); setStatement(data); } catch (e) { alert(e.message); }
+    try { const data = await api.getPartyStatement(p.id); setStatement(data); } catch (e) { alert(e.message); }
   };
 
   if (loading) return <div className="text-center py-8 text-gray-500">Loading...</div>;
@@ -198,7 +203,7 @@ function PartiesTab({ settings }) {
                 {statement.openingBalance !== 0 && <tr className="bg-amber-50/50"><td colSpan="5" className="py-2 text-sm italic text-gray-500">Opening Balance</td><td className="py-2 text-right font-mono font-bold">{statement.openingBalance.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td></tr>}
                 {statement.ledger.map((e, i) => (
                   <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/30">
-                    <td className="py-2 text-gray-600">{new Date(e.date).toLocaleDateString()}</td>
+                    <td className="py-2 text-gray-600">{formatDate(e.date, dateFormat)}</td>
                     <td className="py-2 font-mono text-blue-600">{e.ref}</td>
                     <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded ${e.type === 'invoice' ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'}`}>{e.type === 'invoice' ? e.subType : e.subType}</span></td>
                     <td className="py-2 text-right font-mono">{e.debit > 0 ? e.debit.toLocaleString('en-NP', { minimumFractionDigits: 2 }) : ''}</td>
@@ -222,6 +227,7 @@ function PartiesTab({ settings }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function InvoicesTab({ settings }) {
+  const { dateFormat } = useSettings();
   const [invoices, setInvoices] = useState([]);
   const [parties, setParties] = useState([]);
   const [filterType, setFilterType] = useState('');
@@ -299,8 +305,8 @@ function InvoicesTab({ settings }) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2">{INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border rounded-lg px-3 py-2"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type}){p.panNumber ? ` — PAN: ${p.panNumber}` : ''}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label><input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label><DatePicker value={form.dueDate} onChange={v => setForm({ ...form, dueDate: v })} placeholder="Due Date" /></div>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.isVatBill} onChange={e => setForm({ ...form, isVatBill: e.target.checked })} className="rounded" /><span className="text-gray-700">VAT Bill ({defVat}%)</span></label>
@@ -373,7 +379,7 @@ function InvoicesTab({ settings }) {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selectedInvoice.invoiceNumber}</h3>
-                <p className="text-sm text-gray-500">{selectedInvoice.type} | {selectedInvoice.party?.name} | {new Date(selectedInvoice.date).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-500">{selectedInvoice.type} | {selectedInvoice.party?.name} | {formatDate(selectedInvoice.date, dateFormat)}</p>
               </div>
               <button onClick={() => setSelectedInvoice(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
@@ -415,7 +421,7 @@ function InvoicesTab({ settings }) {
                 <td className="px-5 py-3 text-sm font-mono font-medium text-blue-600">{inv.invoiceNumber}</td>
                 <td className="px-5 py-3"><span className={`text-xs px-2.5 py-1 font-medium rounded-md ${inv.type === 'SALES' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' : inv.type === 'PURCHASE' ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-600/20' : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200'}`}>{inv.type}</span></td>
                 <td className="px-5 py-3 text-sm text-gray-900">{inv.party?.name}</td>
-                <td className="px-5 py-3 text-sm text-gray-600">{new Date(inv.date).toLocaleDateString()}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{formatDate(inv.date, dateFormat)}</td>
                 <td className="px-5 py-3 text-sm text-right font-mono text-gray-900">{Number(inv.totalAmount).toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
                 <td className="px-5 py-3 text-sm text-right font-mono text-red-600">{Number(inv.dueAmount) > 0 ? Number(inv.dueAmount).toLocaleString('en-NP', { minimumFractionDigits: 2 }) : '—'}</td>
                 <td className="px-5 py-3"><span className={`px-2.5 py-1 text-xs font-medium rounded-full ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' : inv.status === 'ISSUED' ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-600/20' : inv.status === 'DRAFT' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' : inv.status === 'PARTIALLY_PAID' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/20' : inv.status === 'OVERDUE' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/20' : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200'}`}>{inv.status}</span></td>
@@ -439,6 +445,7 @@ function InvoicesTab({ settings }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PaymentsTab({ settings }) {
+  const { dateFormat } = useSettings();
   const cur = settings.currency || 'NPR';
   const [payments, setPayments] = useState([]);
   const [parties, setParties] = useState([]);
@@ -468,7 +475,7 @@ function PaymentsTab({ settings }) {
 
   const handleVoid = async (id) => {
     if (!confirm('Void this payment? This will reverse the invoice amount and void the journal entry.')) return;
-    try { await api.billing.voidPayment(id); load(); } catch (e) { alert(e.message); }
+    try { await api.voidPayment(id); load(); } catch (e) { alert(e.message); }
   };
 
   const filteredInvoices = invoices.filter(i => !form.partyId || i.partyId === form.partyId);
@@ -493,7 +500,7 @@ function PaymentsTab({ settings }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2"><option value="RECEIVED">Received (from customer)</option><option value="MADE">Made (to vendor)</option></select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border rounded-lg px-3 py-2"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type})</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Against Invoice</label><select value={form.invoiceId} onChange={e => { const inv = invoices.find(i => i.id === e.target.value); setForm({ ...form, invoiceId: e.target.value, amount: inv ? Number(inv.dueAmount) : form.amount }); }} className="w-full border rounded-lg px-3 py-2"><option value="">None (Advance)</option>{filteredInvoices.map(i => <option key={i.id} value={i.id}>{i.invoiceNumber} — Due: {cur} {Number(i.dueAmount).toFixed(2)}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required className="w-full border rounded-lg px-3 py-2" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount ({cur}) *</label><input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required className="w-full border rounded-lg px-3 py-2" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Method</label><select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} className="w-full border rounded-lg px-3 py-2">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}</select></div>
           </div>
@@ -538,7 +545,7 @@ function PaymentsTab({ settings }) {
                 <td className="px-5 py-3"><span className={`text-xs px-2.5 py-1 font-medium rounded-full ${p.type === 'RECEIVED' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' : 'bg-sky-50 text-sky-700 ring-1 ring-sky-600/20'}`}>{p.type}</span></td>
                 <td className="px-5 py-3 text-sm text-gray-900">{p.party?.name}</td>
                 <td className="px-5 py-3 text-sm font-mono text-gray-600">{p.invoice?.invoiceNumber || '—'}</td>
-                <td className="px-5 py-3 text-sm text-gray-600">{new Date(p.date).toLocaleDateString()}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{formatDate(p.date, dateFormat)}</td>
                 <td className="px-5 py-3 text-sm text-right font-mono font-bold text-gray-900">{cur} {Number(p.amount).toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
                 <td className="px-5 py-3"><span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-600 rounded-md ring-1 ring-gray-200 font-medium">{p.method.replace(/_/g, ' ')}</span></td>
                 <td className="px-5 py-3">{p.isVoided ? <span className="text-xs px-2.5 py-1 font-medium rounded-full bg-red-50 text-red-700 ring-1 ring-red-600/20">VOIDED</span> : <span className="text-xs px-2.5 py-1 font-medium rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20">ACTIVE</span>}</td>
@@ -559,6 +566,7 @@ function PaymentsTab({ settings }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function BillingReportsTab({ settings }) {
+  const { dateFormat } = useSettings();
   const cur = settings.currency || 'NPR';
   const [report, setReport] = useState('aging-receivable');
   const [data, setData] = useState(null);
@@ -571,7 +579,7 @@ function BillingReportsTab({ settings }) {
       if (report === 'aging-receivable') setData({ type: 'aging', ...(await api.getAgingReport({ type: 'receivable' })) });
       else if (report === 'aging-payable') setData({ type: 'aging', ...(await api.getAgingReport({ type: 'payable' })) });
       else if (report === 'vat-summary') setData({ type: 'vat', ...(await api.getVatSummary(dateFilter.startDate ? dateFilter : undefined)) });
-      else if (report === 'day-book') setData({ type: 'day-book', ...(await api.billing.getDayBook(dateFilter.startDate ? dateFilter : { date: new Date().toISOString().split('T')[0] })) });
+      else if (report === 'day-book') setData({ type: 'day-book', ...(await api.getDayBook(dateFilter.startDate ? dateFilter : { date: new Date().toISOString().split('T')[0] })) });
     } catch (e) { alert(e.message); }
     setLoading(false);
   };
@@ -592,11 +600,11 @@ function BillingReportsTab({ settings }) {
           <div className="flex items-end gap-2">
             <div>
               <label className="block text-xs text-gray-500 mb-1">From</label>
-              <input type="date" value={dateFilter.startDate} onChange={e => setDateFilter({ ...dateFilter, startDate: e.target.value })} className="border rounded-lg px-3 py-2 text-sm" />
+              <DatePicker value={dateFilter.startDate} onChange={v => setDateFilter({ ...dateFilter, startDate: v })} placeholder="From" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">To</label>
-              <input type="date" value={dateFilter.endDate} onChange={e => setDateFilter({ ...dateFilter, endDate: e.target.value })} className="border rounded-lg px-3 py-2 text-sm" />
+              <DatePicker value={dateFilter.endDate} onChange={v => setDateFilter({ ...dateFilter, endDate: v })} placeholder="To" />
             </div>
           </div>
         )}
@@ -689,7 +697,7 @@ function BillingReportsTab({ settings }) {
             <tbody>
               {data.entries.map((e, i) => (
                 <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/30">
-                  <td className="py-2 text-gray-600">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="py-2 text-gray-600">{formatDate(e.date, dateFormat)}</td>
                   <td className="py-2 font-mono text-blue-600">{e.ref}</td>
                   <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded font-medium ${e.category === 'invoice' ? 'bg-sky-50 text-sky-700' : e.category === 'payment' ? 'bg-emerald-50 text-emerald-700' : 'bg-purple-50 text-purple-700'}`}>{e.category}</span></td>
                   <td className="py-2 text-xs text-gray-600">{e.type}{e.method ? ` (${e.method.replace(/_/g, ' ')})` : ''}</td>
@@ -719,7 +727,7 @@ function BillingSettingsTab() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, accts] = await Promise.all([api.billing.getSettings(), api.getAccounts()]);
+        const [s, accts] = await Promise.all([api.getSettings(), api.getAccounts()]);
         setSettings(s);
         setAccounts(accts.filter(a => !a.isGroup));
       } catch (e) { console.error(e); }
@@ -729,7 +737,7 @@ function BillingSettingsTab() {
   const handleSave = async () => {
     setSaving(true); setMsg('');
     try {
-      const updated = await api.billing.updateSettings(settings);
+      const updated = await api.updateSettings(settings);
       setSettings(updated);
       setMsg('Settings saved successfully');
       setTimeout(() => setMsg(''), 3000);

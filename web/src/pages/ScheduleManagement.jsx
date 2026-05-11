@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { CalendarDays, Plus, Edit2, Trash2, X, Check, AlertTriangle } from 'lucide-react';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const API_BASE = '/api/v1';
 
@@ -33,6 +36,7 @@ const PRESETS = [
 ];
 
 export default function ScheduleManagement() {
+  const { dateFormat } = useSettings();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -175,7 +179,7 @@ export default function ScheduleManagement() {
                   <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
                     <span>{(schedule.workingDays || []).length} working days</span>
                     {schedule.effectiveFrom && (
-                      <span>From: {new Date(schedule.effectiveFrom).toLocaleDateString()}</span>
+                      <span>From: {formatDate(schedule.effectiveFrom, dateFormat)}</span>
                     )}
                     {schedule._count && (
                       <span>{schedule._count.employeeAssignments} employee(s)</span>
@@ -268,11 +272,7 @@ export default function ScheduleManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Effective From</label>
-                <input
-                  type="date" value={form.effectiveFrom}
-                  onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
+                <DatePicker value={form.effectiveFrom} onChange={v => setForm({ ...form, effectiveFrom: v })} placeholder="Effective From" />
               </div>
 
               <div className="flex justify-end gap-3 pt-2">

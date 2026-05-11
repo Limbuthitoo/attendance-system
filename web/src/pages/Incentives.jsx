@@ -6,6 +6,9 @@ import {
   FolderKanban, UserPlus, Briefcase, Palette, Megaphone, Code2, Copy
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const INCENTIVE_TYPES = ['ATTENDANCE', 'PERFORMANCE', 'SALES', 'TASK', 'PROJECT', 'REFERRAL', 'FESTIVAL', 'CUSTOM'];
 const PLAN_STATUSES = ['DRAFT', 'ACTIVE', 'PAUSED', 'EXPIRED', 'ARCHIVED'];
@@ -77,6 +80,7 @@ const DEPT_TEMPLATES = {
 const ALL_DEPARTMENTS = Object.keys(DEPT_TEMPLATES);
 
 export default function Incentives() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('plans');
   const [plans, setPlans] = useState([]);
   const [incentives, setIncentives] = useState([]);
@@ -202,6 +206,7 @@ export default function Incentives() {
 // ─── Plans Tab ──────────────────────────────────────────────────────────────
 
 function PlansTab({ plans, filterDept, onRefresh, showForm, setShowForm, editPlan, setEditPlan }) {
+  const { dateFormat } = useSettings();
   const emptyForm = {
     name: '', type: 'ATTENDANCE', description: '',
     calculationFrequency: 'monthly', approvalRequired: true, taxable: true,
@@ -300,11 +305,11 @@ function PlansTab({ plans, filterDept, onRefresh, showForm, setShowForm, editPla
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Start Date *</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
-              <input type="date" value={form.endDate || ''} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <DatePicker value={form.endDate || ''} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
@@ -433,8 +438,8 @@ function PlansTab({ plans, filterDept, onRefresh, showForm, setShowForm, editPla
               )}
               {depts.length === 0 && <p className="text-xs text-gray-400 mt-1 ml-13">All departments</p>}
               <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                <span>Starts: {new Date(plan.startDate).toLocaleDateString()}</span>
-                {plan.endDate && <span>Ends: {new Date(plan.endDate).toLocaleDateString()}</span>}
+                <span>Starts: {formatDate(plan.startDate, dateFormat)}</span>
+                {plan.endDate && <span>Ends: {formatDate(plan.endDate, dateFormat)}</span>}
                 {plan.maxCap && <span>Max Cap: NPR {Number(plan.maxCap).toLocaleString()}</span>}
                 {plan.approvalRequired && <span className="text-amber-600">Requires approval</span>}
                 {Array.isArray(plan.rules) && plan.rules.length > 0 && (

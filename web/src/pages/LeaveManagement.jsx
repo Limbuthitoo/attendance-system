@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Check, X } from 'lucide-react';
 
 export default function LeaveManagement() {
+  const { dateFormat } = useSettings();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -95,8 +98,8 @@ export default function LeaveManagement() {
                   <div className="text-right text-xs text-slate-500">
                     <p className="capitalize font-medium text-slate-700">{leave.leave_type} Leave</p>
                     <p>
-                      {new Date(leave.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      {leave.start_date !== leave.end_date && ` — ${new Date(leave.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                      {formatDate(leave.start_date, dateFormat)}
+                      {leave.start_date !== leave.end_date && ` — ${formatDate(leave.end_date, dateFormat)}`}
                       {' '}({leave.days} day{leave.days > 1 ? 's' : ''})
                     </p>
                   </div>

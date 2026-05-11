@@ -102,15 +102,15 @@ async function generatePayrollExport(orgId, { year, month }) {
   const { getPrisma } = require('../lib/prisma');
   const prisma = getPrisma();
 
-  const records = await prisma.payrollSummary.findMany({
+  const records = await prisma.payslip.findMany({
     where: { orgId, year, month },
     include: { employee: { select: { name: true, employeeCode: true, department: true } } },
     orderBy: { employee: { name: 'asc' } },
   });
 
-  const header = 'Employee,Code,Department,Working Days,Present,Absent,Late,Overtime Hrs,Basic Salary,Allowances,Deductions,Net Pay';
+  const header = 'Employee,Code,Department,Working Days,Present,Absent,Late,Overtime Hrs,Basic Salary,Gross Earnings,Deductions,Net Salary';
   const rows = records.map(r =>
-    `"${r.employee.name}","${r.employee.employeeCode || ''}","${r.employee.department || ''}",${r.workingDays},${r.presentDays},${r.absentDays},${r.lateDays},${r.overtimeHours || 0},${r.basicSalary || 0},${r.totalAllowances || 0},${r.totalDeductions || 0},${r.netPay || 0}`
+    `"${r.employee.name}","${r.employee.employeeCode || ''}","${r.employee.department || ''}",${r.totalWorkDays},${r.presentDays},${r.absentDays || 0},${r.lateDays || 0},${r.overtimeHours || 0},${r.basicSalary || 0},${r.grossEarnings || 0},${r.totalDeductions || 0},${r.netSalary || 0}`
   );
 
   return { csv: [header, ...rows].join('\n'), rowCount: rows.length };
@@ -127,13 +127,12 @@ async function generateLeaveReport(orgId, { year, departmentFilter }) {
 
   const balances = await prisma.leaveBalance.findMany({
     where: { orgId, year, employeeId: { in: employees.map(e => e.id) } },
-    include: { leaveType: { select: { name: true } } },
   });
 
   const header = 'Employee,Code,Department,Leave Type,Entitled,Used,Balance';
   const rows = balances.map(b => {
     const emp = employees.find(e => e.id === b.employeeId);
-    return `"${emp?.name || ''}","${emp?.employeeCode || ''}","${emp?.department || ''}","${b.leaveType.name}",${b.entitled},${b.used},${b.balance}`;
+    return `"${emp?.name || ''}","${emp?.employeeCode || ''}","${emp?.department || ''}","${b.leaveType}",${b.entitled},${b.used},${b.balance}`;
   });
 
   return { csv: [header, ...rows].join('\n'), rowCount: rows.length };

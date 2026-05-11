@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, DollarSign, TrendingUp, Gift } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const STATUS_COLORS = {
   PENDING: 'bg-yellow-100 text-yellow-800',
@@ -9,6 +12,7 @@ const STATUS_COLORS = {
 };
 
 export default function Compensation() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('grades');
   const [payGrades, setPayGrades] = useState([]);
   const [revisions, setRevisions] = useState([]);
@@ -40,7 +44,7 @@ export default function Compensation() {
   async function handleSaveRevision(e) {
     e.preventDefault();
     try {
-      await api.createSalaryRevision({ employeeId: form.employeeId, previousSalary: parseFloat(form.previousSalary) || 0, newSalary: parseFloat(form.newSalary), effectiveDate: form.effectiveDate, reason: form.reason, incrementPercentage: parseFloat(form.incrementPercentage) || null });
+      await api.createSalaryRevision({ employeeId: form.employeeId, previousGross: parseFloat(form.previousSalary) || 0, newGross: parseFloat(form.newSalary), effectiveFrom: form.effectiveDate, reason: form.reason, revisionType: form.revisionType || 'annual' });
       setShowForm(false); setForm({}); loadData();
     } catch (err) { alert(err.message); }
   }
@@ -114,7 +118,7 @@ export default function Compensation() {
                   <td className="px-4 py-3">NPR {Number(r.previousSalary).toLocaleString()}</td>
                   <td className="px-4 py-3">NPR {Number(r.newSalary).toLocaleString()}</td>
                   <td className="px-4 py-3">{r.incrementPercentage ? `${r.incrementPercentage}%` : '—'}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(r.effectiveDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(r.effectiveDate, dateFormat)}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[r.status] || 'bg-gray-100'}`}>{r.status}</span></td>
                 </tr>
               ))}
@@ -158,7 +162,7 @@ export default function Compensation() {
                   <input placeholder="Previous Salary" type="number" value={form.previousSalary || ''} onChange={e => setForm({ ...form, previousSalary: e.target.value })} className="border rounded px-3 py-2" />
                   <input placeholder="New Salary" type="number" value={form.newSalary || ''} onChange={e => setForm({ ...form, newSalary: e.target.value })} className="border rounded px-3 py-2" required />
                 </div>
-                <input type="date" value={form.effectiveDate || ''} onChange={e => setForm({ ...form, effectiveDate: e.target.value })} className="w-full border rounded px-3 py-2" required />
+                <DatePicker value={form.effectiveDate || ''} onChange={v => setForm({ ...form, effectiveDate: v })} placeholder="Effective Date" required />
                 <input placeholder="Increment %" type="number" step="0.1" value={form.incrementPercentage || ''} onChange={e => setForm({ ...form, incrementPercentage: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <input placeholder="Reason" value={form.reason || ''} onChange={e => setForm({ ...form, reason: e.target.value })} className="w-full border rounded px-3 py-2" />
               </> : <>

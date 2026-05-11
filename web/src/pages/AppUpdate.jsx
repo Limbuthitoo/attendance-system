@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Upload, Smartphone, Trash2, Download, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 
 export default function AppUpdate() {
+  const { dateFormat } = useSettings();
   const [release, setRelease] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -160,7 +163,7 @@ export default function AppUpdate() {
             <div>
               <p className="text-xs text-slate-500 mb-1">Uploaded</p>
               <p className="text-sm font-medium text-slate-700">
-                {new Date(release.uploaded_at + 'Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {formatDate(release.uploaded_at + 'Z', dateFormat)}
               </p>
             </div>
           </div>

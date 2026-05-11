@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { formatDate as _fmtDate, formatDateTime as _fmtDateTime } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import {
   Wifi, WifiOff, Plus, RotateCw, Shield, Trash2, Eye, Copy, Check, AlertTriangle,
   Fingerprint, QrCode, ScanFace, CreditCard, MapPin, Clock, ChevronDown, ChevronUp,
@@ -80,6 +82,7 @@ function Tabs({ active, onChange }) {
 // ─── Device Card ────────────────────────────────────────────────────────────
 
 function DeviceCard({ device, onDeactivate, onReactivate, onRotateKey, onEdit }) {
+  const { dateFormat } = useSettings();
   const [expanded, setExpanded] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const info = getDeviceTypeInfo(device.deviceType);
@@ -154,7 +157,7 @@ function DeviceCard({ device, onDeactivate, onReactivate, onRotateKey, onEdit })
           Actions
         </button>
         <span className="text-xs text-slate-400">
-          Added {new Date(device.createdAt).toLocaleDateString()}
+          Added {_fmtDate(device.createdAt, dateFormat)}
         </span>
       </div>
 
@@ -550,6 +553,7 @@ function ApiKeyModal({ apiKey, onClose }) {
 // ─── Credential Row ─────────────────────────────────────────────────────────
 
 function CredentialRow({ credential, onDeactivate }) {
+  const { dateFormat } = useSettings();
   const info = getCredentialTypeInfo(credential.credentialType);
   const CredIcon = info.icon;
 
@@ -574,7 +578,7 @@ function CredentialRow({ credential, onDeactivate }) {
           <span className="text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full">Inactive</span>
         )}
       </td>
-      <td className="py-3 px-4 text-xs text-slate-500">{new Date(credential.assignedAt).toLocaleDateString()}</td>
+      <td className="py-3 px-4 text-xs text-slate-500">{_fmtDate(credential.assignedAt, dateFormat)}</td>
       <td className="py-3 px-4">
         {credential.isActive && (
           <button
@@ -592,6 +596,7 @@ function CredentialRow({ credential, onDeactivate }) {
 // ─── Event Row ──────────────────────────────────────────────────────────────
 
 function EventRow({ event }) {
+  const { dateFormat } = useSettings();
   const eventColors = {
     CHECK_IN: 'text-green-700 bg-green-50',
     CHECK_OUT: 'text-blue-700 bg-blue-50',
@@ -602,7 +607,7 @@ function EventRow({ event }) {
   return (
     <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
       <td className="py-3 px-4 text-xs text-slate-500">
-        {new Date(event.eventTime).toLocaleString()}
+        {_fmtDateTime(event.eventTime, dateFormat)}
       </td>
       <td className="py-3 px-4">
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${eventColors[event.eventType] || eventColors.UNKNOWN}`}>

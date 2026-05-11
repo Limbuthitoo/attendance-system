@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
+import { useSettings } from '../context/SettingsContext';
 import {
   Clock, Building2, Calendar, Timer, Save, RotateCcw, CheckCircle, Image, Upload, Trash2, Globe, Briefcase, TreePalm, Mail, Send, Eye, EyeOff
 } from 'lucide-react';
@@ -21,6 +22,7 @@ const TIMEZONES = [
 ];
 
 export default function Settings() {
+  const { reloadSettings } = useSettings();
   const [settings, setSettings] = useState(null);
   const [original, setOriginal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -158,7 +160,7 @@ export default function Settings() {
     setSaved(false);
   }
 
-  const SITE_KEYS = ['company_name'];
+  const SITE_KEYS = ['company_name', 'date_format'];
   const OFFICE_KEYS = [
     'office_start', 'office_end', 'late_threshold_minutes',
     'half_day_hours', 'full_day_hours', 'min_checkout_minutes', 'working_days', 'timezone',
@@ -237,6 +239,7 @@ export default function Settings() {
       }
 
       setSaved(true);
+      reloadSettings();
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setError(err.message);
@@ -476,6 +479,52 @@ export default function Settings() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
+          </div>
+
+          {/* Date Format */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-blue-50"><Calendar size={20} className="text-blue-600" /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Date Format</h2>
+                <p className="text-xs text-slate-500">Choose how dates are displayed throughout the system</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { value: 'AD', label: 'AD Only', desc: 'Gregorian calendar (2026-05-11)' },
+                { value: 'BS', label: 'BS Only', desc: 'Bikram Sambat (2083-01-28)' },
+                { value: 'BOTH', label: 'Both', desc: 'Show BS with AD (2083-01-28 / 2026-05-11)' },
+              ].map(opt => (
+                <label
+                  key={opt.value}
+                  className={`relative flex flex-col p-4 rounded-lg border-2 cursor-pointer transition ${
+                    (settings?.date_format || 'AD') === opt.value
+                      ? 'border-primary-500 bg-primary-50/50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="date_format"
+                    value={opt.value}
+                    checked={(settings?.date_format || 'AD') === opt.value}
+                    onChange={e => update('date_format', e.target.value)}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-semibold text-slate-900">{opt.label}</span>
+                  <span className="text-xs text-slate-500 mt-1">{opt.desc}</span>
+                  {(settings?.date_format || 'AD') === opt.value && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Note: This does not affect the Leave Calendar or Holidays table which always use their own format.</p>
           </div>
 
           {/* Logo & Favicon */}

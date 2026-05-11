@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 import {
   DollarSign, Calculator, Clock, Download, RefreshCw, Check, X,
   ChevronDown, Users, Calendar, TrendingUp, Lock, Unlock, Settings,
@@ -158,9 +161,7 @@ function SalaryModal({ employees, config, onClose, onSubmit }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Effective From</label>
-            <input type="date" required value={form.effectiveFrom}
-              onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            <DatePicker value={form.effectiveFrom} onChange={v => setForm(f => ({ ...f, effectiveFrom: v }))} placeholder="Effective From" required />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Allowances (optional)</label>
@@ -371,6 +372,7 @@ function PayslipDetailModal({ payslip, onClose }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function PayrollOvertime() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('payslips');
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
@@ -684,7 +686,7 @@ export default function PayrollOvertime() {
                         <td className="py-2.5 px-3 text-xs text-slate-600">
                           {Object.entries(s.allowances || {}).map(([k, v]) => `${k}: Rs.${fmt(v)}`).join(', ') || '—'}
                         </td>
-                        <td className="py-2.5 px-3 text-sm text-slate-600">{new Date(s.effectiveFrom).toLocaleDateString()}</td>
+                        <td className="py-2.5 px-3 text-sm text-slate-600">{formatDate(s.effectiveFrom, dateFormat)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -804,7 +806,7 @@ export default function PayrollOvertime() {
                   <tbody>
                     {otRecords.records.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                        <td className="py-2.5 px-3 text-sm">{new Date(r.date).toLocaleDateString()}</td>
+                        <td className="py-2.5 px-3 text-sm">{formatDate(r.date, dateFormat)}</td>
                         <td className="py-2.5 px-3 text-sm font-medium">{r.employee?.name}</td>
                         <td className="py-2.5 px-3 text-sm">{Number(r.regularHours).toFixed(1)}h</td>
                         <td className="py-2.5 px-3 text-sm font-bold text-amber-700">{Number(r.overtimeHours).toFixed(1)}h</td>

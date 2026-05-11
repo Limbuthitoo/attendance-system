@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen, Building2, Briefcase, Search } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 import NfcModal from '../components/employees/NfcModal';
 import ResetPasswordModal from '../components/employees/ResetPasswordModal';
 import EditEmployeeModal from '../components/employees/EditEmployeeModal';
@@ -580,8 +581,7 @@ export default function Employees() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Join Date</label>
-                <input type="date" value={form.joinDate} onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                <DatePicker value={form.joinDate} onChange={v => setForm({ ...form, joinDate: v })} placeholder="Join Date" />
               </div>
             </div>
           </div>

@@ -1,20 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Clock, Plus, Edit2, Trash2, X, Check, AlertTriangle, Sun, Moon } from 'lucide-react';
+import { request } from '../lib/api/client';
 
-const API_BASE = '/api/v1';
-
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json();
-}
+const apiFetch = (path, options = {}) => request(`/v1${path}`, options);
 
 const DEFAULT_FORM = {
   name: '',

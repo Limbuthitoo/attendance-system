@@ -14,11 +14,11 @@ export const recruitment = {
 };
 
 export const onboarding = {
-  getTemplates: () => request('/onboarding/templates'),
-  createTemplate: (data) => request('/onboarding/templates', { method: 'POST', body: JSON.stringify(data) }),
-  getTasks: (params) => request('/onboarding/tasks', { params }),
-  assignTemplate: (data) => request('/onboarding/assign', { method: 'POST', body: JSON.stringify(data) }),
-  updateTask: (id, data) => request(`/onboarding/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getOnboardingTemplates: () => request('/onboarding/templates'),
+  createOnboardingTemplate: (data) => request('/onboarding/templates', { method: 'POST', body: JSON.stringify(data) }),
+  getOnboardingTasks: (params) => request('/onboarding/tasks', { params }),
+  assignOnboardingTemplate: (data) => request('/onboarding/assign', { method: 'POST', body: JSON.stringify(data) }),
+  updateOnboardingTask: (id, data) => request(`/onboarding/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 export const separation = {

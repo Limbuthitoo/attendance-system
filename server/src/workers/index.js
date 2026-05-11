@@ -81,14 +81,14 @@ const pushWorker = new Worker('push', async (job) => {
   const { sendPushToEmployees, sendPushToAdmins } = require('../services/notification.service');
 
   if (job.name === 'send-push') {
-    const { employeeIds, title, body, data } = job.data;
-    await sendPushToEmployees(employeeIds, { title, body, data });
+    const { employeeIds, title, body, data, orgId, notificationType } = job.data;
+    await sendPushToEmployees(employeeIds, { title, body, data, orgId, notificationType });
     console.log(`🔔 Push sent to ${employeeIds.length} employees`);
   }
 
   if (job.name === 'send-push-admins') {
-    const { orgId, title, body, data } = job.data;
-    await sendPushToAdmins(orgId, { title, body, data });
+    const { orgId, title, body, data, notificationType } = job.data;
+    await sendPushToAdmins(orgId, { title, body, data, notificationType });
     console.log(`🔔 Push sent to admins of org ${orgId}`);
   }
 }, { connection });
@@ -190,6 +190,8 @@ async function handleForgotCheckout({ orgId }) {
     title: 'Forgot to Check Out?',
     body: "You checked in today but haven't checked out yet. Please check out before leaving.",
     data: { type: 'checkout_reminder' },
+    orgId,
+    notificationType: 'CHECKOUT_REMINDER',
   });
 
   await createBulkNotifications({

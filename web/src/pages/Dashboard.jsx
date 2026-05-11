@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Users, UserCheck, Clock, CalendarX, AlertTriangle, Timer, TrendingUp, Building2, PieChart as PieIcon } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
@@ -16,6 +18,7 @@ const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#3b82f6'];
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { dateFormat } = useSettings();
   const [stats, setStats] = useState(null);
   const [trend, setTrend] = useState(null);
   const [deptStats, setDeptStats] = useState(null);
@@ -54,6 +57,7 @@ export default function Dashboard() {
 // ─── Admin Dashboard ────────────────────────────────────────────────────────
 
 function AdminDashboard({ stats, trend, deptStats, leaveStats }) {
+  const { dateFormat } = useSettings();
   const cards = [
     { label: 'Total Employees', value: stats?.totalEmployees || 0, icon: Users, color: 'bg-blue-500', text: 'text-blue-600' },
     { label: 'Present Today', value: stats?.presentToday || 0, icon: UserCheck, color: 'bg-emerald-500', text: 'text-emerald-600' },
@@ -76,7 +80,7 @@ function AdminDashboard({ stats, trend, deptStats, leaveStats }) {
 
   // Trend data formatting
   const trendData = (trend?.trend || []).map(r => ({
-    date: formatShortDate(r.date),
+    date: formatDate(r.date, dateFormat),
     Present: r.present,
     Late: r.late,
     Absent: r.absent + (r.halfDay || 0),
@@ -228,6 +232,7 @@ function AdminDashboard({ stats, trend, deptStats, leaveStats }) {
 // ─── Employee Dashboard ─────────────────────────────────────────────────────
 
 function EmployeeDashboard({ stats, trend, leaveStats, user }) {
+  const { dateFormat } = useSettings();
   const todayRecord = stats?.today;
   const monthStats = {};
   (stats?.monthAttendance || []).forEach(s => { monthStats[s.status] = s.count; });
@@ -250,7 +255,7 @@ function EmployeeDashboard({ stats, trend, leaveStats, user }) {
 
   // Work hours bar data
   const hoursData = (trend?.trend || []).map(r => ({
-    date: formatShortDate(r.date),
+    date: formatDate(r.date, dateFormat),
     hours: r.work_hours || 0,
     status: r.status,
   }));
@@ -259,7 +264,7 @@ function EmployeeDashboard({ stats, trend, leaveStats, user }) {
   const checkinData = (trend?.trend || []).filter(r => r.check_in_time).map(r => {
     const [h, m] = r.check_in_time.split(':');
     return {
-      date: formatShortDate(r.date),
+      date: formatDate(r.date, dateFormat),
       time: parseFloat(h) + parseFloat(m) / 60,
       display: `${h}:${m}`,
     };

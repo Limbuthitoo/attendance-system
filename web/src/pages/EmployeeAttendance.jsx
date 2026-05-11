@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { STATUS_COLORS, STATUS_LABELS } from '../lib/status-config';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import DatePicker from '../components/DatePicker';
 import {
   Users, Clock, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight,
@@ -33,6 +35,7 @@ const STATUS_CONFIG = Object.fromEntries(
 
 export default function EmployeeAttendance() {
   // Use Nepal timezone for "today" to match server behavior
+  const { dateFormat } = useSettings();
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' });
   const [date, setDate] = useState(todayStr);
   const [data, setData] = useState({ attendance: [], summary: {}, departments: [] });
@@ -107,7 +110,7 @@ export default function EmployeeAttendance() {
       </div>
 
       {/* Date label */}
-      <p className="text-sm font-medium text-slate-600">{formatDateLabel(date)}</p>
+      <p className="text-sm font-medium text-slate-600">{formatDate(date, dateFormat)}</p>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">

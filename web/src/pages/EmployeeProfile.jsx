@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { formatDate as _fmtDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import DatePicker from '../components/DatePicker';
 import {
   ArrowLeft, User, Mail, Phone, Building2, Briefcase, Shield, Clock,
@@ -28,7 +30,7 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDate(d) {
+function formatDateAD(d) {
   if (!d) return '—';
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
@@ -48,6 +50,8 @@ function formatFileSize(bytes) {
 export default function EmployeeProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { dateFormat } = useSettings();
+  const formatDate = (d) => _fmtDate(d, dateFormat);
 
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -733,7 +737,7 @@ export default function EmployeeProfile() {
                         <p className="text-xs text-slate-400">
                           {DOC_TYPES.find(t => t.value === doc.type)?.label || doc.type}
                           {doc.fileSize ? ` · ${formatFileSize(doc.fileSize)}` : ''}
-                          {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString()}` : ''}
+                          {doc.uploadedAt ? ` · ${formatDate(doc.uploadedAt)}` : ''}
                         </p>
                       </div>
                     </div>
@@ -771,6 +775,14 @@ function InfoRow({ icon: Icon, label, value, capitalize }) {
 }
 
 function Field({ label, value, onChange, type = 'text' }) {
+  if (type === 'date') {
+    return (
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+        <DatePicker value={value || ''} onChange={onChange} placeholder={label} />
+      </div>
+    );
+  }
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>

@@ -238,7 +238,7 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
   // 1. Get active employees with salary structures
   const employees = await prisma.employee.findMany({
     where: { orgId, isActive: true },
-    select: { id: true, name: true, employeeCode: true, department: true, gender: true },
+    select: { id: true, name: true, employeeCode: true, department: true, gender: true, maritalStatus: true },
   });
 
   const salaryStructures = await prisma.salaryStructure.findMany({
@@ -263,7 +263,7 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
       startDate: { lte: endDate },
       endDate: { gte: startDate },
     },
-    select: { employeeId: true, days: true, type: true, startDate: true, endDate: true },
+    select: { employeeId: true, days: true, leaveType: true, startDate: true, endDate: true },
   });
 
   // 4. Get holidays
@@ -333,7 +333,7 @@ async function generatePayslips({ orgId, year, month, adminId, req }) {
     const days = Math.ceil((lvEnd - lvStart) / (1000 * 60 * 60 * 24)) + 1;
     if (!leaveByEmp[lv.employeeId]) leaveByEmp[lv.employeeId] = 0;
     leaveByEmp[lv.employeeId] += days;
-    if (lv.type === 'UNPAID') {
+    if (lv.leaveType === 'UNPAID') {
       if (!unpaidLeaveByEmp[lv.employeeId]) unpaidLeaveByEmp[lv.employeeId] = 0;
       unpaidLeaveByEmp[lv.employeeId] += days;
     }

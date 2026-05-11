@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, X, FolderKanban, Users, Calendar, Target, BarChart3 } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 const STATUS_COLORS = {
@@ -9,6 +12,7 @@ const STATUS_COLORS = {
 };
 
 export default function Projects() {
+  const { dateFormat } = useSettings();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -79,8 +83,8 @@ export default function Projects() {
               </select>
             </div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Budget (NPR)</label><input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label><input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">End Date</label><input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label><DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">End Date</label><DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" /></div>
           </div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Create Project</button>
@@ -120,8 +124,8 @@ export default function Projects() {
                 <input type="range" min="0" max="100" step="5" value={project.progress} onChange={e => handleProgressChange(project.id, e.target.value)} className="w-24" />
               </div>
               <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                {project.startDate && <span><Calendar size={12} className="inline mr-1" />{new Date(project.startDate).toLocaleDateString()}</span>}
-                {project.endDate && <span>— {new Date(project.endDate).toLocaleDateString()}</span>}
+                {project.startDate && <span><Calendar size={12} className="inline mr-1" />{formatDate(project.startDate, dateFormat)}</span>}
+                {project.endDate && <span>— {formatDate(project.endDate, dateFormat)}</span>}
                 {project.budget && <span>Budget: NPR {Number(project.budget).toLocaleString()}</span>}
               </div>
             </div>

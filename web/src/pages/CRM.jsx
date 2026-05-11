@@ -8,6 +8,9 @@ import {
   Zap, Hash, Percent, Play, Pause, Ban
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate as _fmtDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const LEAD_SOURCES = ['Website', 'Referral', 'Cold Call', 'Social Media', 'Email Campaign', 'Trade Show', 'Partner', 'Other'];
 const LEAD_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
@@ -79,7 +82,7 @@ const ACTIVITY_COLORS = {
 };
 
 function formatCurrency(val) { return `NPR ${Number(val || 0).toLocaleString()}`; }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; }
+function _formatDateAD(d) { return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; }
 function formatRelative(d) {
   if (!d) return '';
   const diff = Date.now() - new Date(d).getTime();
@@ -89,7 +92,7 @@ function formatRelative(d) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return formatDate(d);
+  return _formatDateAD(d);
 }
 
 // ── Modal Shell ──────────────────────────────────────────────────────────────
@@ -132,6 +135,8 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function CRM() {
+  const { dateFormat } = useSettings();
+  const formatDate = (d) => _fmtDate(d, dateFormat);
   const [tab, setTab] = useState('dashboard');
   const [deals, setDeals] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -559,7 +564,7 @@ function DealsView({ deals, pipelines, clients, employees, onRefresh }) {
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Expected Close</label><input type="date" value={form.expectedCloseDate} onChange={e => setForm({ ...form, expectedCloseDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Expected Close</label><DatePicker value={form.expectedCloseDate} onChange={v => setForm({ ...form, expectedCloseDate: v })} placeholder="Expected Close" /></div>
           </div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Notes</label><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
           <div className="flex justify-end gap-3">
@@ -822,7 +827,7 @@ function LeadsView({ leads, clients, employees, onRefresh }) {
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Next Follow-up</label><input type="date" value={form.nextFollowUp} onChange={e => setForm({ ...form, nextFollowUp: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Next Follow-up</label><DatePicker value={form.nextFollowUp} onChange={v => setForm({ ...form, nextFollowUp: v })} placeholder="Next Follow-up" /></div>
           </div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Notes</label><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
           <div className="flex justify-end gap-3">
@@ -1186,7 +1191,7 @@ function ActivitiesView({ activities, clients, deals, leads, onRefresh }) {
                 {ACTIVITY_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label><input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label><DatePicker value={form.dueDate} onChange={v => setForm({ ...form, dueDate: v })} placeholder="Due Date" /></div>
           </div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Subject *</label><input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
@@ -1614,11 +1619,11 @@ function CampaignsView({ campaigns, clients, onRefresh }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-              <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

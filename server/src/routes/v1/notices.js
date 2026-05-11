@@ -68,6 +68,8 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
         title: `📢 ${title}`,
         body: body.substring(0, 200),
         data: { type: 'notice', noticeId: notice.id },
+        orgId: req.orgId,
+        notificationType: 'NOTICE',
       }),
       createBulkNotifications({
         orgId: req.orgId,

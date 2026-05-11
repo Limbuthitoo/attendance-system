@@ -228,6 +228,7 @@ async function applyLeave({ employeeId, orgId, leaveType, startDate, endDate, re
     title: 'New Leave Application',
     body: `${employee.name} (${employee.employeeCode}) applied for ${days} day(s) ${leaveType.toLowerCase()} leave${isHalfDay ? ' (half-day)' : ''}`,
     data: { type: 'leave', leaveId: leave.id },
+    notificationType: 'LEAVE',
   });
 
   await auditLog({
@@ -314,6 +315,8 @@ async function reviewLeave({ leaveId, orgId, reviewerId, status, reviewNote, req
     title: `Leave ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
     body: `Your ${leave.leaveType.toLowerCase()} leave request has been ${statusText}`,
     data: { type: 'leave', leaveId: leave.id },
+    orgId,
+    notificationType: 'LEAVE',
   });
 
   await auditLog({

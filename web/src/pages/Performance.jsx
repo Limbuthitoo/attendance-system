@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, X, Target, TrendingUp, Award, Calendar, Users, BarChart3 } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const REVIEW_STATUSES = ['DRAFT', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 const STATUS_COLORS = {
@@ -9,6 +12,7 @@ const STATUS_COLORS = {
 };
 
 export default function Performance() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('kpis');
   const [kpis, setKpis] = useState([]);
   const [scores, setScores] = useState([]);
@@ -193,6 +197,7 @@ function ScoresTab({ scores, kpis, year, month, setYear, setMonth, onRefresh }) 
 }
 
 function CyclesTab({ cycles, onRefresh, showForm, setShowForm }) {
+  const { dateFormat } = useSettings();
   const [form, setForm] = useState({ name: '', year: new Date().getFullYear(), startDate: '', endDate: '' });
 
   async function handleCreate(e) {
@@ -214,8 +219,8 @@ function CyclesTab({ cycles, onRefresh, showForm, setShowForm }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Name *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Q2 2026 Review" /></div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Year</label><input type="number" value={form.year} onChange={e => setForm({...form, year: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Start Date *</label><input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">End Date *</label><input type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Start Date *</label><DatePicker value={form.startDate} onChange={v => setForm({...form, startDate: v})} placeholder="Start Date" required /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">End Date *</label><DatePicker value={form.endDate} onChange={v => setForm({...form, endDate: v})} placeholder="End Date" required /></div>
           </div>
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Create Cycle</button>
         </form>
@@ -224,7 +229,7 @@ function CyclesTab({ cycles, onRefresh, showForm, setShowForm }) {
       <div className="space-y-3">
         {cycles.map(c => (
           <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-            <div><h3 className="font-semibold text-gray-900">{c.name}</h3><p className="text-xs text-gray-500">{c.year} · {new Date(c.startDate).toLocaleDateString()} — {new Date(c.endDate).toLocaleDateString()}</p></div>
+            <div><h3 className="font-semibold text-gray-900">{c.name}</h3><p className="text-xs text-gray-500">{c.year} · {formatDate(c.startDate, dateFormat)} — {formatDate(c.endDate, dateFormat)}</p></div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">{c._count?.reviews || 0} reviews</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status]}`}>{c.status.replace(/_/g, ' ')}</span>

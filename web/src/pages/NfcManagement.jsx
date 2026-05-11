@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
+import { formatDate as _fmtDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 import {
   CreditCard, Wifi, WifiOff, Clock, UserPlus, Trash2, Ban,
   CheckCircle, AlertCircle, RefreshCw, Radio, Search, Plus,
@@ -169,6 +172,7 @@ function WriteJobModal({ employees, onClose, onSubmit }) {
 // ─── Cards Tab ──────────────────────────────────────────────────────────────
 
 function CardsTab() {
+  const { dateFormat } = useSettings();
   const [cards, setCards] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -292,7 +296,7 @@ function CardsTab() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(card.assigned_at)}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{_fmtDate(card.assigned_at, dateFormat)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       {card.is_active ? (
@@ -381,12 +385,7 @@ function TapLogTab() {
     <div>
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={16} /></button>
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-        />
+        <DatePicker value={date} onChange={v => setDate(v)} placeholder="Date" />
         <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={16} /></button>
         <button onClick={fetchLogs} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500" title="Refresh">
           <RefreshCw size={16} />
@@ -517,6 +516,7 @@ function ReaderStatusTab() {
 // ─── Write Jobs Tab ─────────────────────────────────────────────────────────
 
 function WriteJobsTab() {
+  const { dateFormat } = useSettings();
   const [jobs, setJobs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -626,7 +626,7 @@ function WriteJobsTab() {
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {job.resultData ? <span className="font-mono">{job.resultData}</span> : job.errorMessage || '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(job.createdAt)}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{_fmtDate(job.createdAt, dateFormat)}</td>
                   <td className="px-4 py-3 text-right">
                     {job.status === 'PENDING' && (
                       <button onClick={() => handleCancel(job)} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Cancel">

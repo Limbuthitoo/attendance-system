@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, Briefcase, Users, Calendar, Search } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const STATUS_COLORS = {
   OPEN: 'bg-green-100 text-green-800',
@@ -16,6 +19,7 @@ const STATUS_COLORS = {
 };
 
 export default function Recruitment() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('jobs');
   const [jobs, setJobs] = useState([]);
   const [applicants, setApplicants] = useState([]);
@@ -95,7 +99,7 @@ export default function Recruitment() {
               <div>
                 <h3 className="font-semibold text-gray-900">{job.title}</h3>
                 <p className="text-sm text-gray-500">{job.department || 'General'} · {job.employmentType?.replace('_', ' ')} · {job.openings} opening(s)</p>
-                <p className="text-xs text-gray-400 mt-1">{job._count?.applicants || 0} applicants · Posted {new Date(job.createdAt).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-400 mt-1">{job._count?.applicants || 0} applicants · Posted {formatDate(job.createdAt, dateFormat)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[job.status] || 'bg-gray-100'}`}>{job.status}</span>
@@ -122,7 +126,7 @@ export default function Recruitment() {
                 <tr key={a.id}>
                   <td className="px-4 py-3"><div className="font-medium">{a.name}</div><div className="text-xs text-gray-500">{a.email}</div></td>
                   <td className="px-4 py-3 text-sm">{a.jobPosting?.title || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(a.appliedAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(a.appliedAt, dateFormat)}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-gray-100'}`}>{a.status}</span></td>
                   <td className="px-4 py-3 text-right">
                     <select onChange={e => handleUpdateStatus('applicant', a.id, e.target.value)} value={a.status} className="text-xs border rounded px-2 py-1">
@@ -152,7 +156,7 @@ export default function Recruitment() {
                 <tr key={i.id}>
                   <td className="px-4 py-3">{i.applicant?.name || '—'}</td>
                   <td className="px-4 py-3">{i.interviewer?.name || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(i.scheduledAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(i.scheduledAt, dateFormat)}</td>
                   <td className="px-4 py-3 text-sm">{i.type}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[i.status] || 'bg-gray-100'}`}>{i.status}</span></td>
                 </tr>
@@ -177,7 +181,7 @@ export default function Recruitment() {
                   <option value="FULL_TIME">Full Time</option><option value="PART_TIME">Part Time</option><option value="CONTRACT">Contract</option><option value="INTERN">Intern</option>
                 </select>
                 <input placeholder="Openings" type="number" min="1" value={form.openings || ''} onChange={e => setForm({ ...form, openings: e.target.value })} className="w-full border rounded px-3 py-2" />
-                <input type="date" placeholder="Deadline" value={form.deadline || ''} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <DatePicker value={form.deadline || ''} onChange={v => setForm({ ...form, deadline: v })} placeholder="Deadline" />
               </> : <>
                 <input placeholder="Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Email" type="email" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full border rounded px-3 py-2" required />

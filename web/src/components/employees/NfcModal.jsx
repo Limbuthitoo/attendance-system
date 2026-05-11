@@ -1,10 +1,13 @@
 import { X, Wifi, Trash2, CreditCard } from 'lucide-react';
+import { formatDate } from '../../lib/format-date';
+import { useSettings } from '../../context/SettingsContext';
 
 export default function NfcModal({
   nfcModal, setNfcModal, nfcCards, nfcForm, setNfcForm,
   nfcSubmitting, handleAssignCard, toggleCardActive, deleteCard,
   sseConnected, readerOnline, detectedUid, setDetectedUid,
 }) {
+  const { dateFormat } = useSettings();
   if (!nfcModal) return null;
 
   return (
@@ -72,7 +75,7 @@ export default function NfcModal({
                 <div key={card.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
                   <div>
                     <p className="text-sm font-mono font-medium text-slate-800">{card.card_uid}</p>
-                    <p className="text-xs text-slate-500">{card.label || 'No label'} &middot; {new Date(card.assigned_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-slate-500">{card.label || 'No label'} &middot; {formatDate(card.assigned_at, dateFormat)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${card.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>

@@ -15,8 +15,8 @@ export default function Onboarding() {
   async function loadData() {
     setLoading(true);
     try {
-      if (tab === 'templates') { const d = await api.getTemplates(); setTemplates(d.templates || []); }
-      else { const d = await api.getTasks({}); setTasks(d.tasks || []); }
+      if (tab === 'templates') { const d = await api.getOnboardingTemplates(); setTemplates(d.templates || []); }
+      else { const d = await api.getOnboardingTasks({}); setTasks(d.tasks || []); }
     } catch (err) { console.error(err); }
     setLoading(false);
   }
@@ -24,7 +24,7 @@ export default function Onboarding() {
   async function handleCreateTemplate(e) {
     e.preventDefault();
     try {
-      await api.createTemplate({
+      await api.createOnboardingTemplate({
         name: form.name,
         department: form.department,
         tasks: form.tasks.filter(t => t.title),
@@ -36,7 +36,7 @@ export default function Onboarding() {
 
   async function handleUpdateTask(taskId, status) {
     try {
-      await api.updateTask(taskId, { status });
+      await api.updateOnboardingTask(taskId, { status });
       loadData();
     } catch (err) { alert(err.message); }
   }

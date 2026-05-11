@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, X, CheckSquare, Clock, AlertCircle, Tag, Calendar, User, FolderKanban } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
@@ -13,6 +16,7 @@ const PRIORITY_COLORS = {
 };
 
 export default function Tasks() {
+  const { dateFormat } = useSettings();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -88,7 +92,7 @@ export default function Tasks() {
                 <option value="">Unassigned</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label><input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label><DatePicker value={form.dueDate} onChange={v => setForm({ ...form, dueDate: v })} placeholder="Due Date" /></div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Project</label>
               <select value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">None</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -123,7 +127,7 @@ export default function Tasks() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                       {task.assignee && <span className="flex items-center gap-1"><User size={12} /> {task.assignee.name}</span>}
                       {task.project && <span className="flex items-center gap-1"><FolderKanban size={12} /> {task.project.name}</span>}
-                      {task.dueDate && <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(task.dueDate).toLocaleDateString()}</span>}
+                      {task.dueDate && <span className="flex items-center gap-1"><Calendar size={12} /> {formatDate(task.dueDate, dateFormat)}</span>}
                     </div>
                   </div>
                 </div>

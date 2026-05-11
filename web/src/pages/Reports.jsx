@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 import {
   BarChart3, TrendingUp, Clock, AlertTriangle, Download, Calendar, Users, Building2,
   ArrowUpRight, ArrowDownRight, Filter
@@ -41,6 +44,7 @@ function MiniBar({ value, max, color = 'bg-primary-500' }) {
 }
 
 export default function Reports() {
+  const { dateFormat } = useSettings();
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(todayStr);
   const [branches, setBranches] = useState([]);
@@ -118,9 +122,9 @@ export default function Reports() {
       <div className="flex flex-wrap gap-3 items-center bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <Filter size={16} className="text-slate-400" />
         <div className="flex items-center gap-2">
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm" />
+          <DatePicker value={startDate} onChange={v => setStartDate(v)} placeholder="Start Date" />
           <span className="text-slate-400">to</span>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm" />
+          <DatePicker value={endDate} onChange={v => setEndDate(v)} placeholder="End Date" />
         </div>
         <select value={branchId} onChange={e => setBranchId(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
           <option value="">All Branches</option>
@@ -249,7 +253,7 @@ export default function Reports() {
               </div>
               {trend.map(day => (
                 <div key={day.date} className="grid grid-cols-7 gap-2 items-center px-2 py-2 rounded-lg hover:bg-slate-50">
-                  <span className="text-sm font-medium">{new Date(day.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                  <span className="text-sm font-medium">{formatDate(day.date, dateFormat)}</span>
                   <span className="text-center text-sm font-bold">{day.total}</span>
                   <span className="text-center text-sm text-green-700">{day.present}</span>
                   <span className="text-center text-sm text-amber-700">{day.late}</span>

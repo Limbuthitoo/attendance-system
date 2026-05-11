@@ -1,24 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Shield, Plus, Edit2, Trash2, X, Check, Users, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { request } from '../lib/api/client';
 
-const API_BASE = '/api/v1';
-
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json();
-}
+const apiFetch = (path, options = {}) => request(`/v1${path}`, options);
 
 export default function RoleManagement() {
   const [roles, setRoles] = useState([]);
@@ -99,7 +83,10 @@ export default function RoleManagement() {
     setError('');
     try {
       if (editRole) {
-        await apiFetch(`/roles/${editRole.id}`, { method: 'PUT', body: JSON.stringify(form) });
+        const payload = editRole.isSystem
+          ? { permissions: form.permissions }
+          : form;
+        await apiFetch(`/roles/${editRole.id}`, { method: 'PUT', body: JSON.stringify(payload) });
       } else {
         await apiFetch('/roles', { method: 'POST', body: JSON.stringify(form) });
       }
@@ -187,7 +174,7 @@ export default function RoleManagement() {
                 </div>
               </div>
 
-              {!role.isSystem && (
+              {!role.isSystem ? (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openEdit(role)}
@@ -202,6 +189,16 @@ export default function RoleManagement() {
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openEdit(role)}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
+                    title="Edit Permissions"
+                  >
+                    <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
               )}
@@ -228,7 +225,7 @@ export default function RoleManagement() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
+            <form id="role-form" onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 text-sm rounded-lg">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -242,10 +239,14 @@ export default function RoleManagement() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder="e.g. branch_manager"
                   required
+                  disabled={editRole?.isSystem}
                 />
+                {editRole?.isSystem && (
+                  <p className="text-xs text-slate-500 mt-1">System role names cannot be changed</p>
+                )}
               </div>
 
               <div>
@@ -254,8 +255,9 @@ export default function RoleManagement() {
                   type="text"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder="What can this role do?"
+                  disabled={editRole?.isSystem}
                 />
               </div>
 
@@ -325,7 +327,8 @@ export default function RoleManagement() {
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                type="submit"
+                form="role-form"
                 disabled={saving}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
               >

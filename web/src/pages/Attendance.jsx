@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { STATUS_BADGE_STYLES, STATUS_LABELS, getStatusLabel } from '../lib/status-config';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { LogIn, LogOut, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Attendance() {
+  const { dateFormat } = useSettings();
   const [today, setToday] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export default function Attendance() {
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-1">Today — {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+            <h3 className="text-sm font-semibold text-slate-700 mb-1">Today — {formatDate(new Date(), dateFormat)}</h3>
             {today ? (
               <div className="flex gap-4 mt-2 text-sm text-slate-600">
                 <span>In: {today.check_in ? new Date(today.check_in).toLocaleTimeString() : '—'}</span>
@@ -162,7 +165,7 @@ export default function Attendance() {
                 {history.map((record) => (
                   <tr key={record.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium">
-                      {new Date(record.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {formatDate(record.date, dateFormat)}
                     </td>
                     <td className="px-4 py-3">{record.check_in ? new Date(record.check_in).toLocaleTimeString() : '—'}</td>
                     <td className="px-4 py-3">{record.check_out ? new Date(record.check_out).toLocaleTimeString() : '—'}</td>

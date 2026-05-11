@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import { Plus, BookOpen, Users, Award } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 const STATUS_COLORS = {
   SCHEDULED: 'bg-blue-100 text-blue-800',
@@ -14,6 +17,7 @@ const STATUS_COLORS = {
 };
 
 export default function Training() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('courses');
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -132,7 +136,7 @@ export default function Training() {
                   <td className="px-4 py-3 font-medium">{s.title}</td>
                   <td className="px-4 py-3 text-sm">{s.course?.name}</td>
                   <td className="px-4 py-3 text-sm">{s.trainer?.name || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(s.startDate).toLocaleDateString()} - {new Date(s.endDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(s.startDate, dateFormat)} - {formatDate(s.endDate, dateFormat)}</td>
                   <td className="px-4 py-3 text-sm">{s._count?.enrollments || 0}{s.maxParticipants ? `/${s.maxParticipants}` : ''}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100'}`}>{s.status}</span></td>
                 </tr>
@@ -160,8 +164,8 @@ export default function Training() {
                   <td className="px-4 py-3 font-medium">{c.name}</td>
                   <td className="px-4 py-3 text-sm">{c.employee?.name}</td>
                   <td className="px-4 py-3 text-sm">{c.issuingAuthority}</td>
-                  <td className="px-4 py-3 text-sm">{new Date(c.issueDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm">{c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : '—'}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(c.issueDate, dateFormat)}</td>
+                  <td className="px-4 py-3 text-sm">{c.expiryDate ? formatDate(c.expiryDate, dateFormat) : '—'}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[c.status] || 'bg-gray-100'}`}>{c.status}</span></td>
                 </tr>
               ))}
@@ -193,16 +197,16 @@ export default function Training() {
                 </select>
                 <input placeholder="Session Title" value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="date" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} className="border rounded px-3 py-2" required />
-                  <input type="date" value={form.endDate || ''} onChange={e => setForm({ ...form, endDate: e.target.value })} className="border rounded px-3 py-2" required />
+                  <DatePicker value={form.startDate || ''} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" required />
+                  <DatePicker value={form.endDate || ''} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" required />
                 </div>
                 <input placeholder="Location" value={form.location || ''} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <input placeholder="Max Participants" type="number" value={form.maxParticipants || ''} onChange={e => setForm({ ...form, maxParticipants: e.target.value })} className="w-full border rounded px-3 py-2" />
               </> : <>
                 <input placeholder="Certification Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Issuing Authority" value={form.issuingAuthority || ''} onChange={e => setForm({ ...form, issuingAuthority: e.target.value })} className="w-full border rounded px-3 py-2" required />
-                <input type="date" placeholder="Issue Date" value={form.issueDate || ''} onChange={e => setForm({ ...form, issueDate: e.target.value })} className="w-full border rounded px-3 py-2" required />
-                <input type="date" placeholder="Expiry Date" value={form.expiryDate || ''} onChange={e => setForm({ ...form, expiryDate: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <DatePicker value={form.issueDate || ''} onChange={v => setForm({ ...form, issueDate: v })} placeholder="Issue Date" required />
+                <DatePicker value={form.expiryDate || ''} onChange={v => setForm({ ...form, expiryDate: v })} placeholder="Expiry Date" />
                 <input placeholder="Credential ID" value={form.credentialId || ''} onChange={e => setForm({ ...form, credentialId: e.target.value })} className="w-full border rounded px-3 py-2" />
               </>}
               <div className="flex justify-end gap-2 pt-2">

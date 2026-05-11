@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, X, UserPlus, ArrowRight, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 
 const STATUSES = ['SUBMITTED', 'SCREENING', 'INTERVIEWING', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'];
 const STATUS_COLORS = {
@@ -10,6 +12,7 @@ const STATUS_COLORS = {
 };
 
 export default function Referrals() {
+  const { dateFormat } = useSettings();
   const [referrals, setReferrals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -102,7 +105,7 @@ export default function Referrals() {
                 </div>
               </div>
               {ref.notes && <p className="text-sm text-gray-600 mt-2">{ref.notes}</p>}
-              <p className="text-xs text-gray-400 mt-2">Submitted {new Date(ref.createdAt).toLocaleDateString()}</p>
+              <p className="text-xs text-gray-400 mt-2">Submitted {formatDate(ref.createdAt, dateFormat)}</p>
             </div>
           ))}
           {referrals.length === 0 && <div className="text-center py-12 bg-white border border-gray-200 rounded-xl"><UserPlus size={32} className="mx-auto text-gray-300 mb-3" /><p className="text-gray-500 text-sm">No referrals yet</p></div>}

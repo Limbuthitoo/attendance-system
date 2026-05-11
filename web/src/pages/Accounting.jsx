@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
+import DatePicker from '../components/DatePicker';
 
 const ACCOUNT_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'];
 const VOUCHER_TYPES = ['JOURNAL', 'PAYMENT', 'RECEIPT', 'CONTRA', 'SALES', 'PURCHASE', 'CREDIT_NOTE', 'DEBIT_NOTE'];
 
 export default function Accounting() {
+  const { dateFormat } = useSettings();
   const [tab, setTab] = useState('accounts');
   const tabs = [
     { id: 'accounts', label: 'Chart of Accounts' },
@@ -42,6 +46,7 @@ export default function Accounting() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function FiscalYearsTab() {
+  const { dateFormat } = useSettings();
   const [fiscalYears, setFiscalYears] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', startDate: '', endDate: '', isCurrent: false });
@@ -93,11 +98,11 @@ function FiscalYearsTab() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-              <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" required />
             </div>
             <div className="flex items-end gap-2">
               <label className="flex items-center gap-2">
@@ -123,7 +128,7 @@ function FiscalYearsTab() {
             {fiscalYears.map(fy => (
               <tr key={fy.id} className="hover:bg-blue-50/40 transition-colors">
                 <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{fy.name}</td>
-                <td className="px-5 py-3.5 text-sm text-gray-600">{new Date(fy.startDate).toLocaleDateString()} — {new Date(fy.endDate).toLocaleDateString()}</td>
+                <td className="px-5 py-3.5 text-sm text-gray-600">{formatDate(fy.startDate, dateFormat)} — {formatDate(fy.endDate, dateFormat)}</td>
                 <td className="px-5 py-3.5"><span className={`px-2.5 py-1 text-xs font-medium rounded-full ${fy.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' : fy.status === 'CLOSED' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' : 'bg-red-50 text-red-700 ring-1 ring-red-600/20'}`}>{fy.status}</span></td>
                 <td className="px-5 py-3.5">
                   <button onClick={() => toggleCurrent(fy)} className={`text-xs px-2.5 py-1 rounded-md font-medium ${fy.isCurrent ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' : 'bg-gray-50 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'}`}>
@@ -289,6 +294,7 @@ function ChartOfAccountsTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function JournalEntriesTab() {
+  const { dateFormat } = useSettings();
   const [entries, setEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -347,7 +353,7 @@ function JournalEntriesTab() {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Voucher Type</label><select value={form.voucherType} onChange={e => setForm({ ...form, voucherType: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{VOUCHER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference</label><input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Invoice #, Voucher #" /></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Narration *</label><input value={form.narration} onChange={e => setForm({ ...form, narration: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Description / Particulars" /></div>
@@ -407,7 +413,7 @@ function JournalEntriesTab() {
               <React.Fragment key={entry.id}>
                 <tr className="cursor-pointer hover:bg-blue-50/40 transition-colors" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
                   <td className="px-5 py-3 text-sm font-mono text-gray-900">{entry.entryNumber}</td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{new Date(entry.date).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-sm text-gray-600">{formatDate(entry.date, dateFormat)}</td>
                   <td className="px-5 py-3"><span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-600 rounded-md ring-1 ring-gray-200 font-medium">{entry.voucherType}</span></td>
                   <td className="px-5 py-3 text-sm text-gray-900">{entry.narration}{entry.reference && <span className="text-gray-400 text-xs ml-2">Ref: {entry.reference}</span>}</td>
                   <td className="px-5 py-3 text-sm text-right font-mono text-gray-900">{Number(entry.totalDebit).toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
@@ -444,6 +450,7 @@ function JournalEntriesTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function LedgerTab() {
+  const { dateFormat } = useSettings();
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [ledger, setLedger] = useState(null);
@@ -492,7 +499,7 @@ function LedgerTab() {
               <tr className="bg-amber-50/50"><td colSpan="6" className="px-5 py-2.5 text-sm text-gray-600 italic">Opening Balance</td><td className="px-5 py-2.5 text-right text-sm font-mono font-bold">{ledger.openingBalance.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td></tr>
               {ledger.entries.map((e, i) => (
                 <tr key={i} className="hover:bg-blue-50/40 transition-colors">
-                  <td className="px-5 py-2.5 text-sm text-gray-600">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="px-5 py-2.5 text-sm text-gray-600">{formatDate(e.date, dateFormat)}</td>
                   <td className="px-5 py-2.5 text-sm font-mono">{e.entryNumber}</td>
                   <td className="px-5 py-2.5 text-sm text-gray-900">{e.narration}</td>
                   <td className="px-5 py-2.5"><span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-600 rounded-md ring-1 ring-gray-200 font-medium">{e.voucherType}</span></td>

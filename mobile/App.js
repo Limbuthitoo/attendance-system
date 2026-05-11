@@ -27,6 +27,8 @@ const NoticesScreen = lazy(() => import('./src/screens/NoticesScreen'));
 const EmployeeAttendanceScreen = lazy(() => import('./src/screens/EmployeeAttendanceScreen'));
 const EmployeeDetailScreen = lazy(() => import('./src/screens/EmployeeDetailScreen'));
 const PoliciesScreen = lazy(() => import('./src/screens/PoliciesScreen'));
+const NotificationSettingsScreen = lazy(() => import('./src/screens/NotificationSettingsScreen'));
+const QrCheckInScreen = lazy(() => import('./src/screens/QrCheckInScreen'));
 
 function ScreenFallback() {
   return (
@@ -60,6 +62,8 @@ const LazyNotices = withLazy(NoticesScreen);
 const LazyEmployeeAttendance = withLazy(EmployeeAttendanceScreen);
 const LazyEmployeeDetail = withLazy(EmployeeDetailScreen);
 const LazyPolicies = withLazy(PoliciesScreen);
+const LazyNotifSettings = withLazy(NotificationSettingsScreen);
+const LazyQrCheckIn = withLazy(QrCheckInScreen);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -112,6 +116,22 @@ function MenuScreen({ navigation }) {
           description="Company policies & guidelines"
           onPress={() => navigation.navigate('PoliciesPage')}
           color="#7c3aed"
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
+          icon="options-outline"
+          label="Notification Settings"
+          description="Manage push & email preferences"
+          onPress={() => navigation.navigate('NotificationSettingsPage')}
+          color="#0891b2"
+        />
+        <View style={styles.menuDivider} />
+        <MenuItem
+          icon="qr-code-outline"
+          label="QR Check-in"
+          description="Scan or show QR code"
+          onPress={() => navigation.navigate('QrCheckInPage')}
+          color="#059669"
         />
       </View>
 
@@ -170,6 +190,8 @@ function MenuStackScreen() {
       <MenuStack.Screen name="NotificationsPage" component={LazyNotifications} options={{ headerTitle: 'Notifications' }} />
       <MenuStack.Screen name="NoticesPage" component={LazyNotices} options={{ headerTitle: 'Notices' }} />
       <MenuStack.Screen name="PoliciesPage" component={LazyPolicies} options={{ headerTitle: 'Policies' }} />
+      <MenuStack.Screen name="NotificationSettingsPage" component={LazyNotifSettings} options={{ headerTitle: 'Notification Settings' }} />
+      <MenuStack.Screen name="QrCheckInPage" component={LazyQrCheckIn} options={{ headerTitle: 'QR Check-in' }} />
       <MenuStack.Screen name="ProfilePage" component={LazyProfile} options={{ headerTitle: 'My Profile' }} />
       <MenuStack.Screen name="ChangePasswordPage" component={LazyChangePassword} options={{ headerTitle: 'Change Password' }} />
       {user?.role === 'admin' && (

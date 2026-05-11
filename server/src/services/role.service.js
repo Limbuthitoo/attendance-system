@@ -36,6 +36,41 @@ const ALL_PERMISSIONS = [
   'profile.view', 'profile.update',
   // Notification
   'notification.view',
+  // Incentive
+  'incentive.view', 'incentive.manage', 'incentive.approve',
+  // CRM
+  'crm.view', 'crm.manage',
+  // Performance
+  'performance.view', 'performance.manage',
+  // Tasks
+  'task.view', 'task.manage',
+  // Projects
+  'project.view', 'project.manage',
+  // Referral
+  'referral.view', 'referral.manage',
+  // Bonus
+  'bonus.view', 'bonus.manage', 'bonus.approve',
+  // Accounting
+  'accounting.view', 'accounting.manage',
+  // Billing
+  'billing.view', 'billing.manage',
+  // Departments & Designations
+  'department.view', 'department.manage',
+  'designation.view', 'designation.manage',
+  // Compensation
+  'compensation.view', 'compensation.manage',
+  // Payroll
+  'payroll.view', 'payroll.manage',
+  // Recruitment
+  'recruitment.view', 'recruitment.manage',
+  // Onboarding
+  'onboarding.view', 'onboarding.manage',
+  // Training
+  'training.view', 'training.manage',
+  // Separation
+  'separation.view', 'separation.manage',
+  // ESS (Employee Self Service)
+  'ess.view', 'ess.manage',
 ];
 
 /**
@@ -110,10 +145,10 @@ async function updateRole({ roleId, orgId, data, adminId, req }) {
   if (!existing) {
     throw Object.assign(new Error('Role not found'), { status: 404 });
   }
-  if (existing.isSystem) {
-    throw Object.assign(new Error('System roles cannot be modified'), { status: 403 });
+  if (existing.isSystem && (data.name || data.description !== undefined)) {
+    throw Object.assign(new Error('System role name and description cannot be changed'), { status: 403 });
   }
-  if (existing.orgId !== orgId) {
+  if (!existing.isSystem && existing.orgId !== orgId) {
     throw Object.assign(new Error('Cannot modify roles from another organization'), { status: 403 });
   }
 

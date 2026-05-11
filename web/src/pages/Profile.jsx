@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { formatDate as _fmtDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import {
   Eye, EyeOff, KeyRound, User, Mail, Building, Briefcase, Phone,
   Edit3, Save, X, MapPin, CreditCard, Heart, Plus, Trash2,
@@ -8,6 +10,7 @@ import {
 
 export default function Profile() {
   const { user } = useAuth();
+  const { dateFormat } = useSettings();
   const [activeTab, setActiveTab] = useState('personal');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -121,7 +124,7 @@ export default function Profile() {
     finally { setPwLoading(false); }
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const formatDate = (d) => _fmtDate(d, dateFormat);
 
   const tabs = [
     { key: 'personal', label: 'Personal Info' },
@@ -383,7 +386,17 @@ function InfoItem({ icon: Icon, label, value }) {
   );
 }
 
+import DatePicker from '../components/DatePicker';
+
 function InputField({ label, value, onChange, type = 'text', placeholder }) {
+  if (type === 'date') {
+    return (
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
+        <DatePicker value={value || ''} onChange={onChange} placeholder={placeholder || label} />
+      </div>
+    );
+  }
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>

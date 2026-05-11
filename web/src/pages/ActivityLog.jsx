@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import {
   LogIn, LogOut, CreditCard, CalendarDays, CheckCircle, XCircle,
   AlertTriangle, Filter, ChevronLeft, ChevronRight, Search, Clock
@@ -88,6 +90,7 @@ function getDescription(a) {
 
 export default function ActivityLog() {
   const { user } = useAuth();
+  const { dateFormat } = useSettings();
   const isAdmin = user?.role === 'admin';
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -287,7 +290,7 @@ export default function ActivityLog() {
 
       {/* Date label */}
       {mode === 'single' && (
-        <div className="text-sm font-medium text-slate-600">{formatDateLabel(date)}</div>
+        <div className="text-sm font-medium text-slate-600">{formatDate(date, dateFormat)}</div>
       )}
 
       {/* Timeline */}
@@ -387,7 +390,7 @@ export default function ActivityLog() {
                     <span className="text-xs font-medium text-slate-500">{formatTime(a.time)}</span>
                     {mode === 'range' && (
                       <span className="block text-[10px] text-slate-400 mt-0.5">
-                        {new Date(a.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {formatDate(a.time, dateFormat)}
                       </span>
                     )}
                   </div>

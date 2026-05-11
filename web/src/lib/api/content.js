@@ -19,6 +19,7 @@ export const notifications = {
   getUnreadCount: () => request('/notifications/unread-count'),
   markNotificationsRead: (ids) => request('/notifications/read', { method: 'PUT', body: JSON.stringify({ ids }) }),
   clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),
+  clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
 };
 
 export const policies = {

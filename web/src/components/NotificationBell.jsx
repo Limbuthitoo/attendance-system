@@ -94,7 +94,13 @@ export default function NotificationBell() {
       navigate('/notices');
     } else if (notif.type === 'leave') {
       navigate('/leaves');
-}
+    } else if (notif.type === 'attendance' || notif.type === 'checkout_reminder') {
+      navigate('/attendance');
+    } else if (notif.type === 'payroll') {
+      navigate('/payroll');
+    } else if (notif.type === 'report') {
+      navigate('/reports');
+    }
     setOpen(false);
   };
 
@@ -115,12 +121,12 @@ export default function NotificationBell() {
 
   const handleClearOne = async (e, id) => {
     e.stopPropagation();
-    // Backend only supports clear-all; remove from local state
     const removed = notifications.find(n => n.id === id);
     setNotifications(prev => prev.filter(n => n.id !== id));
     if (removed && !removed.is_read) {
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
+    await api.clearNotification(id).catch(() => {});
   };
 
   return (

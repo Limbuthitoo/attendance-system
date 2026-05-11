@@ -5,9 +5,12 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import NotificationBell from './NotificationBell';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 
 export default function Layout() {
   const { user, enabledModules, logout } = useAuth();
+  const { dateFormat } = useSettings();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLogo, setSidebarLogo] = useState('/favicon.svg');
@@ -250,7 +253,7 @@ export default function Layout() {
           </button>
           <div className="hidden lg:block">
             <p className="text-sm text-slate-500">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {formatDate(new Date(), dateFormat, { style: 'long' })}
             </p>
           </div>
           <div className="flex items-center gap-3">

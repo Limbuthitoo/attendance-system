@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { formatDate } from '../lib/format-date';
+import { useSettings } from '../context/SettingsContext';
 import {
   FileText, Plus, Trash2, Edit3, X, Eye, Shield, DollarSign, TreePalm, BookOpen, Lock
 } from 'lucide-react';
@@ -19,6 +21,7 @@ function getCategoryConfig(category) {
 
 export default function Policies() {
   const { user } = useAuth();
+  const { dateFormat } = useSettings();
   const isAdmin = user?.role === 'admin';
 
   const [policies, setPolicies] = useState([]);
@@ -119,7 +122,7 @@ export default function Policies() {
           </div>
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-400">
             {selectedPolicy.creator && <span>Created by {selectedPolicy.creator.name}</span>}
-            <span>Updated {new Date(selectedPolicy.updatedAt).toLocaleDateString()}</span>
+            <span>Updated {formatDate(selectedPolicy.updatedAt, dateFormat)}</span>
           </div>
         </div>
       </div>
