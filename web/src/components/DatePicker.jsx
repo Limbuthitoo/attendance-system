@@ -192,7 +192,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
 
   return (
     <div className={`relative ${className}`} ref={ref}>
-      {required && <input type="text" value={value || ''} required title="Please select a date" tabIndex={-1} className="sr-only" aria-hidden="true" onChange={() => {}} />}
+      {required && !value && <input type="text" value="" required tabIndex={-1} style={{position:'absolute',width:0,height:0,opacity:0,pointerEvents:'none'}} onInvalid={e => e.target.setCustomValidity('Please select a date')} onInput={e => e.target.setCustomValidity('')} />}
 
       <button
         type="button"
