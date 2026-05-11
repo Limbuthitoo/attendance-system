@@ -21,12 +21,12 @@ export default function Accounting() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Accounting</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Accounting</h1>
       </div>
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-6 overflow-x-auto">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`pb-3 px-1 text-sm font-medium border-b-2 whitespace-nowrap ${tab === t.id ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`pb-3 px-1 text-sm font-medium border-b-2 whitespace-nowrap ${tab === t.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {t.label}
             </button>
           ))}
@@ -90,24 +90,24 @@ function FiscalYearsTab() {
         </button>
       </div>
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name (e.g. 2082/83)</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name (e.g. 2082/83)</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
               <DatePicker value={form.startDate} onChange={v => setForm({ ...form, startDate: v })} placeholder="Start Date" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
               <DatePicker value={form.endDate} onChange={v => setForm({ ...form, endDate: v })} placeholder="End Date" required />
             </div>
             <div className="flex items-end gap-2">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={form.isCurrent} onChange={e => setForm({ ...form, isCurrent: e.target.checked })} className="rounded" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Current</span>
+                <span className="text-sm text-gray-700">Current</span>
               </label>
               <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 ml-auto">Create</button>
             </div>
@@ -199,7 +199,7 @@ function ChartOfAccountsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
           <option value="">All Types</option>
           {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
@@ -211,41 +211,41 @@ function ChartOfAccountsTab() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
-              <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="e.g. 1103" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+              <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. 1103" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name (Nepali)</label>
-              <input value={form.nameNp} onChange={e => setForm({ ...form, nameNp: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name (Nepali)</label>
+              <input value={form.nameNp} onChange={e => setForm({ ...form, nameNp: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
-              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Parent Group</label>
-              <select value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Group</label>
+              <select value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 <option value="">None (Root)</option>
                 {groupAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Opening Balance</label>
-              <input type="number" step="0.01" value={form.openingBalance} onChange={e => setForm({ ...form, openingBalance: parseFloat(e.target.value) || 0 })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Opening Balance</label>
+              <input type="number" step="0.01" value={form.openingBalance} onChange={e => setForm({ ...form, openingBalance: parseFloat(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.isGroup} onChange={e => setForm({ ...form, isGroup: e.target.checked })} className="rounded" /><span className="text-sm text-gray-700 dark:text-gray-300">Group Account (non-postable)</span></label>
-            <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="flex-1 border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+            <label className="flex items-center gap-2"><input type="checkbox" checked={form.isGroup} onChange={e => setForm({ ...form, isGroup: e.target.checked })} className="rounded" /><span className="text-sm text-gray-700">Group Account (non-postable)</span></label>
+            <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700">{editId ? 'Update' : 'Create'}</button>
           </div>
         </form>
@@ -336,11 +336,11 @@ function JournalEntriesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
           <option value="">All Voucher Types</option>
           {VOUCHER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
           <option value="">All Status</option>
           <option value="DRAFT">Draft</option><option value="POSTED">Posted</option><option value="VOID">Void</option>
         </select>
@@ -351,16 +351,16 @@ function JournalEntriesTab() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Voucher Type</label><select value={form.voucherType} onChange={e => setForm({ ...form, voucherType: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{VOUCHER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference</label><input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Invoice #, Voucher #" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Narration *</label><input value={form.narration} onChange={e => setForm({ ...form, narration: e.target.value })} required className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Description / Particulars" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Voucher Type</label><select value={form.voucherType} onChange={e => setForm({ ...form, voucherType: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{VOUCHER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference</label><input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Invoice #, Voucher #" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Narration *</label><input value={form.narration} onChange={e => setForm({ ...form, narration: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Description / Particulars" /></div>
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Lines</h3>
+              <h3 className="text-sm font-medium text-gray-700">Lines</h3>
               <button type="button" onClick={addLine} className="text-xs text-blue-600 hover:underline">+ Add Line</button>
             </div>
             <table className="min-w-full">
@@ -374,18 +374,18 @@ function JournalEntriesTab() {
               <tbody>
                 {form.lines.map((line, i) => (
                   <tr key={i}>
-                    <td className="pr-2 py-1"><select value={line.accountId} onChange={e => updateLine(i, 'accountId', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"><option value="">Select Account</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</select></td>
-                    <td className="pr-2 py-1"><input type="number" step="0.01" min="0" value={line.debit} onChange={e => updateLine(i, 'debit', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="0.00" /></td>
-                    <td className="pr-2 py-1"><input type="number" step="0.01" min="0" value={line.credit} onChange={e => updateLine(i, 'credit', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="0.00" /></td>
-                    <td className="pr-2 py-1"><input value={line.narration} onChange={e => updateLine(i, 'narration', e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" /></td>
+                    <td className="pr-2 py-1"><select value={line.accountId} onChange={e => updateLine(i, 'accountId', e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Account</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</select></td>
+                    <td className="pr-2 py-1"><input type="number" step="0.01" min="0" value={line.debit} onChange={e => updateLine(i, 'debit', e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00" /></td>
+                    <td className="pr-2 py-1"><input type="number" step="0.01" min="0" value={line.credit} onChange={e => updateLine(i, 'credit', e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00" /></td>
+                    <td className="pr-2 py-1"><input value={line.narration} onChange={e => updateLine(i, 'narration', e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></td>
                     <td className="py-1">{form.lines.length > 2 && <button type="button" onClick={() => removeLine(i)} className="text-red-500 text-xs">✕</button>}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot><tr>
-                <td className="text-right text-sm font-medium text-gray-700 dark:text-gray-300 pr-2 pt-2">Total</td>
-                <td className="text-right text-sm font-bold text-gray-900 dark:text-white pr-2 pt-2 font-mono">{totalDebit.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
-                <td className="text-right text-sm font-bold text-gray-900 dark:text-white pr-2 pt-2 font-mono">{totalCredit.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
+                <td className="text-right text-sm font-medium text-gray-700 pr-2 pt-2">Total</td>
+                <td className="text-right text-sm font-bold text-gray-900 pr-2 pt-2 font-mono">{totalDebit.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
+                <td className="text-right text-sm font-bold text-gray-900 pr-2 pt-2 font-mono">{totalCredit.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</td>
                 <td className="pt-2"><span className={`text-xs ${Math.abs(totalDebit - totalCredit) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>{Math.abs(totalDebit - totalCredit) < 0.01 ? '✓ Balanced' : `Difference: ${Math.abs(totalDebit - totalCredit).toFixed(2)}`}</span></td>
                 <td></td>
               </tr></tfoot>
@@ -469,8 +469,8 @@ function LedgerTab() {
     <div className="space-y-4">
       <div className="flex items-end gap-3">
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Account</label>
-          <select value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Select Account</label>
+          <select value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             <option value="">Choose an account...</option>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name} ({a.type})</option>)}
           </select>
@@ -542,8 +542,8 @@ function ReportsTab() {
     <div className="space-y-4">
       <div className="flex items-end gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Report</label>
-          <select value={report} onChange={e => setReport(e.target.value)} className="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Report</label>
+          <select value={report} onChange={e => setReport(e.target.value)} className="border rounded-lg px-3 py-2">
             <option value="trial-balance">Trial Balance</option>
             <option value="profit-loss">Profit & Loss</option>
             <option value="balance-sheet">Balance Sheet</option>
@@ -583,12 +583,12 @@ function ReportsTab() {
           <h3 className="text-lg font-bold text-gray-900">Profit & Loss Statement — FY {data.fiscalYear}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="text-sm font-bold text-green-700 dark:text-green-400 mb-2">INCOME</h4>
+              <h4 className="text-sm font-bold text-green-700 mb-2">INCOME</h4>
               {data.incomeAccounts.map((a, i) => (<div key={i} className="flex justify-between py-1 text-sm"><span>{a.code} — {a.name}</span><span className="font-mono">{a.total.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</span></div>))}
               <div className="flex justify-between py-2 border-t font-bold mt-2"><span>Total Income</span><span className="font-mono text-green-700">NPR {data.totalIncome.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</span></div>
             </div>
             <div>
-              <h4 className="text-sm font-bold text-red-700 dark:text-red-400 mb-2">EXPENSES</h4>
+              <h4 className="text-sm font-bold text-red-700 mb-2">EXPENSES</h4>
               {data.expenseAccounts.map((a, i) => (<div key={i} className="flex justify-between py-1 text-sm"><span>{a.code} — {a.name}</span><span className="font-mono">{a.total.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</span></div>))}
               <div className="flex justify-between py-2 border-t font-bold mt-2"><span>Total Expenses</span><span className="font-mono text-red-700">NPR {data.totalExpense.toLocaleString('en-NP', { minimumFractionDigits: 2 })}</span></div>
             </div>

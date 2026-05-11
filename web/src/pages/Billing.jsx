@@ -99,8 +99,8 @@ function PartiesTab({ settings }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, PAN, phone..." className="border rounded-lg px-3 py-2 text-sm w-64" />
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, PAN, phone..." className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64" />
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <option value="">All Types</option>
           {PARTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
@@ -111,22 +111,22 @@ function PartiesTab({ settings }) {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name (Nepali)</label><input value={form.nameNp} onChange={e => setForm({ ...form, nameNp: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2">{PARTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label><input value={form.panNumber} onChange={e => setForm({ ...form, panNumber: e.target.value })} maxLength={9} className="w-full border rounded-lg px-3 py-2" placeholder="9-digit PAN" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">VAT Number</label><input value={form.vatNumber} onChange={e => setForm({ ...form, vatNumber: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit ({cur})</label><input type="number" value={form.creditLimit} onChange={e => setForm({ ...form, creditLimit: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Credit Days</label><input type="number" value={form.creditDays} onChange={e => setForm({ ...form, creditDays: parseInt(e.target.value) || 0 })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Opening Balance</label><input type="number" step="0.01" value={form.openingBalance} onChange={e => setForm({ ...form, openingBalance: parseFloat(e.target.value) || 0 })} className="w-full border rounded-lg px-3 py-2" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name (Nepali)</label><input value={form.nameNp} onChange={e => setForm({ ...form, nameNp: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{PARTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label><input value={form.panNumber} onChange={e => setForm({ ...form, panNumber: e.target.value })} maxLength={9} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="9-digit PAN" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">VAT Number</label><input value={form.vatNumber} onChange={e => setForm({ ...form, vatNumber: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit ({cur})</label><input type="number" value={form.creditLimit} onChange={e => setForm({ ...form, creditLimit: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Credit Days</label><input type="number" value={form.creditDays} onChange={e => setForm({ ...form, creditDays: parseInt(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Opening Balance</label><input type="number" step="0.01" value={form.openingBalance} onChange={e => setForm({ ...form, openingBalance: parseFloat(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Account #</label><input value={form.bankAccount} onChange={e => setForm({ ...form, bankAccount: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Account #</label><input value={form.bankAccount} onChange={e => setForm({ ...form, bankAccount: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
           </div>
           <div className="flex justify-end"><button type="submit" className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700">{editId ? 'Update' : 'Create'}</button></div>
         </form>
@@ -288,11 +288,11 @@ function InvoicesTab({ settings }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <option value="">All Types</option>
           {INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <option value="">All Status</option>
           <option value="DRAFT">Draft</option><option value="ISSUED">Issued</option><option value="PARTIALLY_PAID">Partially Paid</option><option value="PAID">Paid</option><option value="OVERDUE">Overdue</option><option value="CANCELLED">Cancelled</option>
         </select>
@@ -303,8 +303,8 @@ function InvoicesTab({ settings }) {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2">{INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border rounded-lg px-3 py-2"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type}){p.panNumber ? ` — PAN: ${p.panNumber}` : ''}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type}){p.panNumber ? ` — PAN: ${p.panNumber}` : ''}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label><DatePicker value={form.dueDate} onChange={v => setForm({ ...form, dueDate: v })} placeholder="Due Date" /></div>
           </div>
@@ -485,7 +485,7 @@ function PaymentsTab({ settings }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <option value="">All Types</option>
           <option value="RECEIVED">Received</option>
           <option value="MADE">Made</option>
@@ -497,24 +497,24 @@ function PaymentsTab({ settings }) {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded-lg px-3 py-2"><option value="RECEIVED">Received (from customer)</option><option value="MADE">Made (to vendor)</option></select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border rounded-lg px-3 py-2"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type})</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Against Invoice</label><select value={form.invoiceId} onChange={e => { const inv = invoices.find(i => i.id === e.target.value); setForm({ ...form, invoiceId: e.target.value, amount: inv ? Number(inv.dueAmount) : form.amount }); }} className="w-full border rounded-lg px-3 py-2"><option value="">None (Advance)</option>{filteredInvoices.map(i => <option key={i.id} value={i.id}>{i.invoiceNumber} — Due: {cur} {Number(i.dueAmount).toFixed(2)}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="RECEIVED">Received (from customer)</option><option value="MADE">Made (to vendor)</option></select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Party *</label><select value={form.partyId} onChange={e => setForm({ ...form, partyId: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type})</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Against Invoice</label><select value={form.invoiceId} onChange={e => { const inv = invoices.find(i => i.id === e.target.value); setForm({ ...form, invoiceId: e.target.value, amount: inv ? Number(inv.dueAmount) : form.amount }); }} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">None (Advance)</option>{filteredInvoices.map(i => <option key={i.id} value={i.id}>{i.invoiceNumber} — Due: {cur} {Number(i.dueAmount).toFixed(2)}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label><DatePicker value={form.date} onChange={v => setForm({ ...form, date: v })} placeholder="Date" required /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount ({cur}) *</label><input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required className="w-full border rounded-lg px-3 py-2" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Method</label><select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} className="w-full border rounded-lg px-3 py-2">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount ({cur}) *</label><input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Method</label><select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}</select></div>
           </div>
           {(form.method === 'BANK_TRANSFER' || form.method === 'CHEQUE') && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-              {form.method === 'CHEQUE' && <div><label className="block text-sm font-medium text-gray-700 mb-1">Cheque #</label><input value={form.chequeNumber} onChange={e => setForm({ ...form, chequeNumber: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>}
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference / UTR</label><input value={form.referenceId} onChange={e => setForm({ ...form, referenceId: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              {form.method === 'CHEQUE' && <div><label className="block text-sm font-medium text-gray-700 mb-1">Cheque #</label><input value={form.chequeNumber} onChange={e => setForm({ ...form, chequeNumber: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>}
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference / UTR</label><input value={form.referenceId} onChange={e => setForm({ ...form, referenceId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
             </div>
           )}
           {form.method === 'MOBILE_WALLET' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Wallet (eSewa, Khalti, etc.)</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID</label><input value={form.referenceId} onChange={e => setForm({ ...form, referenceId: e.target.value })} className="w-full border rounded-lg px-3 py-2" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Wallet (eSewa, Khalti, etc.)</label><input value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID</label><input value={form.referenceId} onChange={e => setForm({ ...form, referenceId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
             </div>
           )}
           <div className="flex justify-between items-center">
