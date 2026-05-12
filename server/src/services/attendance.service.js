@@ -430,6 +430,18 @@ async function finalizeAttendance({ orgId, date }) {
 
   const recordMap = new Map(existingRecords.map((r) => [r.employeeId, r]));
 
+  // Get approved leaves covering this date (to avoid marking on-leave employees as absent)
+  const approvedLeaves = await prisma.leave.findMany({
+    where: {
+      orgId,
+      status: 'APPROVED',
+      startDate: { lte: targetDateObj },
+      endDate: { gte: targetDateObj },
+    },
+    select: { employeeId: true, leaveType: true, isHalfDay: true },
+  });
+  const leaveMap = new Map(approvedLeaves.map((l) => [l.employeeId, l]));
+
   // Check if this date is a public holiday
   const holidays = await prisma.holiday.findMany({
     where: {
@@ -494,10 +506,25 @@ async function finalizeAttendance({ orgId, date }) {
         });
         weeklyOffCount++;
       } else {
-        await prisma.attendance.create({
-          data: { orgId, employeeId: emp.id, date: targetDateObj, status: 'ABSENT', source: 'SYSTEM', notes: 'Auto-marked absent (no check-in)' },
-        });
-        absentCount++;
+        // Check if the employee has an approved leave for this date
+        const leave = leaveMap.get(emp.id);
+        if (leave) {
+          await prisma.attendance.create({
+            data: {
+              orgId,
+              employeeId: emp.id,
+              date: targetDateObj,
+              status: 'ON_LEAVE',
+              source: 'SYSTEM',
+              notes: `On ${leave.leaveType.toLowerCase()} leave${leave.isHalfDay ? ' (half-day)' : ''}`,
+            },
+          });
+        } else {
+          await prisma.attendance.create({
+            data: { orgId, employeeId: emp.id, date: targetDateObj, status: 'ABSENT', source: 'SYSTEM', notes: 'Auto-marked absent (no check-in)' },
+          });
+          absentCount++;
+        }
       }
     } else if (record.checkIn && !record.checkOut) {
       // Checked in but forgot to check out — use employee's shift for cutoff

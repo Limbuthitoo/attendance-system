@@ -26,16 +26,33 @@ router.get('/stats', responseCache({ ttl: 30, keyFn: userOrgKey }), async (req, 
       const todayFilter = new Date(today + 'T00:00:00.000Z');
       const monthStart = new Date(currentMonth + '-01T00:00:00.000Z');
 
-      const [totalEmployees, presentToday, lateToday, halfDayToday, absentToday, earlyExitToday, pendingLeaves, monthlyRaw] = await Promise.all([
+      const [totalEmployees, presentToday, lateToday, halfDayToday, absentToday, onLeaveAttendance, leavesWithoutAttendance, earlyExitToday, pendingLeaves, monthlyRaw] = await Promise.all([
         prisma.employee.count({ where: { orgId, isActive: true } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: { in: ['PRESENT', 'LATE', 'EARLY_EXIT'] } } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'LATE' } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'HALF_DAY' } }),
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'ABSENT' } }),
+        prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'ON_LEAVE' } }),
+        // Count approved leaves covering today that have no attendance record
+        prisma.$queryRaw`
+          SELECT COUNT(DISTINCT l.employee_id)::int AS count
+          FROM leaves l
+          WHERE l.org_id = ${orgId}::uuid
+            AND l.status = 'APPROVED'
+            AND l.start_date <= ${todayFilter}
+            AND l.end_date >= ${todayFilter}
+            AND NOT EXISTS (
+              SELECT 1 FROM attendance a
+              WHERE a.employee_id = l.employee_id AND a.date = ${todayFilter}
+            )
+        `,
         prisma.attendance.count({ where: { orgId, date: todayFilter, status: 'EARLY_EXIT' } }),
         prisma.leave.count({ where: { orgId, status: 'PENDING' } }),
         prisma.attendance.groupBy({ by: ['status'], where: { orgId, date: { gte: monthStart } }, _count: true }),
       ]);
+
+      const extraOnLeave = leavesWithoutAttendance[0]?.count || 0;
+      const onLeaveToday = onLeaveAttendance + extraOnLeave;
 
       const monthlyStats = monthlyRaw.map(r => ({
         status: r.status.toLowerCase().replace('_', '-'),
@@ -47,8 +64,8 @@ router.get('/stats', responseCache({ ttl: 30, keyFn: userOrgKey }), async (req, 
         presentToday,
         lateToday,
         earlyExitToday,
-        onLeaveToday: absentToday,
-        absentToday: totalEmployees - presentToday - absentToday - halfDayToday,
+        onLeaveToday,
+        absentToday,
         pendingLeaves,
         monthlyStats,
       });

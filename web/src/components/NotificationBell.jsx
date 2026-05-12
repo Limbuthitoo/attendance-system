@@ -85,12 +85,12 @@ export default function NotificationBell() {
   }, []);
 
   const handleNotificationClick = async (notif) => {
-    if (!notif.is_read) {
+    if (!notif.isRead) {
       await api.markNotificationsRead([notif.id]).catch(() => {});
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: 1 } : n));
+      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
-    if (notif.reference_type === 'notice') {
+    if (notif.referenceType === 'notice') {
       navigate('/notices');
     } else if (notif.type === 'leave') {
       navigate('/leaves');
@@ -105,11 +105,11 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
     if (unreadIds.length > 0) {
       await api.markNotificationsRead(unreadIds).catch(() => {});
     }
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
   };
 
@@ -123,7 +123,7 @@ export default function NotificationBell() {
     e.stopPropagation();
     const removed = notifications.find(n => n.id === id);
     setNotifications(prev => prev.filter(n => n.id !== id));
-    if (removed && !removed.is_read) {
+    if (removed && !removed.isRead) {
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
     await api.clearNotification(id).catch(() => {});
@@ -195,22 +195,22 @@ export default function NotificationBell() {
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
                     className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors group
-                      ${notif.is_read ? 'hover:bg-slate-50' : 'bg-primary-50/40 hover:bg-primary-50/60'}`}
+                      ${notif.isRead ? 'hover:bg-slate-50' : 'bg-primary-50/40 hover:bg-primary-50/60'}`}
                   >
                     <div className={`mt-0.5 p-1.5 rounded-lg ${color.bg}`}>
                       <Icon size={16} className={color.text} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {!notif.is_read && (
+                        {!notif.isRead && (
                           <span className="w-1.5 h-1.5 rounded-full bg-primary-500 shrink-0" />
                         )}
-                        <p className={`text-sm truncate ${notif.is_read ? 'text-slate-700' : 'text-slate-900 font-medium'}`}>
+                        <p className={`text-sm truncate ${notif.isRead ? 'text-slate-700' : 'text-slate-900 font-medium'}`}>
                           {notif.title}
                         </p>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notif.body}</p>
-                      <span className="text-[10px] text-slate-400 mt-1 block">{timeAgo(notif.created_at)}</span>
+                      <span className="text-[10px] text-slate-400 mt-1 block">{timeAgo(notif.createdAt)}</span>
                     </div>
                     <button
                       onClick={(e) => handleClearOne(e, notif.id)}

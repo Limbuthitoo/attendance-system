@@ -118,15 +118,50 @@ router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next
     // The date column is a PostgreSQL DATE type — use a plain date string for exact match
     const dateFilter = new Date(date + 'T00:00:00.000Z');
 
-    const records = await prisma.attendance.findMany({
-      where: { orgId, date: dateFilter },
-      include: {
-        employee: { select: { id: true, name: true, employeeCode: true, department: true, designation: true } },
-      },
-      orderBy: { checkIn: 'asc' },
-    });
+    const [records, approvedLeaves] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { orgId, date: dateFilter },
+        include: {
+          employee: { select: { id: true, name: true, employeeCode: true, department: true, designation: true } },
+        },
+        orderBy: { checkIn: 'asc' },
+      }),
+      // Find approved leaves that cover this date but have no attendance record
+      prisma.leave.findMany({
+        where: {
+          orgId,
+          status: 'APPROVED',
+          startDate: { lte: dateFilter },
+          endDate: { gte: dateFilter },
+        },
+        include: {
+          employee: { select: { id: true, name: true, employeeCode: true, department: true, designation: true } },
+        },
+      }),
+    ]);
 
     const attendance = records.map(transformAtt);
+
+    // Add virtual ON_LEAVE entries for approved leaves without attendance records
+    const existingEmployeeIds = new Set(records.map(r => r.employeeId));
+    for (const leave of approvedLeaves) {
+      if (!existingEmployeeIds.has(leave.employeeId)) {
+        attendance.push(transformAtt({
+          id: `leave-${leave.id}`,
+          orgId,
+          employeeId: leave.employeeId,
+          date: dateFilter,
+          status: 'ON_LEAVE',
+          checkIn: null,
+          checkOut: null,
+          workHours: null,
+          source: 'SYSTEM',
+          notes: `On ${leave.leaveType.toLowerCase()} leave${leave.isHalfDay ? ' (half-day)' : ''}`,
+          employee: leave.employee,
+        }));
+        existingEmployeeIds.add(leave.employeeId);
+      }
+    }
 
     // Compute summary and departments for the frontend
     const summary = { total: attendance.length, present: 0, late: 0, halfDay: 0, absent: 0, onLeave: 0, holiday: 0, weeklyOff: 0, missingCheckout: 0, earlyExit: 0 };

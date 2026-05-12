@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { STATUS_BADGE_STYLES, STATUS_LABELS, getStatusLabel } from '../lib/status-config';
 import { formatDate } from '../lib/format-date';
 import { useSettings } from '../context/SettingsContext';
+import { adToBs, BS_MONTHS } from '../lib/bs-date';
 import { LogIn, LogOut, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Attendance() {
@@ -137,7 +138,16 @@ export default function Attendance() {
           <div className="flex items-center gap-2">
             <button onClick={prevMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft size={18} /></button>
             <span className="text-sm font-medium text-slate-700 min-w-[120px] text-center">
-              {new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+              {(() => {
+                const adLabel = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+                if (dateFormat === 'AD') return adLabel;
+                const bsStart = adToBs(new Date(year, month - 1, 1));
+                const bsEnd = adToBs(new Date(year, month, 0));
+                if (bsStart.month === bsEnd.month && bsStart.year === bsEnd.year) {
+                  return `${BS_MONTHS[bsStart.month - 1]} ${bsStart.year}`;
+                }
+                return `${BS_MONTHS[bsStart.month - 1]} – ${BS_MONTHS[bsEnd.month - 1]} ${bsEnd.year}`;
+              })()}
             </span>
             <button onClick={nextMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronRight size={18} /></button>
           </div>

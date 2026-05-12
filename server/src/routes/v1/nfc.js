@@ -115,7 +115,18 @@ router.get('/recent-tap', authenticate, tenantContext, requireRole('org_admin'),
       include: { employee: { select: { name: true } } },
     });
 
-    res.json({ tap: tap || null });
+    if (!tap) return res.json({ tap: null });
+
+    // Map to the shape the frontend expects
+    res.json({
+      tap: {
+        card_uid: tap.credentialData,
+        cardUid: tap.credentialData,
+        tap_time: tap.eventTime.toISOString(),
+        event_type: tap.eventType,
+        employee: tap.employee,
+      },
+    });
   } catch (err) { next(err); }
 });
 
