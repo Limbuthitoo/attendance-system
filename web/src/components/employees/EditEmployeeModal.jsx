@@ -2,9 +2,13 @@ import { X } from 'lucide-react';
 
 export default function EditEmployeeModal({
   editModal, setEditModal, editForm, setEditForm,
-  editSubmitting, handleEditSubmit, departments, designations,
+  editSubmitting, handleEditSubmit, departments, getDesignationsForDepartment,
 }) {
   if (!editModal) return null;
+
+  const designations = getDesignationsForDepartment
+    ? getDesignationsForDepartment(editForm.department)
+    : [];
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEditModal(null)}>
@@ -42,7 +46,7 @@ export default function EditEmployeeModal({
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
               <select
                 value={editForm.department}
-                onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, department: e.target.value, designation: '' })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Select Department</option>
@@ -54,11 +58,15 @@ export default function EditEmployeeModal({
               <select
                 value={editForm.designation}
                 onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
+                disabled={departments.length > 0 && !editForm.department}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">Select Designation</option>
+                <option value="">{departments.length > 0 && !editForm.department ? 'Select Department First' : 'Select Designation'}</option>
                 {designations.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
+              {editForm.department && designations.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1.5">No designations in this department yet.</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>

@@ -5,6 +5,7 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const { seedDefaultOrgStructure } = require('./config/default-org-structure');
 
 const prisma = new PrismaClient();
 
@@ -14,8 +15,12 @@ async function seed() {
   console.log('🌱 Seeding database...\n');
 
   // ── 1. Platform Super Admin ─────────────────────────────────────────────
-  const email = process.env.PLATFORM_ADMIN_EMAIL || 'admin@attendance.app';
-  const password = process.env.PLATFORM_ADMIN_PASSWORD || 'Admin@123!';
+  const email = process.env.PLATFORM_ADMIN_EMAIL;
+  const password = process.env.PLATFORM_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD must be set before running the seed script.');
+  }
 
   const existingAdmin = await prisma.platformUser.findUnique({ where: { email } });
   if (!existingAdmin) {
@@ -34,6 +39,35 @@ async function seed() {
   }
 
   // ── 2. System Roles (orgId = null → available to all orgs) ─────────────
+  const hrStructurePermissions = [
+    'department.view', 'department.manage',
+    'designation.view', 'designation.manage',
+  ];
+  const hrLifecyclePermissions = [
+    'recruitment.view', 'recruitment.manage',
+    'onboarding.view', 'onboarding.manage',
+    'training.view', 'training.manage',
+    'separation.view', 'separation.manage',
+    'ess.view', 'ess.manage',
+    'compensation.view',
+  ];
+  const financePermissions = [
+    'accounting.view', 'accounting.manage',
+    'billing.view', 'billing.manage',
+    'payroll.view', 'payroll.manage',
+    'compensation.view', 'compensation.manage',
+  ];
+  const workManagementPermissions = [
+    'project.view', 'project.manage',
+    'task.view', 'task.manage',
+    'performance.view', 'performance.manage',
+  ];
+  const rewardPermissions = [
+    'incentive.view', 'incentive.manage', 'incentive.approve',
+    'bonus.view', 'bonus.manage', 'bonus.approve',
+    'referral.view', 'referral.manage',
+  ];
+
   const systemRoles = [
     {
       name: 'org_admin',
@@ -45,13 +79,14 @@ async function seed() {
         'device.view', 'device.manage', 'credential.manage',
         'settings.view', 'settings.update',
         'holiday.manage', 'notice.manage', 'report.view',
+        ...hrStructurePermissions,
         'branch.manage', 'shift.manage', 'schedule.manage',
         'role.manage', 'audit.view',
-        'incentive.manage', 'incentive.approve',
-        'crm.manage', 'performance.manage', 'task.manage', 'project.manage', 'referral.manage',
-        'bonus.manage', 'bonus.approve',
-        'accounting.view', 'accounting.manage',
-        'billing.view', 'billing.manage',
+        'crm.view', 'crm.manage',
+        ...workManagementPermissions,
+        ...rewardPermissions,
+        ...financePermissions,
+        ...hrLifecyclePermissions,
       ],
       isSystem: true,
     },
@@ -62,7 +97,149 @@ async function seed() {
         'employee.view', 'employee.create', 'employee.update',
         'attendance.view_all',
         'leave.view_all', 'leave.approve', 'leave.reject',
+        ...hrStructurePermissions,
+        ...hrLifecyclePermissions,
+        'payroll.view', 'payroll.manage',
+        'performance.view',
         'holiday.manage', 'notice.manage', 'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'finance_manager',
+      description: 'Finance manager — accounting, billing, compensation, and payroll control',
+      permissions: [
+        'employee.view',
+        'attendance.view_all',
+        'leave.view_all',
+        'report.view',
+        ...financePermissions,
+        'bonus.view', 'bonus.manage', 'bonus.approve',
+        'incentive.view', 'incentive.approve',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'accountant',
+      description: 'Accountant — accounting and billing operations',
+      permissions: [
+        'employee.view',
+        'report.view',
+        'accounting.view', 'accounting.manage',
+        'billing.view', 'billing.manage',
+        'payroll.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'payroll_manager',
+      description: 'Payroll manager — salary structures, payroll runs, bonuses, and incentives',
+      permissions: [
+        'employee.view',
+        'attendance.view_all',
+        'leave.view_all',
+        'report.view',
+        'payroll.view', 'payroll.manage',
+        'compensation.view', 'compensation.manage',
+        ...rewardPermissions,
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'recruiter',
+      description: 'Recruiter — recruitment pipeline and onboarding coordination',
+      permissions: [
+        'employee.view',
+        'department.view',
+        'designation.view',
+        'recruitment.view', 'recruitment.manage',
+        'onboarding.view', 'onboarding.manage',
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'training_manager',
+      description: 'Training manager — courses, sessions, enrollments, and certifications',
+      permissions: [
+        'employee.view',
+        'department.view',
+        'designation.view',
+        'training.view', 'training.manage',
+        'performance.view',
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'operations_manager',
+      description: 'Operations manager — branches, shifts, schedules, attendance, and work execution',
+      permissions: [
+        'employee.view',
+        'attendance.view_all', 'attendance.manage',
+        'leave.view_all', 'leave.approve', 'leave.reject',
+        'department.view',
+        'designation.view',
+        'branch.manage',
+        'shift.manage',
+        'schedule.manage',
+        'project.view', 'project.manage',
+        'task.view', 'task.manage',
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'department_head',
+      description: 'Department head — team oversight, leave approvals, reports, projects, and tasks',
+      permissions: [
+        'employee.view',
+        'attendance.view_all',
+        'leave.view_all', 'leave.approve', 'leave.reject',
+        'department.view',
+        'designation.view',
+        'project.view',
+        'task.view', 'task.manage',
+        'performance.view',
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'project_manager',
+      description: 'Project manager — projects, tasks, and performance tracking',
+      permissions: [
+        'employee.view',
+        'department.view',
+        'designation.view',
+        ...workManagementPermissions,
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'sales_manager',
+      description: 'Sales manager — CRM, billing visibility, sales tasks, and reports',
+      permissions: [
+        'employee.view',
+        'crm.view', 'crm.manage',
+        'billing.view',
+        'task.view', 'task.manage',
+        'project.view',
+        'report.view',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'it_admin',
+      description: 'IT admin — devices, credentials, app access, and technical settings',
+      permissions: [
+        'employee.view',
+        'device.view', 'device.manage',
+        'credential.manage',
+        'settings.view', 'settings.update',
+        'notification.view',
+        'audit.view',
       ],
       isSystem: true,
     },
@@ -73,6 +250,8 @@ async function seed() {
         'employee.view',
         'attendance.view_all',
         'leave.view_all', 'leave.approve',
+        'department.view',
+        'designation.view',
         'report.view',
       ],
       isSystem: true,
@@ -84,6 +263,8 @@ async function seed() {
         'employee.view',
         'attendance.view_all',
         'leave.view_all',
+        'department.view',
+        'designation.view',
       ],
       isSystem: true,
     },
@@ -116,7 +297,26 @@ async function seed() {
       });
       console.log(`✓ System role created: ${role.name}`);
     } else {
-      console.log(`  System role exists: ${role.name}`);
+      const currentPermissions = Array.isArray(existing.permissions) ? existing.permissions : [];
+      const mergedPermissions = Array.from(new Set([...currentPermissions, ...role.permissions]));
+      const shouldUpdate =
+        mergedPermissions.length !== currentPermissions.length ||
+        existing.description !== role.description ||
+        existing.isSystem !== true;
+
+      if (shouldUpdate) {
+        await prisma.role.update({
+          where: { id: existing.id },
+          data: {
+            description: role.description,
+            permissions: mergedPermissions,
+            isSystem: true,
+          },
+        });
+        console.log(`✓ System role updated: ${role.name}`);
+      } else {
+        console.log(`  System role exists: ${role.name}`);
+      }
     }
   }
 
@@ -192,6 +392,13 @@ async function seed() {
     } else {
       console.log(`  Module exists: ${mod.code}`);
     }
+  }
+
+  // ── 5. Backfill common departments/designations for every organization ─────
+  const orgs = await prisma.organization.findMany({ select: { id: true, name: true } });
+  for (const org of orgs) {
+    await seedDefaultOrgStructure(prisma, org.id);
+    console.log(`  Default departments/designations ensured: ${org.name}`);
   }
 
   console.log('\n✅ Seed complete!');

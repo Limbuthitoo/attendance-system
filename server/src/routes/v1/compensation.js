@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -23,7 +23,7 @@ router.get('/pay-grades', async (req, res, next) => {
 });
 
 // POST /api/v1/compensation/pay-grades
-router.post('/pay-grades', requireRole('org_admin'), async (req, res, next) => {
+router.post('/pay-grades', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, level, minSalary, maxSalary, currency } = req.body;
@@ -40,7 +40,7 @@ router.post('/pay-grades', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/compensation/pay-grades/:id
-router.put('/pay-grades/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/pay-grades/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const grade = await prisma.payGrade.update({
@@ -55,7 +55,7 @@ router.put('/pay-grades/:id', requireRole('org_admin'), async (req, res, next) =
 });
 
 // DELETE /api/v1/compensation/pay-grades/:id
-router.delete('/pay-grades/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/pay-grades/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     await prisma.payGrade.delete({ where: { id: req.params.id, orgId: req.orgId } });
@@ -88,7 +88,7 @@ router.get('/salary-revisions', async (req, res, next) => {
 });
 
 // POST /api/v1/compensation/salary-revisions
-router.post('/salary-revisions', requireRole('org_admin'), async (req, res, next) => {
+router.post('/salary-revisions', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { employeeId, previousGross, newGross, previousBasic, newBasic, effectiveFrom, reason, revisionType } = req.body;
@@ -102,7 +102,7 @@ router.post('/salary-revisions', requireRole('org_admin'), async (req, res, next
 });
 
 // PUT /api/v1/compensation/salary-revisions/:id
-router.put('/salary-revisions/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/salary-revisions/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status } = req.body;
@@ -154,7 +154,7 @@ router.get('/benefits', async (req, res, next) => {
 });
 
 // POST /api/v1/compensation/benefits
-router.post('/benefits', requireRole('org_admin'), async (req, res, next) => {
+router.post('/benefits', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, category, description, amount, isPercentage, percentageOf } = req.body;
@@ -171,7 +171,7 @@ router.post('/benefits', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/compensation/benefits/:id
-router.put('/benefits/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/benefits/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const benefit = await prisma.benefitPlan.update({
@@ -186,7 +186,7 @@ router.put('/benefits/:id', requireRole('org_admin'), async (req, res, next) => 
 });
 
 // DELETE /api/v1/compensation/benefits/:id
-router.delete('/benefits/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/benefits/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     await prisma.benefitPlan.delete({ where: { id: req.params.id, orgId: req.orgId } });

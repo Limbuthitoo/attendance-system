@@ -17,6 +17,7 @@ export default function Compensation() {
   const [payGrades, setPayGrades] = useState([]);
   const [revisions, setRevisions] = useState([]);
   const [benefits, setBenefits] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({});
@@ -27,7 +28,14 @@ export default function Compensation() {
     setLoading(true);
     try {
       if (tab === 'grades') { const d = await api.getPayGrades(); setPayGrades(d.payGrades || []); }
-      else if (tab === 'revisions') { const d = await api.getSalaryRevisions({}); setRevisions(d.revisions || []); }
+      else if (tab === 'revisions') {
+        const [revisionData, employeeData] = await Promise.all([
+          api.getSalaryRevisions({}),
+          api.getEmployees().catch(() => ({ employees: [] })),
+        ]);
+        setRevisions(revisionData.revisions || []);
+        setEmployees(employeeData.employees || []);
+      }
       else { const d = await api.getBenefits(); setBenefits(d.benefits || []); }
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -52,7 +60,14 @@ export default function Compensation() {
   async function handleSaveBenefit(e) {
     e.preventDefault();
     try {
-      await api.createBenefit({ name: form.name, type: form.type, description: form.description, employerContribution: parseFloat(form.employerContribution) || 0, employeeContribution: parseFloat(form.employeeContribution) || 0 });
+      await api.createBenefit({
+        name: form.name,
+        category: form.category,
+        description: form.description,
+        amount: form.amount ? parseFloat(form.amount) : null,
+        isPercentage: form.isPercentage === 'true',
+        percentageOf: form.percentageOf || null,
+      });
       setShowForm(false); setForm({}); loadData();
     } catch (err) { alert(err.message); }
   }
@@ -115,10 +130,10 @@ export default function Compensation() {
               {revisions.map(r => (
                 <tr key={r.id}>
                   <td className="px-4 py-3 font-medium">{r.employee?.name}</td>
-                  <td className="px-4 py-3">NPR {Number(r.previousSalary).toLocaleString()}</td>
-                  <td className="px-4 py-3">NPR {Number(r.newSalary).toLocaleString()}</td>
+                  <td className="px-4 py-3">NPR {Number(r.previousGross).toLocaleString()}</td>
+                  <td className="px-4 py-3">NPR {Number(r.newGross).toLocaleString()}</td>
                   <td className="px-4 py-3">{r.incrementPercentage ? `${r.incrementPercentage}%` : '—'}</td>
-                  <td className="px-4 py-3 text-sm">{formatDate(r.effectiveDate, dateFormat)}</td>
+                  <td className="px-4 py-3 text-sm">{formatDate(r.effectiveFrom, dateFormat)}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[r.status] || 'bg-gray-100'}`}>{r.status}</span></td>
                 </tr>
               ))}
@@ -131,12 +146,10 @@ export default function Compensation() {
           {benefits.map(b => (
             <div key={b.id} className="bg-white rounded-lg shadow p-4">
               <h3 className="font-semibold text-gray-900">{b.name}</h3>
-              <p className="text-sm text-gray-500">{b.type}</p>
+              <p className="text-sm text-gray-500">{b.category}</p>
               <p className="text-xs text-gray-400 mt-1">{b.description || ''}</p>
               <div className="mt-2 text-sm">
-                <span className="text-gray-600">Employer: NPR {Number(b.employerContribution).toLocaleString()}</span>
-                <span className="mx-2">·</span>
-                <span className="text-gray-600">Employee: NPR {Number(b.employeeContribution).toLocaleString()}</span>
+                <span className="text-gray-600">{b.isPercentage ? `${Number(b.amount || 0)}% of ${b.percentageOf || 'salary'}` : `NPR ${Number(b.amount || 0).toLocaleString()}`}</span>
               </div>
             </div>
           ))}
@@ -157,7 +170,10 @@ export default function Compensation() {
                   <input placeholder="Max Salary" type="number" value={form.maxSalary || ''} onChange={e => setForm({ ...form, maxSalary: e.target.value })} className="border rounded px-3 py-2" />
                 </div>
               </> : tab === 'revisions' ? <>
-                <input placeholder="Employee ID" value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full border rounded px-3 py-2" required />
+                <select value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                  <option value="">Select Employee</option>
+                  {employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name} ({employee.employeeCode})</option>)}
+                </select>
                 <div className="grid grid-cols-2 gap-2">
                   <input placeholder="Previous Salary" type="number" value={form.previousSalary || ''} onChange={e => setForm({ ...form, previousSalary: e.target.value })} className="border rounded px-3 py-2" />
                   <input placeholder="New Salary" type="number" value={form.newSalary || ''} onChange={e => setForm({ ...form, newSalary: e.target.value })} className="border rounded px-3 py-2" required />
@@ -167,8 +183,8 @@ export default function Compensation() {
                 <input placeholder="Reason" value={form.reason || ''} onChange={e => setForm({ ...form, reason: e.target.value })} className="w-full border rounded px-3 py-2" />
               </> : <>
                 <input placeholder="Plan Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
-                <select value={form.type || ''} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded px-3 py-2" required>
-                  <option value="">Select Type</option>
+                <select value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                  <option value="">Select Category</option>
                   <option value="Health Insurance">Health Insurance</option>
                   <option value="Life Insurance">Life Insurance</option>
                   <option value="Provident Fund">Provident Fund</option>
@@ -178,10 +194,9 @@ export default function Compensation() {
                   <option value="Other">Other</option>
                 </select>
                 <textarea placeholder="Description" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full border rounded px-3 py-2" rows="2" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input placeholder="Employer Contribution" type="number" value={form.employerContribution || ''} onChange={e => setForm({ ...form, employerContribution: e.target.value })} className="border rounded px-3 py-2" />
-                  <input placeholder="Employee Contribution" type="number" value={form.employeeContribution || ''} onChange={e => setForm({ ...form, employeeContribution: e.target.value })} className="border rounded px-3 py-2" />
-                </div>
+                <input placeholder="Amount" type="number" value={form.amount || ''} onChange={e => setForm({ ...form, amount: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPercentage === 'true'} onChange={e => setForm({ ...form, isPercentage: e.target.checked ? 'true' : 'false' })} /> Percentage based</label>
+                {form.isPercentage === 'true' && <input placeholder="Percentage Of (e.g. gross_salary)" value={form.percentageOf || ''} onChange={e => setForm({ ...form, percentageOf: e.target.value })} className="w-full border rounded px-3 py-2" />}
               </>}
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>

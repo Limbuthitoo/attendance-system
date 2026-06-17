@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -27,7 +27,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/separation
-router.post('/', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { employeeId, type, reason, lastWorkingDate, noticePeriodDays } = req.body;
@@ -48,7 +48,7 @@ router.post('/', requireRole('org_admin', 'hr'), async (req, res, next) => {
 });
 
 // PUT /api/v1/separation/:id
-router.put('/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/:id', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, exitInterviewDone, exitInterviewNotes } = req.body;
@@ -83,7 +83,7 @@ router.get('/:id/clearance', async (req, res, next) => {
 });
 
 // POST /api/v1/separation/:id/clearance
-router.post('/:id/clearance', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/:id/clearance', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { department, itemName, description } = req.body;
@@ -97,7 +97,7 @@ router.post('/:id/clearance', requireRole('org_admin', 'hr'), async (req, res, n
 });
 
 // PUT /api/v1/separation/clearance/:itemId
-router.put('/clearance/:itemId', async (req, res, next) => {
+router.put('/clearance/:itemId', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, remarks } = req.body;
@@ -130,7 +130,7 @@ router.get('/:id/settlement', async (req, res, next) => {
 });
 
 // POST /api/v1/separation/:id/settlement
-router.post('/:id/settlement', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/:id/settlement', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { basicDues, leaveEncashment, gratuity, bonus, noticePeriodRecovery, advanceRecovery, otherDeductions, otherEarnings, tds } = req.body;
@@ -159,7 +159,7 @@ router.post('/:id/settlement', requireRole('org_admin', 'hr'), async (req, res, 
 });
 
 // PUT /api/v1/separation/settlement/:id
-router.put('/settlement/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/settlement/:id', requirePermission('separation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, paidAt } = req.body;

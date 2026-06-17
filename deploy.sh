@@ -27,14 +27,17 @@ if ! git pull origin main 2>&1 | tee -a "$LOG_FILE"; then
   exit 1
 fi
 
-# Run database migrations inside the API container
-log "Running database migrations..."
-sudo docker compose exec -T api npx prisma migrate deploy 2>&1 | tee -a "$LOG_FILE"
+# Rebuild backend images first so migrations run from the freshly pulled code
+log "Rebuilding backend images..."
+sudo docker compose build api accounting crm --quiet 2>&1 | tee -a "$LOG_FILE"
 
-# Rebuild and restart backend
-log "Rebuilding and restarting backend..."
-sudo docker compose build api --quiet 2>&1 | tee -a "$LOG_FILE"
-sudo docker compose up -d api worker 2>&1 | tee -a "$LOG_FILE"
+# Run database migrations from the new API image
+log "Running database migrations..."
+sudo docker compose run --rm api npx prisma migrate deploy 2>&1 | tee -a "$LOG_FILE"
+
+# Restart backend services
+log "Restarting backend services..."
+sudo docker compose up -d api worker accounting crm 2>&1 | tee -a "$LOG_FILE"
 
 # Wait for health check
 sleep 10

@@ -19,7 +19,11 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${POSTGRES_USER:-attendance}"
 DB_NAME="${POSTGRES_DB:-attendance}"
 
-export PGPASSWORD="${POSTGRES_PASSWORD:-attendance_pass}"
+if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+  echo "POSTGRES_PASSWORD is required" >&2
+  exit 1
+fi
+export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 if [ ! -f "$BACKUP_FILE" ]; then
   echo "Error: File not found: $BACKUP_FILE"

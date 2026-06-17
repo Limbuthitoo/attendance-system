@@ -3,10 +3,11 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   getOrganization, updateOrganization, suspendOrganization,
   reactivateOrganization, setOrgModules, getModules, getOrgBranches, getPlans,
+  sendOrgAdminPasswordResetLink,
 } from '../api';
 import {
   ArrowLeft, Building2, Users, Cpu, MapPin, Boxes,
-  Save, Power, PowerOff,
+  Save, Power, PowerOff, KeyRound, Mail,
 } from 'lucide-react';
 
 export default function OrganizationDetail() {
@@ -18,6 +19,8 @@ export default function OrganizationDetail() {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
+  const [resetResult, setResetResult] = useState(null);
   const [tab, setTab] = useState('overview');
 
   // Edit state
@@ -91,6 +94,21 @@ export default function OrganizationDetail() {
       await loadData();
     } catch (err) {
       alert(err.message);
+    }
+  }
+
+  async function handleSendAdminReset(admin) {
+    const adminEmail = admin?.email || 'the organization admin';
+    if (!window.confirm(`Send a password reset link to ${adminEmail}?`)) return;
+    setResetSending(true);
+    setResetResult(null);
+    try {
+      const result = await sendOrgAdminPasswordResetLink(id, admin?.id);
+      setResetResult({ type: result.emailQueued ? 'success' : 'warning', ...result });
+    } catch (err) {
+      setResetResult({ type: 'error', message: err.message });
+    } finally {
+      setResetSending(false);
     }
   }
 
@@ -203,6 +221,64 @@ export default function OrganizationDetail() {
           <p className="text-sm text-gray-500">
             Created: {new Date(org.createdAt).toLocaleString()}
           </p>
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Organization Admin Access</h2>
+                {!org.admins?.length && <p className="text-sm text-gray-500">No active organization admin found</p>}
+              </div>
+            </div>
+            {org.admins?.length > 0 && (
+              <div className="mt-3 divide-y divide-gray-100 border border-gray-100 rounded-lg">
+                {org.admins.map((admin) => (
+                  <div key={admin.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{admin.name}</p>
+                      <p className="text-sm text-gray-500">{admin.email}</p>
+                      {admin.lockedUntil && (
+                        <p className="text-xs text-red-600 mt-1">Locked until {new Date(admin.lockedUntil).toLocaleString()}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSendAdminReset(admin)}
+                      disabled={resetSending}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      {resetSending ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      ) : (
+                        <Mail className="w-4 h-4" />
+                      )}
+                      Send Reset Link
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {resetResult && (
+              <div className={`mt-3 rounded-lg px-4 py-3 text-sm ${
+                resetResult.type === 'error'
+                  ? 'bg-red-50 text-red-700'
+                  : resetResult.type === 'warning'
+                    ? 'bg-amber-50 text-amber-800'
+                    : 'bg-green-50 text-green-700'
+              }`}>
+                <div className="flex items-start gap-2">
+                  <KeyRound className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p>{resetResult.message || 'Password reset link generated.'}</p>
+                    {resetResult.emailError && <p className="mt-1">Email queue error: {resetResult.emailError}</p>}
+                    {resetResult.resetLink && (
+                      <a href={resetResult.resetLink} target="_blank" rel="noreferrer" className="mt-1 block break-all underline">
+                        {resetResult.resetLink}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="pt-4">
             <button
               onClick={handleSave}

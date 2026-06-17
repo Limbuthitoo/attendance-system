@@ -5,7 +5,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission, requireRole } = require('../../middleware/auth');
 const employeeService = require('../../services/employee.service');
 const authService = require('../../services/auth.service');
 const prisma = require('../../lib/prisma').getPrisma();
@@ -35,7 +35,7 @@ const docUpload = multer({
 });
 
 // GET /api/v1/employees — List employees (admin)
-router.get('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const { search, department, isActive, page, limit } = req.query;
     const result = await employeeService.listEmployees({
@@ -53,7 +53,7 @@ router.get('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) =
 });
 
 // GET /api/v1/employees/:id — Get employee detail
-router.get('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/:id', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const employee = await employeeService.getEmployee(req.params.id, req.orgId);
     if (!employee) {

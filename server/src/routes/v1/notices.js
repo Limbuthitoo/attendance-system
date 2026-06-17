@@ -34,6 +34,29 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// GET /api/v1/notices/:id
+router.get('/:id', async (req, res, next) => {
+  try {
+    const prisma = getPrisma();
+    const notice = await prisma.notice.findFirst({
+      where: { id: req.params.id, orgId: req.orgId },
+      include: { publisher: { select: { id: true, name: true } } },
+    });
+    if (!notice) return res.status(404).json({ error: 'Notice not found' });
+
+    res.json({
+      notice: {
+        ...notice,
+        created_at: notice.createdAt,
+        published_by_name: notice.publisher?.name || null,
+        type: (notice.type || '').toLowerCase(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/v1/notices
 router.post('/', requireRole('org_admin'), async (req, res, next) => {
   try {

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -27,10 +27,10 @@ router.get('/jobs', async (req, res, next) => {
 });
 
 // POST /api/v1/recruitment/jobs
-router.post('/jobs', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/jobs', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { title, department, description, requirements, location, employmentType, salaryMin, salaryMax, openings, deadline } = req.body;
+    const { title, department, description, requirements, location, employmentType, openings, deadline, status } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     const job = await prisma.jobPosting.create({
@@ -41,9 +41,10 @@ router.post('/jobs', requireRole('org_admin', 'hr'), async (req, res, next) => {
         description: description || null,
         requirements: requirements || null,
         location: location || null,
-        employmentType: employmentType || 'full_time',
+        employmentType: employmentType || 'FULL_TIME',
         vacancies: openings || 1,
         closingDate: deadline ? new Date(deadline) : null,
+        status: status || 'OPEN',
         createdBy: req.user.id,
       },
     });
@@ -52,7 +53,7 @@ router.post('/jobs', requireRole('org_admin', 'hr'), async (req, res, next) => {
 });
 
 // PUT /api/v1/recruitment/jobs/:id
-router.put('/jobs/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/jobs/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { title, department, description, requirements, location, employmentType, openings, deadline, status } = req.body;
@@ -68,7 +69,7 @@ router.put('/jobs/:id', requireRole('org_admin', 'hr'), async (req, res, next) =
 });
 
 // DELETE /api/v1/recruitment/jobs/:id
-router.delete('/jobs/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.delete('/jobs/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     await prisma.jobPosting.delete({ where: { id: req.params.id, orgId: req.orgId } });
@@ -102,7 +103,7 @@ router.get('/applicants', async (req, res, next) => {
 });
 
 // POST /api/v1/recruitment/applicants
-router.post('/applicants', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/applicants', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { jobPostingId, name, email, phone, resumeUrl, coverLetter, source } = req.body;
@@ -116,7 +117,7 @@ router.post('/applicants', requireRole('org_admin', 'hr'), async (req, res, next
 });
 
 // PUT /api/v1/recruitment/applicants/:id
-router.put('/applicants/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/applicants/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, rating, notes } = req.body;
@@ -156,21 +157,21 @@ router.get('/interviews', async (req, res, next) => {
 });
 
 // POST /api/v1/recruitment/interviews
-router.post('/interviews', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/interviews', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { applicantId, interviewerId, scheduledAt, type, location, notes, duration } = req.body;
     if (!applicantId || !interviewerId || !scheduledAt) return res.status(400).json({ error: 'applicantId, interviewerId and scheduledAt required' });
 
     const interview = await prisma.interview.create({
-      data: { orgId: req.orgId, applicantId, interviewerId, scheduledAt: new Date(scheduledAt), duration: duration || 60, type: type || 'in_person', location, notes },
+      data: { orgId: req.orgId, applicantId, interviewerId, scheduledAt: new Date(scheduledAt), duration: duration || 60, type: type || 'IN_PERSON', location, notes },
     });
     res.status(201).json({ interview });
   } catch (err) { next(err); }
 });
 
 // PUT /api/v1/recruitment/interviews/:id
-router.put('/interviews/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/interviews/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, rating, feedback, scheduledAt } = req.body;

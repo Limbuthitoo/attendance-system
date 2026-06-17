@@ -369,7 +369,14 @@ async function handleTrialExpiry() {
       id: true,
       name: true,
       employees: {
-        where: { role: 'admin', isActive: true },
+        where: {
+          isActive: true,
+          employeeRoles: {
+            some: {
+              role: { name: 'org_admin' },
+            },
+          },
+        },
         select: { email: true, name: true },
         take: 1,
       },
@@ -420,7 +427,14 @@ async function handleTrialExpiry() {
       name: true,
       trialEndsAt: true,
       employees: {
-        where: { role: 'admin', isActive: true },
+        where: {
+          isActive: true,
+          employeeRoles: {
+            some: {
+              role: { name: 'org_admin' },
+            },
+          },
+        },
         select: { email: true, name: true },
         take: 1,
       },

@@ -24,6 +24,7 @@ export default function Recruitment() {
   const [jobs, setJobs] = useState([]);
   const [applicants, setApplicants] = useState([]);
   const [interviews, setInterviews] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({});
@@ -33,9 +34,26 @@ export default function Recruitment() {
   async function loadData() {
     setLoading(true);
     try {
-      if (tab === 'jobs') { const d = await api.getJobs({}); setJobs(d.jobs || []); }
-      else if (tab === 'applicants') { const d = await api.getApplicants({}); setApplicants(d.applicants || []); }
-      else { const d = await api.getInterviews({}); setInterviews(d.interviews || []); }
+      if (tab === 'jobs') {
+        const d = await api.getJobs({});
+        setJobs(d.jobs || []);
+      } else if (tab === 'applicants') {
+        const [applicantData, jobData] = await Promise.all([
+          api.getApplicants({}),
+          api.getJobs({}),
+        ]);
+        setApplicants(applicantData.applicants || []);
+        setJobs(jobData.jobs || []);
+      } else {
+        const [interviewData, applicantData, employeeData] = await Promise.all([
+          api.getInterviews({}),
+          api.getApplicants({}),
+          api.getEmployees().catch(() => ({ employees: [] })),
+        ]);
+        setInterviews(interviewData.interviews || []);
+        setApplicants(applicantData.applicants || []);
+        setEmployees(employeeData.employees || []);
+      }
     } catch (err) { console.error(err); }
     setLoading(false);
   }
@@ -61,6 +79,23 @@ export default function Recruitment() {
     e.preventDefault();
     try {
       await api.createApplicant({ name: form.name, email: form.email, phone: form.phone, jobPostingId: form.jobPostingId || null, source: form.source });
+      setShowForm(false); setForm({});
+      loadData();
+    } catch (err) { alert(err.message); }
+  }
+
+  async function handleSaveInterview(e) {
+    e.preventDefault();
+    try {
+      await api.createInterview({
+        applicantId: form.applicantId,
+        interviewerId: form.interviewerId,
+        scheduledAt: form.scheduledAt,
+        type: form.type || 'IN_PERSON',
+        location: form.location,
+        duration: parseInt(form.duration) || 60,
+        notes: form.notes,
+      });
       setShowForm(false); setForm({});
       loadData();
     } catch (err) { alert(err.message); }
@@ -98,7 +133,7 @@ export default function Recruitment() {
             <div key={job.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900">{job.title}</h3>
-                <p className="text-sm text-gray-500">{job.department || 'General'} · {job.employmentType?.replace('_', ' ')} · {job.openings} opening(s)</p>
+                <p className="text-sm text-gray-500">{job.department || 'General'} · {job.employmentType?.replace('_', ' ')} · {job.vacancies ?? job.openings ?? 1} opening(s)</p>
                 <p className="text-xs text-gray-400 mt-1">{job._count?.applicants || 0} applicants · Posted {formatDate(job.createdAt, dateFormat)}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -170,8 +205,8 @@ export default function Recruitment() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">{tab === 'jobs' ? 'New Job Posting' : 'Add Applicant'}</h2>
-            <form onSubmit={tab === 'jobs' ? handleSaveJob : handleSaveApplicant} className="space-y-3">
+            <h2 className="text-lg font-semibold mb-4">{tab === 'jobs' ? 'New Job Posting' : tab === 'applicants' ? 'Add Applicant' : 'Schedule Interview'}</h2>
+            <form onSubmit={tab === 'jobs' ? handleSaveJob : tab === 'applicants' ? handleSaveApplicant : handleSaveInterview} className="space-y-3">
               {tab === 'jobs' ? <>
                 <input placeholder="Job Title" value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Department" value={form.department || ''} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full border rounded px-3 py-2" />
@@ -182,11 +217,35 @@ export default function Recruitment() {
                 </select>
                 <input placeholder="Openings" type="number" min="1" value={form.openings || ''} onChange={e => setForm({ ...form, openings: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <DatePicker value={form.deadline || ''} onChange={v => setForm({ ...form, deadline: v })} placeholder="Deadline" />
-              </> : <>
+              </> : tab === 'applicants' ? <>
+                <select value={form.jobPostingId || ''} onChange={e => setForm({ ...form, jobPostingId: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                  <option value="">Select Job Posting</option>
+                  {jobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
+                </select>
                 <input placeholder="Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Email" type="email" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Phone" value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <input placeholder="Source" value={form.source || ''} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </> : <>
+                <select value={form.applicantId || ''} onChange={e => setForm({ ...form, applicantId: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                  <option value="">Select Applicant</option>
+                  {applicants.map(applicant => <option key={applicant.id} value={applicant.id}>{applicant.name} - {applicant.jobPosting?.title || 'Unassigned'}</option>)}
+                </select>
+                <select value={form.interviewerId || ''} onChange={e => setForm({ ...form, interviewerId: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                  <option value="">Select Interviewer</option>
+                  {employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name} ({employee.employeeCode})</option>)}
+                </select>
+                <input type="datetime-local" value={form.scheduledAt || ''} onChange={e => setForm({ ...form, scheduledAt: e.target.value })} className="w-full border rounded px-3 py-2" required />
+                <select value={form.type || 'IN_PERSON'} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded px-3 py-2">
+                  <option value="IN_PERSON">In Person</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="PHONE">Phone</option>
+                  <option value="TECHNICAL">Technical</option>
+                  <option value="HR">HR</option>
+                </select>
+                <input placeholder="Location or meeting link" value={form.location || ''} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <input placeholder="Duration (minutes)" type="number" min="15" value={form.duration || ''} onChange={e => setForm({ ...form, duration: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <textarea placeholder="Notes" value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} className="w-full border rounded px-3 py-2" rows="2" />
               </>}
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>

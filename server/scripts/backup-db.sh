@@ -17,7 +17,11 @@ DB_NAME="${POSTGRES_DB:-attendance}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_${TIMESTAMP}.sql.gz"
 
-export PGPASSWORD="${POSTGRES_PASSWORD:-attendance_pass}"
+if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+  echo "POSTGRES_PASSWORD is required" >&2
+  exit 1
+fi
+export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"

@@ -16,5 +16,5 @@ RUN mkdir -p data/apk data/branding
 
 EXPOSE 3001
 
-# Sync schema then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss 2>&1 || echo 'Warning: prisma db push had errors (non-fatal)'; node src/seed.js && node src/index.js"]
+# Database migrations are applied by deployment/ops before startup.
+CMD ["sh", "-c", "node src/seed.js && node src/index.js"]

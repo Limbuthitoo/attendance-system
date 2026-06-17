@@ -11,13 +11,17 @@ const router = Router();
 // GET /api/v1/notifications
 router.get('/', async (req, res, next) => {
   try {
-    const { unreadOnly, page, limit } = req.query;
+    const { unreadOnly, unread_only: unreadOnlySnake, page, offset, limit } = req.query;
+    const parsedLimit = parseInt(limit, 10) || 50;
+    const parsedPage = page
+      ? parseInt(page, 10) || 1
+      : Math.floor((parseInt(offset, 10) || 0) / parsedLimit) + 1;
     const result = await notificationService.getNotifications({
       employeeId: req.user.id,
       orgId: req.orgId,
-      unreadOnly: unreadOnly === 'true',
-      page: parseInt(page) || 1,
-      limit: parseInt(limit) || 50,
+      unreadOnly: unreadOnly === 'true' || unreadOnlySnake === 'true' || unreadOnlySnake === '1',
+      page: parsedPage,
+      limit: parsedLimit,
     });
     res.json(result);
   } catch (err) {
@@ -34,6 +38,30 @@ router.put('/read', async (req, res, next) => {
     }
     await notificationService.markAsRead({ notificationIds: ids, employeeId: req.user.id });
     res.json({ message: 'Notifications marked as read' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/notifications/read-all
+router.put('/read-all', async (req, res, next) => {
+  try {
+    const prisma = require('../../lib/prisma').getPrisma();
+    await prisma.notification.updateMany({
+      where: { employeeId: req.user.id, orgId: req.orgId, isRead: false, isCleared: false },
+      data: { isRead: true },
+    });
+    res.json({ message: 'All notifications marked as read' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/notifications/:id/read — compatibility for older mobile builds
+router.put('/:id/read', async (req, res, next) => {
+  try {
+    await notificationService.markAsRead({ notificationIds: [req.params.id], employeeId: req.user.id });
+    res.json({ message: 'Notification marked as read' });
   } catch (err) {
     next(err);
   }

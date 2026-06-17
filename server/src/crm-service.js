@@ -38,6 +38,13 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 
+const sanitizeInput = require('./middleware/sanitize');
+app.use(sanitizeInput);
+
+const { csrfSetToken, csrfValidate } = require('./middleware/csrf');
+app.use(csrfSetToken);
+app.use(csrfValidate);
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 2000,

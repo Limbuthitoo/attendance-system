@@ -19,8 +19,17 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '^/api/(v1/)?(accounting|billing)(/|$)': {
+        target: 'http://127.0.0.1:3010',
+        changeOrigin: true,
+      },
+      '^/api/(v1/)?crm(/|$)': {
+        target: 'http://127.0.0.1:3011',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
         // Disable buffering so SSE events stream through immediately
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes) => {

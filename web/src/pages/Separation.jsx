@@ -16,6 +16,7 @@ const STATUS_COLORS = {
 export default function Separation() {
   const { dateFormat } = useSettings();
   const [separations, setSeparations] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({});
@@ -27,8 +28,12 @@ export default function Separation() {
   async function loadData() {
     setLoading(true);
     try {
-      const d = await api.getSeparations({});
-      setSeparations(d.separations || []);
+      const [separationData, employeeData] = await Promise.all([
+        api.getSeparations({}),
+        api.getEmployees().catch(() => ({ employees: [] })),
+      ]);
+      setSeparations(separationData.separations || []);
+      setEmployees(employeeData.employees || []);
     } catch (err) { console.error(err); }
     setLoading(false);
   }
@@ -146,7 +151,10 @@ export default function Separation() {
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">Initiate Separation</h2>
             <form onSubmit={handleCreate} className="space-y-3">
-              <input placeholder="Employee ID" value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full border rounded px-3 py-2" required />
+              <select value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full border rounded px-3 py-2" required>
+                <option value="">Select Employee</option>
+                {employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name} ({employee.employeeCode})</option>)}
+              </select>
               <select value={form.type || 'RESIGNATION'} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full border rounded px-3 py-2">
                 <option value="RESIGNATION">Resignation</option>
                 <option value="TERMINATION">Termination</option>

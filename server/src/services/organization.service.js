@@ -6,6 +6,7 @@ const { getPrisma } = require('../lib/prisma');
 const { auditLog } = require('../lib/audit');
 const { slugify } = require('../lib/validation');
 const { SALT_ROUNDS } = require('./auth.service');
+const { seedDefaultOrgStructure } = require('../config/default-org-structure');
 
 /**
  * List all organizations (platform admin)
@@ -89,6 +90,14 @@ async function getOrganization(orgId) {
         where: { isActive: true },
         include: { module: { select: { id: true, code: true, name: true } } },
       },
+      employees: {
+        where: {
+          isActive: true,
+          employeeRoles: { some: { role: { name: 'org_admin' } } },
+        },
+        select: { id: true, name: true, email: true, failedLoginAttempts: true, lockedUntil: true },
+        orderBy: { createdAt: 'asc' },
+      },
       _count: {
         select: { employees: true, devices: true, branches: true },
       },
@@ -100,10 +109,12 @@ async function getOrganization(orgId) {
   return {
     ...org,
     enabledModules: org.orgModules.map((om) => om.module),
+    admins: org.employees,
     employeeCount: org._count.employees,
     branchCount: org._count.branches,
     deviceCount: org._count.devices,
     orgModules: undefined,
+    employees: undefined,
     _count: undefined,
   };
 }
@@ -199,7 +210,10 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       },
     });
 
-    // 5. Create org admin employee
+    // 5. Seed common departments and department-specific designations
+    await seedDefaultOrgStructure(tx, org.id);
+
+    // 6. Create org admin employee
     const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
     const adminRole = await tx.role.findFirst({ where: { name: 'org_admin', orgId: null } });
 
@@ -238,7 +252,7 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       },
     });
 
-    // 6. Enable modules based on plan
+    // 7. Enable modules based on plan
     const planModuleMap = {
       trial: ['attendance', 'leave'],
       starter: ['attendance', 'leave', 'device', 'notice', 'holiday', 'app_update'],
@@ -254,7 +268,7 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       });
     }
 
-    // 7. Seed default leave quotas
+    // 8. Seed default leave quotas
     const currentYear = new Date().getFullYear();
     const quotaDefaults = [
       { leaveType: 'SICK', totalDays: 12 },
@@ -269,7 +283,7 @@ async function createOrganization({ name, slug, domain, plan, adminEmail, adminP
       });
     }
 
-    // 8. Seed default org settings
+    // 9. Seed default org settings
     const defaultSettings = {
       timezone: 'Asia/Kathmandu',
       company_name: name,

@@ -27,7 +27,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/departments
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, code, parentId, headId, sortOrder } = req.body;
@@ -54,7 +54,7 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/departments/:id
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, code, parentId, headId, isActive, sortOrder } = req.body;
@@ -82,7 +82,7 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // DELETE /api/v1/departments/:id
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     // Check if any employees use this department

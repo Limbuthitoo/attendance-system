@@ -40,7 +40,7 @@ Cloud (Docker Compose on VPS)                 On-Premise (per office)
 │   │   ├── workers/         Background jobs (email, push, scheduler)
 │   │   ├── accounting-service.js  Accounting microservice (:3010)
 │   │   └── crm-service.js        CRM microservice (:3011)
-│   └── prisma/              12 schema files, 96 models
+│   └── prisma/              Prisma schema + migrations
 ├── web/               React 18 + Vite + Tailwind CSS
 │   └── src/
 │       ├── pages/           44 pages (admin + org dashboard)
@@ -58,7 +58,7 @@ Cloud (Docker Compose on VPS)                 On-Premise (per office)
 | Layer | Technology |
 |-------|-----------|
 | **API** | Node.js 20, Express, Prisma 6, JWT (access + refresh tokens) |
-| **Database** | PostgreSQL 16 (multi-schema: core, attendance, payroll, crm, accounting, billing, hrm, performance, devices, platform, recruitment, training-ess) |
+| **Database** | PostgreSQL 16, Prisma ORM, tenant isolation with `orgId` |
 | **Cache / Queue** | Redis 7, BullMQ (email, push notifications, scheduler) |
 | **Web** | React 18, Vite, Tailwind CSS, React Router, Recharts, Lucide |
 | **Mobile** | React Native, Expo SDK 54, React Navigation, SecureStore |
@@ -90,7 +90,7 @@ Cloud (Docker Compose on VPS)                 On-Premise (per office)
 
 ## Multi-Tenancy
 
-- **Shared database** — all tenants in one PostgreSQL instance, isolated by `orgId` across 12 schemas
+- **Shared database** — all tenants in one PostgreSQL instance, isolated by `orgId`
 - **Platform admin** — manages organizations, plans, billing, modules, devices
 - **Org admin** — manages employees, attendance, leaves, CRM, payroll, settings within their org
 - **Role-based access** — custom roles with granular permissions per module
@@ -119,13 +119,23 @@ node src/seed.js               # Seed platform admin + sample org
 node src/index.js              # http://localhost:3001
 ```
 
+Optional extracted services for CRM/accounting local development:
+
+```bash
+cd server
+PORT=3010 node src/accounting-service.js
+PORT=3011 node src/crm-service.js
+```
+
 ### 3. Web Dashboard
 
 ```bash
 cd web
 npm install
-npm run dev                    # http://localhost:5173 (proxies /api → :3001)
+npm run dev                    # http://localhost:5173
 ```
+
+The Vite dev proxy routes the main API to `:3001`, accounting/billing to `:3010`, and CRM to `:3011`.
 
 ### 4. Mobile App
 
@@ -135,14 +145,18 @@ npm install
 npx expo start                 # Scan QR with Expo Go
 ```
 
-> Update `API_BASE` in `mobile/src/api.js` to your machine's IP for physical devices.
+> For local physical-device testing, update `extra.apiUrl` in `mobile/app.json` to your machine's LAN URL, for example `http://192.168.1.10:3001/api`.
 
-### Default Credentials
+### Local Login Credentials
 
-| Portal | Email | Password |
-|--------|-------|----------|
-| **Platform Admin** | admin@attendance.app | Admin@123! |
-| **Org Admin** | admin@archisys.com | admin123 |
+Do not commit or publish default passwords. Create local admin credentials through `server/.env` before seeding:
+
+```bash
+PLATFORM_ADMIN_EMAIL=you@example.com
+PLATFORM_ADMIN_PASSWORD=<strong-local-password>
+```
+
+For organization admins, use the platform portal to create an organization with a unique admin password. Seeded or temporary users should be reset before any shared demo, staging, or production use.
 
 ## API Routes
 
@@ -150,7 +164,7 @@ npx expo start                 # Scan QR with Expo Go
 
 | Group | Key Endpoints |
 |-------|--------------|
-| **Auth** | POST `/auth/login`, `/auth/refresh`, `/auth/logout`, GET `/auth/me` |
+| **Auth** | POST `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password/verify`, `/auth/reset-password/confirm`, GET `/auth/me` |
 | **Attendance** | POST `/attendance/check-in`, `/attendance/check-out`, GET `/attendance/today`, `/attendance/history`, `/attendance/all` |
 | **Leaves** | POST `/leaves`, GET `/leaves/my`, `/leaves/all`, PUT `/leaves/:id/review` |
 | **Employees** | GET `/employees`, POST `/employees`, PUT `/employees/:id`, POST `/employees/:id/reset-password` |
@@ -167,9 +181,9 @@ npx expo start                 # Scan QR with Expo Go
 | **Geofence** | GET/PUT `/geofence/:branchId`, POST `/geofence/validate` |
 | **Roles** | CRUD `/roles`, POST `/roles/assign`, `/roles/remove` |
 | **App Update** | GET `/app-update/check`, `/app-update/download` |
-| **CRM** | CRUD `/crm/pipelines`, `/crm/clients`, `/crm/leads`, `/crm/deals`, `/crm/activities`, `/crm/campaigns` |
-| **Accounting** | CRUD `/accounting/accounts`, `/accounting/journals`, GET `/accounting/ledger`, `/accounting/reports/*` |
-| **Billing** | CRUD `/billing/invoices`, `/billing/payments`, GET `/billing/dashboard` |
+| **CRM** | Served by CRM service: CRUD `/crm/pipelines`, `/crm/clients`, `/crm/leads`, `/crm/deals`, `/crm/activities`, `/crm/campaigns` |
+| **Accounting** | Served by Accounting service: CRUD `/accounting/accounts`, `/accounting/journals`, GET `/accounting/ledger`, `/accounting/reports/*` |
+| **Billing** | Served by Accounting service: CRUD `/billing/invoices`, `/billing/payments`, GET `/billing/dashboard` |
 | **Performance** | CRUD `/performance/kpis`, `/performance/reviews`, `/performance/cycles` |
 | **Recruitment** | CRUD `/recruitment/jobs`, `/recruitment/applicants`, `/recruitment/interviews` |
 | **Training** | CRUD `/training/sessions`, `/training/enrollments`, `/training/certifications` |
@@ -182,6 +196,7 @@ npx expo start                 # Scan QR with Expo Go
 |-------|--------------|
 | **Auth** | POST `/auth/login`, GET `/auth/me` |
 | **Organizations** | CRUD `/organizations`, suspend/reactivate, module assignment |
+| **Org Admin Access** | POST `/organizations/:id/admin-password-reset-link` |
 | **Plans** | CRUD `/plans` |
 | **Billing** | CRUD `/billing`, invoice payment |
 | **Modules** | GET `/modules` |
@@ -211,23 +226,40 @@ See [HOSTING.md](HOSTING.md) for complete deployment instructions covering:
 
 See [INFRASTRUCTURE.md](INFRASTRUCTURE.md) for the system architecture diagram, microservice topology, and data flow.
 
+Production containers do not run `prisma db push` on startup. Apply migrations explicitly with `npx prisma migrate deploy` during deployment, then start/restart the API, worker, accounting, and CRM services.
+
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `POSTGRES_USER` | Compose | PostgreSQL user for Docker Compose |
+| `POSTGRES_PASSWORD` | Compose | PostgreSQL password; required by Docker Compose and backup scripts |
+| `POSTGRES_DB` | Compose | PostgreSQL database name |
 | `JWT_SECRET` | Yes | Secret for signing JWT tokens |
 | `REDIS_URL` | No | Redis connection (default: `redis://localhost:6379`) |
+| `REDIS_PASSWORD` | Compose | Redis password; required by Docker Compose |
 | `PORT` | No | API port (default: `3001`) |
 | `CORS_ORIGIN` | Prod | Comma-separated allowed origins |
+| `WEB_APP_URL` | Password reset | Public web app URL used in emailed reset links |
 | `SMTP_HOST` | No | Email server host |
 | `SMTP_PORT` | No | Email server port (default: `587`) |
 | `SMTP_USER` | No | Email username |
 | `SMTP_PASS` | No | Email password |
 | `SMTP_FROM` | No | From address (default: `noreply@archisysinnovation.com`) |
 | `NOTIFY_EMAIL` | No | Admin notification recipient |
-| `PLATFORM_ADMIN_EMAIL` | No | Initial platform admin email |
-| `PLATFORM_ADMIN_PASSWORD` | No | Initial platform admin password |
+| `PLATFORM_ADMIN_EMAIL` | Yes for seeding | Initial platform admin email; use an environment-specific address |
+| `PLATFORM_ADMIN_PASSWORD` | Yes for seeding | Initial platform admin password; use a strong secret and do not commit it |
+
+## Password Recovery
+
+Employee and organization-admin password recovery uses short-lived, single-use reset links:
+
+- Public users can request a link from `/forgot-password`.
+- Reset links open `/reset-password?token=...`.
+- Tokens are stored hashed in `password_reset_tokens`, expire after 30 minutes, and are revoked after use.
+- Platform super admins can send reset links to active organization admins from the organization detail page.
+- Successful reset clears lockout counters, clears `mustChangePassword`, and revokes existing refresh tokens.
 
 ## License
 

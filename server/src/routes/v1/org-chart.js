@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const { requireRole } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -38,7 +39,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // PUT /api/v1/org-chart/:employeeId/department
-router.put('/:employeeId/department', async (req, res, next) => {
+router.put('/:employeeId/department', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { department, designation } = req.body;

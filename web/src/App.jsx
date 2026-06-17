@@ -9,6 +9,8 @@ import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 
 // ── Lazy-loaded org pages (each becomes its own chunk) ──────────────────────
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Attendance = lazy(() => import('./pages/Attendance'));
 const Leaves = lazy(() => import('./pages/Leaves'));
 const Employees = lazy(() => import('./pages/Employees'));
@@ -229,9 +231,14 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-function AdminRoute({ children }) {
+function hasAnyPermission(user, permissions = []) {
+  if (!permissions.length) return false;
+  return permissions.some((permission) => user?.permissions?.includes(permission));
+}
+
+function AdminRoute({ children, permissions = [] }) {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  if (user?.role !== 'admin' && !hasAnyPermission(user, permissions)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -262,6 +269,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/forgot-password" element={<LazyPage name="Forgot Password"><ForgotPassword /></LazyPage>} />
+      <Route path="/reset-password" element={<LazyPage name="Reset Password"><ResetPassword /></LazyPage>} />
 
       {/* Platform portal routes */}
       <Route path="/platform/login" element={
@@ -298,9 +307,9 @@ export default function App() {
         <Route path="leave-management" element={<AdminRoute><LazyPage name="Leave Management"><LeaveManagement /></LazyPage></AdminRoute>} />
         <Route path="leave-calendar" element={<LazyPage name="Leave Calendar"><LeaveCalendar /></LazyPage>} />
         <Route path="notices" element={<LazyPage name="Notices"><Notices /></LazyPage>} />
-        <Route path="employees" element={<AdminRoute><LazyPage name="Employees"><Employees /></LazyPage></AdminRoute>} />
-        <Route path="employees/:id" element={<AdminRoute><LazyPage name="Employee Profile"><EmployeeProfile /></LazyPage></AdminRoute>} />
-        <Route path="employee-attendance" element={<AdminRoute><LazyPage name="Employee Attendance"><EmployeeAttendance /></LazyPage></AdminRoute>} />
+        <Route path="employees" element={<AdminRoute permissions={['employee.view']}><LazyPage name="Employees"><Employees /></LazyPage></AdminRoute>} />
+        <Route path="employees/:id" element={<AdminRoute permissions={['employee.view']}><LazyPage name="Employee Profile"><EmployeeProfile /></LazyPage></AdminRoute>} />
+        <Route path="employee-attendance" element={<AdminRoute permissions={['attendance.view_all']}><LazyPage name="Employee Attendance"><EmployeeAttendance /></LazyPage></AdminRoute>} />
         <Route path="activity-log" element={<LazyPage name="Activity Log"><ActivityLog /></LazyPage>} />
         <Route path="profile" element={<LazyPage name="Profile"><Profile /></LazyPage>} />
         <Route path="settings" element={<AdminRoute><LazyPage name="Settings"><Settings /></LazyPage></AdminRoute>} />
@@ -311,23 +320,23 @@ export default function App() {
         <Route path="schedules" element={<AdminRoute><LazyPage name="Schedules"><ScheduleManagement /></LazyPage></AdminRoute>} />
         <Route path="assignments" element={<AdminRoute><LazyPage name="Assignments"><EmployeeAssignments /></LazyPage></AdminRoute>} />
         <Route path="reports" element={<AdminRoute><LazyPage name="Reports"><Reports /></LazyPage></AdminRoute>} />
-        <Route path="payroll" element={<AdminRoute><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
-        <Route path="incentives" element={<AdminRoute><LazyPage name="Incentives"><Incentives /></LazyPage></AdminRoute>} />
-        <Route path="crm" element={<AdminRoute><LazyPage name="CRM"><CRM /></LazyPage></AdminRoute>} />
-        <Route path="performance" element={<AdminRoute><LazyPage name="Performance"><Performance /></LazyPage></AdminRoute>} />
-        <Route path="tasks" element={<AdminRoute><LazyPage name="Tasks"><Tasks /></LazyPage></AdminRoute>} />
-        <Route path="projects" element={<AdminRoute><LazyPage name="Projects"><Projects /></LazyPage></AdminRoute>} />
-        <Route path="referrals" element={<AdminRoute><LazyPage name="Referrals"><Referrals /></LazyPage></AdminRoute>} />
-        <Route path="bonuses" element={<AdminRoute><LazyPage name="Bonuses"><Bonuses /></LazyPage></AdminRoute>} />
-        <Route path="accounting" element={<AdminRoute><LazyPage name="Accounting"><Accounting /></LazyPage></AdminRoute>} />
-        <Route path="billing" element={<AdminRoute><LazyPage name="Billing"><OrgBilling /></LazyPage></AdminRoute>} />
+        <Route path="payroll" element={<AdminRoute permissions={['payroll.view', 'payroll.manage']}><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
+        <Route path="incentives" element={<AdminRoute permissions={['incentive.view', 'incentive.manage']}><LazyPage name="Incentives"><Incentives /></LazyPage></AdminRoute>} />
+        <Route path="crm" element={<AdminRoute permissions={['crm.view', 'crm.manage']}><LazyPage name="CRM"><CRM /></LazyPage></AdminRoute>} />
+        <Route path="performance" element={<AdminRoute permissions={['performance.view', 'performance.manage']}><LazyPage name="Performance"><Performance /></LazyPage></AdminRoute>} />
+        <Route path="tasks" element={<AdminRoute permissions={['task.view', 'task.manage']}><LazyPage name="Tasks"><Tasks /></LazyPage></AdminRoute>} />
+        <Route path="projects" element={<AdminRoute permissions={['project.view', 'project.manage']}><LazyPage name="Projects"><Projects /></LazyPage></AdminRoute>} />
+        <Route path="referrals" element={<AdminRoute permissions={['referral.view', 'referral.manage']}><LazyPage name="Referrals"><Referrals /></LazyPage></AdminRoute>} />
+        <Route path="bonuses" element={<AdminRoute permissions={['bonus.view', 'bonus.manage']}><LazyPage name="Bonuses"><Bonuses /></LazyPage></AdminRoute>} />
+        <Route path="accounting" element={<AdminRoute permissions={['accounting.view', 'accounting.manage']}><LazyPage name="Accounting"><Accounting /></LazyPage></AdminRoute>} />
+        <Route path="billing" element={<AdminRoute permissions={['billing.view', 'billing.manage']}><LazyPage name="Billing"><OrgBilling /></LazyPage></AdminRoute>} />
         <Route path="statutory" element={<AdminRoute><LazyPage name="Statutory Compliance"><StatutoryCompliance /></LazyPage></AdminRoute>} />
-        <Route path="recruitment" element={<AdminRoute><LazyPage name="Recruitment"><Recruitment /></LazyPage></AdminRoute>} />
-        <Route path="onboarding" element={<AdminRoute><LazyPage name="Onboarding"><Onboarding /></LazyPage></AdminRoute>} />
-        <Route path="separation" element={<AdminRoute><LazyPage name="Separation"><Separation /></LazyPage></AdminRoute>} />
-        <Route path="training" element={<AdminRoute><LazyPage name="Training"><Training /></LazyPage></AdminRoute>} />
+        <Route path="recruitment" element={<AdminRoute permissions={['recruitment.view', 'recruitment.manage']}><LazyPage name="Recruitment"><Recruitment /></LazyPage></AdminRoute>} />
+        <Route path="onboarding" element={<AdminRoute permissions={['onboarding.view', 'onboarding.manage']}><LazyPage name="Onboarding"><Onboarding /></LazyPage></AdminRoute>} />
+        <Route path="separation" element={<AdminRoute permissions={['separation.view', 'separation.manage']}><LazyPage name="Separation"><Separation /></LazyPage></AdminRoute>} />
+        <Route path="training" element={<AdminRoute permissions={['training.view', 'training.manage']}><LazyPage name="Training"><Training /></LazyPage></AdminRoute>} />
         <Route path="self-service" element={<LazyPage name="Self Service"><SelfService /></LazyPage>} />
-        <Route path="compensation" element={<AdminRoute><LazyPage name="Compensation"><CompensationPage /></LazyPage></AdminRoute>} />
+        <Route path="compensation" element={<AdminRoute permissions={['compensation.view', 'compensation.manage']}><LazyPage name="Compensation"><CompensationPage /></LazyPage></AdminRoute>} />
         <Route path="org-chart" element={<LazyPage name="Org Chart"><OrgChart /></LazyPage>} />
         <Route path="geofence" element={<AdminRoute><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
         <Route path="nfc" element={<AdminRoute><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />

@@ -19,7 +19,7 @@ export const departments = {
 };
 
 export const designations = {
-  getDesignations: () => request('/designations'),
+  getDesignations: (params) => request('/designations', { params }),
   createDesignation: (data) => request('/designations', { method: 'POST', body: JSON.stringify(data) }),
   updateDesignation: (id, data) => request(`/designations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteDesignation: (id) => request(`/designations/${id}`, { method: 'DELETE' }),

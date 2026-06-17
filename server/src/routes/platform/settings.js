@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
 const { getPrisma } = require('../../lib/prisma');
+const { requireSuperAdmin } = require('../../middleware/platformAuth');
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.get('/backup', async (req, res, next) => {
 });
 
 // PUT /api/platform/settings/backup — Update backup settings
-router.put('/backup', async (req, res, next) => {
+router.put('/backup', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { globalRetentionDays, frequency, enabled } = req.body;
@@ -89,7 +90,7 @@ router.put('/backup', async (req, res, next) => {
 });
 
 // PUT /api/platform/settings/backup/plan/:planId — Update per-plan retention
-router.put('/backup/plan/:planId', async (req, res, next) => {
+router.put('/backup/plan/:planId', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { planId } = req.params;
@@ -110,7 +111,7 @@ router.put('/backup/plan/:planId', async (req, res, next) => {
 });
 
 // PUT /api/platform/settings — Update arbitrary setting
-router.put('/', async (req, res, next) => {
+router.put('/', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { key, value, label } = req.body;

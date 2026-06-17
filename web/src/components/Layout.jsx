@@ -78,7 +78,15 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const hasAnyPermission = (permissions = []) => permissions.some((permission) => user?.permissions?.includes(permission));
   const isAdmin = user?.role === 'admin';
+  const hasAdminAreaAccess = isAdmin || (user?.permissions || []).some((permission) => (
+    permission.endsWith('.view') ||
+    permission.endsWith('.manage') ||
+    permission.endsWith('.approve') ||
+    permission === 'attendance.view_all' ||
+    permission === 'leave.view_all'
+  ));
 
   // Module code required for each nav item (null = always visible)
   const navSections = [
@@ -101,82 +109,82 @@ export default function Layout() {
         { to: '/profile', icon: UserCircle, label: 'My Profile' },
       ],
     },
-    ...(isAdmin
+    ...(hasAdminAreaAccess
       ? [
           {
             label: 'Team',
             items: [
-              { to: '/employees', icon: Users, label: 'Employees' },
-              { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance', module: 'attendance' },
-              { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests', module: 'leave' },
+              { to: '/employees', icon: Users, label: 'Employees', permissions: ['employee.view'] },
+              { to: '/employee-attendance', icon: ClipboardList, label: 'Employee Attendance', module: 'attendance', permissions: ['attendance.view_all'] },
+              { to: '/leave-management', icon: ClipboardCheck, label: 'Leave Requests', module: 'leave', permissions: ['leave.view_all', 'leave.approve'] },
             ],
           },
           {
             label: 'HR & Payroll',
             items: [
-              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime', module: 'payroll' },
-              { to: '/statutory', icon: Calculator, label: 'Statutory (SSF/CIT/PF)' },
-              { to: '/compensation', icon: TrendingUp, label: 'Compensation' },
-              { to: '/incentives', icon: Trophy, label: 'Incentives', module: 'incentive' },
-              { to: '/bonuses', icon: Gift, label: 'Bonuses', module: 'bonus' },
-              { to: '/referrals', icon: UserPlus, label: 'Referrals', module: 'referral' },
-              { to: '/performance', icon: Target, label: 'Performance', module: 'performance' },
+              { to: '/payroll', icon: DollarSign, label: 'Payroll & Overtime', module: 'payroll', permissions: ['payroll.view', 'payroll.manage'] },
+              { to: '/statutory', icon: Calculator, label: 'Statutory (SSF/CIT/PF)', permissions: ['payroll.manage'] },
+              { to: '/compensation', icon: TrendingUp, label: 'Compensation', permissions: ['compensation.view', 'compensation.manage'] },
+              { to: '/incentives', icon: Trophy, label: 'Incentives', module: 'incentive', permissions: ['incentive.view', 'incentive.manage'] },
+              { to: '/bonuses', icon: Gift, label: 'Bonuses', module: 'bonus', permissions: ['bonus.view', 'bonus.manage'] },
+              { to: '/referrals', icon: UserPlus, label: 'Referrals', module: 'referral', permissions: ['referral.view', 'referral.manage'] },
+              { to: '/performance', icon: Target, label: 'Performance', module: 'performance', permissions: ['performance.view', 'performance.manage'] },
             ],
           },
           {
             label: 'HR Lifecycle',
             items: [
-              { to: '/recruitment', icon: Briefcase, label: 'Recruitment' },
-              { to: '/onboarding', icon: UserPlus, label: 'Onboarding' },
-              { to: '/separation', icon: UserMinus, label: 'Separation' },
-              { to: '/training', icon: BookOpen, label: 'Training' },
-              { to: '/org-chart', icon: GitBranch, label: 'Org Chart' },
+              { to: '/recruitment', icon: Briefcase, label: 'Recruitment', permissions: ['recruitment.view', 'recruitment.manage'] },
+              { to: '/onboarding', icon: UserPlus, label: 'Onboarding', permissions: ['onboarding.view', 'onboarding.manage'] },
+              { to: '/separation', icon: UserMinus, label: 'Separation', permissions: ['separation.view', 'separation.manage'] },
+              { to: '/training', icon: BookOpen, label: 'Training', permissions: ['training.view', 'training.manage'] },
+              { to: '/org-chart', icon: GitBranch, label: 'Org Chart', permissions: ['employee.view', 'department.view'] },
             ],
           },
           {
             label: 'Projects & Tasks',
             items: [
-              { to: '/projects', icon: FolderKanban, label: 'Projects', module: 'project' },
-              { to: '/tasks', icon: CheckSquare, label: 'Tasks', module: 'task' },
+              { to: '/projects', icon: FolderKanban, label: 'Projects', module: 'project', permissions: ['project.view', 'project.manage'] },
+              { to: '/tasks', icon: CheckSquare, label: 'Tasks', module: 'task', permissions: ['task.view', 'task.manage'] },
             ],
           },
           {
             label: 'Finance',
             items: [
-              { to: '/accounting', icon: Calculator, label: 'Accounting', module: 'accounting' },
-              { to: '/billing', icon: Receipt, label: 'Billing', module: 'billing' },
+              { to: '/accounting', icon: Calculator, label: 'Accounting', module: 'accounting', permissions: ['accounting.view', 'accounting.manage'] },
+              { to: '/billing', icon: Receipt, label: 'Billing', module: 'billing', permissions: ['billing.view', 'billing.manage'] },
             ],
           },
           {
             label: 'CRM',
             items: [
-              { to: '/crm', icon: Target, label: 'CRM', module: 'crm' },
+              { to: '/crm', icon: Target, label: 'CRM', module: 'crm', permissions: ['crm.view', 'crm.manage'] },
             ],
           },
           {
             label: 'Reports',
             items: [
-              { to: '/reports', icon: BarChart3, label: 'Reports', module: 'report' },
+              { to: '/reports', icon: BarChart3, label: 'Reports', module: 'report', permissions: ['report.view'] },
             ],
           },
           {
             label: 'Organization',
             items: [
-              { to: '/branches', icon: MapPin, label: 'Branches' },
-              { to: '/roles', icon: Shield, label: 'Roles' },
-              { to: '/shifts', icon: Clock, label: 'Shifts' },
-              { to: '/schedules', icon: CalendarRange, label: 'Work Schedules' },
-              { to: '/assignments', icon: Users, label: 'Assignments' },
+              { to: '/branches', icon: MapPin, label: 'Branches', permissions: ['branch.manage'] },
+              { to: '/roles', icon: Shield, label: 'Roles', permissions: ['role.manage'] },
+              { to: '/shifts', icon: Clock, label: 'Shifts', permissions: ['shift.manage'] },
+              { to: '/schedules', icon: CalendarRange, label: 'Work Schedules', permissions: ['schedule.manage'] },
+              { to: '/assignments', icon: Users, label: 'Assignments', permissions: ['employee.update', 'shift.manage', 'schedule.manage'] },
             ],
           },
           {
             label: 'Configuration',
             items: [
-              { to: '/settings', icon: Settings, label: 'General Settings' },
-              { to: '/holidays', icon: Star, label: 'Holidays', module: 'holiday' },
-              { to: '/geofence', icon: Navigation, label: 'Geofence', module: 'geofence' },
-              { to: '/devices', icon: Smartphone, label: 'Devices', module: 'device' },
-              { to: '/nfc', icon: CreditCard, label: 'NFC Management', module: 'device' },
+              { to: '/settings', icon: Settings, label: 'General Settings', permissions: ['settings.view', 'settings.update'] },
+              { to: '/holidays', icon: Star, label: 'Holidays', module: 'holiday', permissions: ['holiday.manage'] },
+              { to: '/geofence', icon: Navigation, label: 'Geofence', module: 'geofence', permissions: ['settings.update'] },
+              { to: '/devices', icon: Smartphone, label: 'Devices', module: 'device', permissions: ['device.view', 'device.manage'] },
+              { to: '/nfc', icon: CreditCard, label: 'NFC Management', module: 'device', permissions: ['device.manage', 'credential.manage'] },
             ],
           },
         ]
@@ -187,6 +195,7 @@ export default function Layout() {
   const filteredNavSections = navSections.map(section => ({
     ...section,
     items: section.items.filter(item => {
+      if (!isAdmin && item.permissions && !hasAnyPermission(item.permissions)) return false;
       if (!item.module) return true; // No module restriction
       if (!enabledModules) return true; // Still loading, show all
       return enabledModules.includes(item.module);

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -23,7 +23,7 @@ router.get('/templates', async (req, res, next) => {
 });
 
 // POST /api/v1/onboarding/templates
-router.post('/templates', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/templates', requirePermission('onboarding.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, department, tasks } = req.body;
@@ -62,7 +62,7 @@ router.get('/tasks', async (req, res, next) => {
 });
 
 // POST /api/v1/onboarding/assign — assign a template to a new employee
-router.post('/assign', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/assign', requirePermission('onboarding.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { templateId, employeeId } = req.body;
@@ -85,7 +85,7 @@ router.post('/assign', requireRole('org_admin', 'hr'), async (req, res, next) =>
 });
 
 // PUT /api/v1/onboarding/tasks/:id
-router.put('/tasks/:id', async (req, res, next) => {
+router.put('/tasks/:id', requirePermission('onboarding.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status } = req.body;

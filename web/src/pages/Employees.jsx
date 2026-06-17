@@ -86,12 +86,30 @@ export default function Employees() {
   });
 
   // Computed department & designation lists (DB records or fallback defaults)
-  const departmentNames = deptList.length > 0
-    ? deptList.filter(d => d.isActive !== false).map(d => d.name)
+  const activeDepartments = deptList.filter(d => d.isActive !== false);
+  const departmentNames = activeDepartments.length > 0
+    ? activeDepartments.map(d => d.name)
     : DEFAULT_DEPARTMENTS;
-  const designationNames = desigList.length > 0
-    ? desigList.filter(d => d.isActive !== false).map(d => d.name)
-    : DEFAULT_DESIGNATIONS;
+  const selectedDepartment = activeDepartments.find(d => d.name === form.department);
+  const filteredDesignationRecords = desigList.filter(d => {
+    if (d.isActive === false) return false;
+    if (!selectedDepartment) return !d.departmentId;
+    return d.departmentId === selectedDepartment.id;
+  });
+  const designationNames = filteredDesignationRecords.length > 0
+    ? filteredDesignationRecords.map(d => d.name)
+    : (selectedDepartment ? [] : DEFAULT_DESIGNATIONS);
+
+  const getDesignationsForDepartment = useCallback((departmentName) => {
+    const department = activeDepartments.find(d => d.name === departmentName);
+    const records = desigList.filter(d => {
+      if (d.isActive === false) return false;
+      if (!department) return !d.departmentId;
+      return d.departmentId === department.id;
+    });
+    if (records.length > 0) return records.map(d => d.name);
+    return department ? [] : DEFAULT_DESIGNATIONS;
+  }, [activeDepartments, desigList]);
 
   const loadMasterData = useCallback(async () => {
     try {
@@ -168,7 +186,7 @@ export default function Employees() {
     try {
       await api.createDepartment({ name: newDeptName.trim() });
       setNewDeptName('');
-      setForm(f => ({ ...f, department: newDeptName.trim() }));
+      setForm(f => ({ ...f, department: newDeptName.trim(), designation: '' }));
       const res = await api.getDepartments();
       setDeptList(res.departments || []);
     } catch (err) {
@@ -182,7 +200,12 @@ export default function Employees() {
     if (!newDesigName.trim()) return;
     setAddingDesig(true);
     try {
-      await api.createDesignation({ name: newDesigName.trim() });
+      const department = activeDepartments.find(d => d.name === form.department);
+      if (activeDepartments.length > 0 && !department) {
+        alert('Select a department before adding a designation.');
+        return;
+      }
+      await api.createDesignation({ name: newDesigName.trim(), departmentId: department?.id || null });
       setNewDesigName('');
       setForm(f => ({ ...f, designation: newDesigName.trim() }));
       const res = await api.getDesignations();
@@ -502,7 +525,7 @@ export default function Employees() {
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Department</label>
                 <div className="flex gap-2">
-                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value, designation: '' })}
                     className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="">Select Department</option>
                     {departmentNames.map(d => <option key={d} value={d}>{d}</option>)}
@@ -525,13 +548,18 @@ export default function Employees() {
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
                 <div className="flex gap-2">
                   <select value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                    disabled={activeDepartments.length > 0 && !form.department}
                     className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">Select Designation</option>
-                    {designationNames.map(d => <option key={d} value={d}>{d}</option>)}
+                    <option value="">{activeDepartments.length > 0 && !form.department ? 'Select Department First' : 'Select Designation'}</option>
+                  {designationNames.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
+                {selectedDepartment && designationNames.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1.5">No designations in this department yet. Add one below.</p>
+                )}
                 <div className="flex gap-1.5 mt-1.5">
                   <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)}
+                    disabled={activeDepartments.length > 0 && !form.department}
                     placeholder="+ New designation" className="flex-1 px-2 py-1 rounded border border-dashed border-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDesignation())} />
                   {newDesigName && (
@@ -763,7 +791,7 @@ export default function Employees() {
         editModal={editModal} setEditModal={setEditModal}
         editForm={editForm} setEditForm={setEditForm}
         editSubmitting={editSubmitting} handleEditSubmit={handleEditSubmit}
-        departments={departmentNames} designations={designationNames}
+        departments={departmentNames} getDesignationsForDepartment={getDesignationsForDepartment}
       />
 
       {/* Delete Confirmation Modal */}

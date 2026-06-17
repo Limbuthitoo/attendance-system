@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -24,14 +24,24 @@ router.get('/courses', async (req, res, next) => {
 });
 
 // POST /api/v1/training/courses
-router.post('/courses', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/courses', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, category, description, duration, isExternal, provider, isMandatory, applicableDepts } = req.body;
     if (!name) return res.status(400).json({ error: 'Course name is required' });
 
     const course = await prisma.trainingCourse.create({
-      data: { orgId: req.orgId, name, category, description, duration, isExternal, provider, isMandatory, applicableDepts: applicableDepts || [] },
+      data: {
+        orgId: req.orgId,
+        name,
+        category,
+        description,
+        duration: duration === undefined || duration === null || duration === '' ? null : parseInt(duration, 10),
+        isExternal,
+        provider,
+        isMandatory,
+        applicableDepts: applicableDepts || [],
+      },
     });
     res.status(201).json({ course });
   } catch (err) {
@@ -41,7 +51,7 @@ router.post('/courses', requireRole('org_admin', 'hr'), async (req, res, next) =
 });
 
 // PUT /api/v1/training/courses/:id
-router.put('/courses/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/courses/:id', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const course = await prisma.trainingCourse.update({
@@ -56,7 +66,7 @@ router.put('/courses/:id', requireRole('org_admin', 'hr'), async (req, res, next
 });
 
 // DELETE /api/v1/training/courses/:id
-router.delete('/courses/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.delete('/courses/:id', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     await prisma.trainingCourse.delete({ where: { id: req.params.id, orgId: req.orgId } });
@@ -94,7 +104,7 @@ router.get('/sessions', async (req, res, next) => {
 });
 
 // POST /api/v1/training/sessions
-router.post('/sessions', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/sessions', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { courseId, title, trainerId, startDate, endDate, location, maxParticipants } = req.body;
@@ -108,7 +118,7 @@ router.post('/sessions', requireRole('org_admin', 'hr'), async (req, res, next) 
 });
 
 // PUT /api/v1/training/sessions/:id
-router.put('/sessions/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/sessions/:id', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, title, startDate, endDate, location, maxParticipants } = req.body;
@@ -140,7 +150,7 @@ router.get('/sessions/:sessionId/enrollments', async (req, res, next) => {
 });
 
 // POST /api/v1/training/enroll
-router.post('/enroll', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.post('/enroll', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { sessionId, employeeIds } = req.body;
@@ -159,7 +169,7 @@ router.post('/enroll', requireRole('org_admin', 'hr'), async (req, res, next) =>
 });
 
 // PUT /api/v1/training/enrollments/:id
-router.put('/enrollments/:id', async (req, res, next) => {
+router.put('/enrollments/:id', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, score, feedback } = req.body;
@@ -196,7 +206,7 @@ router.get('/certifications', async (req, res, next) => {
 });
 
 // POST /api/v1/training/certifications
-router.post('/certifications', async (req, res, next) => {
+router.post('/certifications', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { employeeId, name, issuingAuthority, issueDate, expiryDate, credentialId, documentUrl } = req.body;
@@ -210,7 +220,7 @@ router.post('/certifications', async (req, res, next) => {
 });
 
 // PUT /api/v1/training/certifications/:id
-router.put('/certifications/:id', async (req, res, next) => {
+router.put('/certifications/:id', requirePermission('training.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, expiryDate, documentUrl } = req.body;

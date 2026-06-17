@@ -7,6 +7,7 @@ const { getPrisma } = require('../lib/prisma');
 const { validatePassword } = require('../lib/validation');
 const { auditLog } = require('../lib/audit');
 const { invalidateUserCache } = require('../middleware/cache');
+const { enqueueEmail } = require('../config/queue');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -15,6 +16,57 @@ const {
 const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
+const PASSWORD_RESET_EXPIRES_MINUTES = 30;
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function getAppBaseUrl(req) {
+  const configured = process.env.WEB_APP_URL || process.env.APP_URL;
+  if (configured) return configured.replace(/\/$/, '');
+
+  const origin = req?.get?.('origin');
+  if (origin) return origin.replace(/\/$/, '');
+
+  const proto = req?.get?.('x-forwarded-proto') || req?.protocol || 'http';
+  const host = req?.get?.('host');
+  return host ? `${proto}://${host}` : 'http://localhost:5173';
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildPasswordResetEmail({ employee, org, resetLink, expiresMinutes, requestedByType }) {
+  const orgName = org?.name || 'your organization';
+  const platformAssisted = requestedByType === 'platform_user';
+  const intro = platformAssisted
+    ? `A platform administrator generated a password reset link for your ${escapeHtml(orgName)} admin account.`
+    : `We received a request to reset the password for your ${escapeHtml(orgName)} account.`;
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #0f172a;">
+      <h2 style="margin: 0 0 12px;">Reset your password</h2>
+      <p>Hi ${escapeHtml(employee.name || 'there')},</p>
+      <p>${intro}</p>
+      <p>This link expires in ${expiresMinutes} minutes and can be used only once.</p>
+      <p style="margin: 24px 0;">
+        <a href="${escapeHtml(resetLink)}" style="background: #4f46e5; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Set new password
+        </a>
+      </p>
+      <p style="font-size: 13px; color: #475569;">If the button does not work, copy and paste this link into your browser:</p>
+      <p style="font-size: 13px; word-break: break-all; color: #334155;">${escapeHtml(resetLink)}</p>
+      <p style="font-size: 13px; color: #64748b;">If you did not request this, you can ignore this email. Your current password will remain unchanged.</p>
+    </div>
+  `;
+}
 
 /**
  * Authenticate an employee by email + password within an org.
@@ -309,6 +361,242 @@ async function adminResetPassword({ adminId, employeeId, newPassword, req }) {
   });
 }
 
+async function createPasswordResetToken({
+  employee,
+  requestedBy = null,
+  requestedByType = 'self',
+  req,
+  purpose = 'PASSWORD_RESET',
+  expiresMinutes = PASSWORD_RESET_EXPIRES_MINUTES,
+  sendEmail = true,
+}) {
+  const prisma = getPrisma();
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
+
+  await prisma.passwordResetToken.updateMany({
+    where: {
+      employeeId: employee.id,
+      purpose,
+      usedAt: null,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: { revokedAt: new Date() },
+  });
+
+  await prisma.passwordResetToken.create({
+    data: {
+      orgId: employee.orgId,
+      employeeId: employee.id,
+      tokenHash,
+      purpose,
+      deliveryEmail: employee.email,
+      requestedBy,
+      requestedByType,
+      expiresAt,
+    },
+  });
+
+  const baseUrl = getAppBaseUrl(req);
+  const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  let emailQueued = false;
+  let emailError = null;
+
+  if (sendEmail) {
+    try {
+      await enqueueEmail({
+        to: employee.email,
+        subject: `Reset your password — ${employee.org?.name || 'Archisys Attendance'}`,
+        html: buildPasswordResetEmail({
+          employee,
+          org: employee.org,
+          resetLink,
+          expiresMinutes,
+          requestedByType,
+        }),
+        orgId: employee.orgId,
+      });
+      emailQueued = true;
+    } catch (err) {
+      emailError = err.message;
+    }
+  }
+
+  await auditLog({
+    orgId: employee.orgId,
+    actorId: requestedBy || employee.id,
+    actorType: requestedByType === 'self' ? 'employee' : requestedByType,
+    action: 'auth.password_reset_requested',
+    resource: 'employee',
+    resourceId: employee.id,
+    newData: { requestedByType, emailQueued, purpose },
+    req,
+  });
+
+  return {
+    email: employee.email,
+    expiresAt,
+    emailQueued,
+    emailError,
+    resetLink: process.env.NODE_ENV === 'production' ? undefined : resetLink,
+  };
+}
+
+async function requestPasswordReset({ email, orgSlug, req }) {
+  const prisma = getPrisma();
+  let employee = null;
+
+  if (email) {
+    const where = { email, isActive: true };
+    if (orgSlug) {
+      where.org = { slug: orgSlug, isActive: true };
+    }
+
+    const matches = await prisma.employee.findMany({
+      where,
+      include: { org: { select: { id: true, name: true, slug: true, isActive: true } } },
+      take: 2,
+    });
+
+    if (matches.length === 1) {
+      employee = matches[0];
+    }
+  }
+
+  if (employee) {
+    await createPasswordResetToken({
+      employee,
+      requestedBy: employee.id,
+      requestedByType: 'self',
+      req,
+    });
+  }
+
+  return {
+    message: 'If a matching active account exists, a password reset link will be sent shortly.',
+  };
+}
+
+async function sendOrgAdminPasswordReset({ orgId, employeeId, platformUserId, req }) {
+  const prisma = getPrisma();
+  const employee = await prisma.employee.findFirst({
+    where: {
+      orgId,
+      ...(employeeId ? { id: employeeId } : {}),
+      isActive: true,
+      employeeRoles: {
+        some: { role: { name: 'org_admin' } },
+      },
+    },
+    include: {
+      org: { select: { id: true, name: true, slug: true, isActive: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (!employee) {
+    throw Object.assign(new Error('No active organization admin found for this organization'), { status: 404 });
+  }
+
+  return createPasswordResetToken({
+    employee,
+    requestedBy: platformUserId,
+    requestedByType: 'platform_user',
+    req,
+  });
+}
+
+async function verifyPasswordResetToken(token) {
+  if (!token || typeof token !== 'string') {
+    throw Object.assign(new Error('Reset token is required'), { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(token) },
+    include: {
+      employee: { select: { id: true, name: true, email: true, isActive: true } },
+      org: { select: { id: true, name: true, slug: true, isActive: true } },
+    },
+  });
+
+  if (!row || row.usedAt || row.revokedAt || row.expiresAt <= new Date() || !row.employee.isActive || !row.org.isActive) {
+    throw Object.assign(new Error('Reset link is invalid or has expired'), { status: 400 });
+  }
+
+  return {
+    email: row.employee.email,
+    name: row.employee.name,
+    orgName: row.org.name,
+    expiresAt: row.expiresAt,
+  };
+}
+
+async function confirmPasswordReset({ token, newPassword, req }) {
+  const validation = validatePassword(newPassword);
+  if (!validation.valid) {
+    throw Object.assign(new Error(validation.error), { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  const tokenHash = hashToken(token);
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    include: {
+      employee: { select: { id: true, orgId: true, isActive: true } },
+      org: { select: { id: true, isActive: true } },
+    },
+  });
+
+  if (!row || row.usedAt || row.revokedAt || row.expiresAt <= new Date() || !row.employee.isActive || !row.org.isActive) {
+    throw Object.assign(new Error('Reset link is invalid or has expired'), { status: 400 });
+  }
+
+  const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await prisma.$transaction([
+    prisma.employee.update({
+      where: { id: row.employeeId },
+      data: {
+        password: hash,
+        mustChangePassword: false,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    }),
+    prisma.passwordResetToken.updateMany({
+      where: {
+        employeeId: row.employeeId,
+        id: { not: row.id },
+        usedAt: null,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+
+  invalidateUserCache(row.employeeId).catch(() => {});
+  await revokeAllTokens(row.employeeId);
+
+  await auditLog({
+    orgId: row.orgId,
+    actorId: row.employeeId,
+    actorType: 'employee',
+    action: 'auth.password_reset_completed',
+    resource: 'employee',
+    resourceId: row.employeeId,
+    req,
+  });
+
+  return { message: 'Password updated successfully. Please log in with your new password.' };
+}
+
 module.exports = {
   login,
   refreshAccessToken,
@@ -316,5 +604,9 @@ module.exports = {
   revokeAllTokens,
   changePassword,
   adminResetPassword,
+  requestPasswordReset,
+  sendOrgAdminPasswordReset,
+  verifyPasswordResetToken,
+  confirmPasswordReset,
   SALT_ROUNDS,
 };

@@ -7,7 +7,7 @@ export const employees = {
   updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
   resetPassword: (id, password) =>
-    request(`/employees/${id}/reset-password`, { method: 'PUT', body: JSON.stringify({ password }) }),
+    request(`/employees/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword: password }) }),
 };
 
 export const profile = {

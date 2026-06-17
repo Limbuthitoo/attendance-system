@@ -130,6 +130,25 @@ router.put('/:id/modules', requireSuperAdmin, async (req, res, next) => {
   }
 });
 
+// POST /api/platform/organizations/:id/admin-password-reset-link
+router.post('/:id/admin-password-reset-link', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const result = await require('../../services/auth.service').sendOrgAdminPasswordReset({
+      orgId: req.params.id,
+      employeeId: req.body.employeeId || null,
+      platformUserId: req.platformUser.id,
+      req,
+    });
+    res.json({
+      message: `Password reset link generated for ${result.email}.`,
+      ...result,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // ── Branch management (platform-level) ──────────────────────────────────────
 
 // GET /api/platform/organizations/:id/branches

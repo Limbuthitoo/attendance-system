@@ -35,7 +35,7 @@ const config = {
   notifyEmail: process.env.NOTIFY_EMAIL || '',
 
   // Platform seed
-  platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL || 'admin@attendance.app',
+  platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL,
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,
 };
 

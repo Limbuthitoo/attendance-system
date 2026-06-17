@@ -32,7 +32,14 @@ export default function Training() {
     setLoading(true);
     try {
       if (tab === 'courses') { const d = await api.getCourses(); setCourses(d.courses || []); }
-      else if (tab === 'sessions') { const d = await api.getSessions({}); setSessions(d.sessions || []); }
+      else if (tab === 'sessions') {
+        const [sessionData, courseData] = await Promise.all([
+          api.getSessions({}),
+          api.getCourses(),
+        ]);
+        setSessions(sessionData.sessions || []);
+        setCourses(courseData.courses || []);
+      }
       else { const d = await api.getCertifications({}); setCertifications(d.certifications || []); }
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -45,7 +52,7 @@ export default function Training() {
         name: form.name,
         category: form.category || 'general',
         description: form.description,
-        duration: form.duration,
+        duration: form.duration ? parseInt(form.duration) : null,
         isExternal: form.isExternal === 'true',
         provider: form.provider,
         isMandatory: form.isMandatory === 'true',
@@ -111,7 +118,7 @@ export default function Training() {
                 <h3 className="font-semibold text-gray-900">{c.name}</h3>
                 {c.isMandatory && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">Mandatory</span>}
               </div>
-              <p className="text-sm text-gray-500 mt-1">{c.category} · {c.duration || 'Flexible'}</p>
+              <p className="text-sm text-gray-500 mt-1">{c.category} · {c.duration ? `${c.duration} hour(s)` : 'Flexible'}</p>
               <p className="text-xs text-gray-400 mt-1">{c.isExternal ? `External (${c.provider || 'TBD'})` : 'Internal'} · {c._count?.sessions || 0} sessions</p>
             </div>
           ))}
@@ -184,7 +191,7 @@ export default function Training() {
                 <input placeholder="Course Name" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border rounded px-3 py-2" required />
                 <input placeholder="Category" value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <textarea placeholder="Description" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full border rounded px-3 py-2" rows="2" />
-                <input placeholder="Duration (e.g. 2 days)" value={form.duration || ''} onChange={e => setForm({ ...form, duration: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <input placeholder="Duration (hours)" type="number" min="1" value={form.duration || ''} onChange={e => setForm({ ...form, duration: e.target.value })} className="w-full border rounded px-3 py-2" />
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isExternal === 'true'} onChange={e => setForm({ ...form, isExternal: e.target.checked ? 'true' : 'false' })} /> External</label>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isMandatory === 'true'} onChange={e => setForm({ ...form, isMandatory: e.target.checked ? 'true' : 'false' })} /> Mandatory</label>

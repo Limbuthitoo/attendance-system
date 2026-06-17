@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { getPrisma } = require('../../lib/prisma');
+const { requireSuperAdmin } = require('../../middleware/platformAuth');
 
 const router = Router();
 
@@ -66,7 +67,7 @@ router.get('/current', async (req, res, next) => {
 });
 
 // POST /upload — Upload new APK
-router.post('/upload', (req, res) => {
+router.post('/upload', requireSuperAdmin, (req, res) => {
   upload.single('apk')(req, res, async (err) => {
     if (err) {
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -140,7 +141,7 @@ router.post('/upload', (req, res) => {
 });
 
 // DELETE /current — Delete current release
-router.delete('/current', async (req, res, next) => {
+router.delete('/current', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const release = await prisma.appRelease.findFirst({

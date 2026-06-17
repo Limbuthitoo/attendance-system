@@ -18,9 +18,9 @@ export const policies = {
 
 export const notifications = {
   getNotifications: (limit, offset, unreadOnly) =>
-    request(`/notifications?limit=${limit || 50}&offset=${offset || 0}${unreadOnly ? '&unread_only=1' : ''}`),
+    request(`/notifications?limit=${limit || 50}&offset=${offset || 0}${unreadOnly ? '&unreadOnly=true' : ''}`),
   getUnreadCount: () => request('/notifications/unread-count'),
-  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markNotificationRead: (id) => request('/notifications/read', { method: 'PUT', body: JSON.stringify({ ids: [id] }) }),
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
   clearNotification: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
   clearAllNotifications: () => request('/notifications', { method: 'DELETE' }),

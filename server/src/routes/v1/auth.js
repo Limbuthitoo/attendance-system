@@ -161,6 +161,51 @@ router.post('/change-password', authenticate, async (req, res, next) => {
   }
 });
 
+// POST /api/v1/auth/forgot-password
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email, orgSlug } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const result = await authService.requestPasswordReset({
+      email,
+      orgSlug: orgSlug || null,
+      req,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/v1/auth/reset-password/verify
+router.post('/reset-password/verify', async (req, res, next) => {
+  try {
+    const result = await authService.verifyPasswordResetToken(req.body.token);
+    res.json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// POST /api/v1/auth/reset-password/confirm
+router.post('/reset-password/confirm', async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    const result = await authService.confirmPasswordReset({ token, newPassword, req });
+    clearAuthCookies(res);
+    res.json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // GET /api/v1/auth/me — Get current user profile + org modules + plan info
 router.get('/me', authenticate, async (req, res) => {
   try {

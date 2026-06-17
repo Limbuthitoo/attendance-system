@@ -149,6 +149,13 @@ export async function setOrgModules(id, moduleCodes) {
   });
 }
 
+export async function sendOrgAdminPasswordResetLink(id, employeeId) {
+  return request(`/organizations/${id}/admin-password-reset-link`, {
+    method: 'POST',
+    body: JSON.stringify({ employeeId }),
+  });
+}
+
 // ── Modules ─────────────────────────────────────────────────────────────────
 export async function getModules() {
   return request('/modules');

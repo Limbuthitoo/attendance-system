@@ -7,6 +7,7 @@ const { getPrisma } = require('../../lib/prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { cacheInvalidate } = require('../../config/redis');
+const { requireSuperAdmin } = require('../../middleware/platformAuth');
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /  — Register a device and assign to an org
-router.post('/', async (req, res, next) => {
+router.post('/', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { orgId, branchId, deviceType, deviceSerial, name, brand, model, location, modelId } = req.body;
@@ -109,7 +110,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT /:id/deactivate
-router.put('/:id/deactivate', async (req, res, next) => {
+router.put('/:id/deactivate', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const device = await prisma.device.update({
@@ -124,7 +125,7 @@ router.put('/:id/deactivate', async (req, res, next) => {
 });
 
 // PUT /:id/reactivate
-router.put('/:id/reactivate', async (req, res, next) => {
+router.put('/:id/reactivate', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const device = await prisma.device.update({
@@ -138,7 +139,7 @@ router.put('/:id/reactivate', async (req, res, next) => {
 });
 
 // POST /:id/rotate-key
-router.post('/:id/rotate-key', async (req, res, next) => {
+router.post('/:id/rotate-key', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const device = await prisma.device.findUnique({ where: { id: req.params.id } });

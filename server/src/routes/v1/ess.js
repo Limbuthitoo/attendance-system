@@ -47,7 +47,7 @@ router.post('/documents', async (req, res, next) => {
 });
 
 // PUT /api/v1/ess/documents/:id
-router.put('/documents/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/documents/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, documentUrl, remarks } = req.body;
@@ -107,7 +107,7 @@ router.post('/expenses', async (req, res, next) => {
 });
 
 // PUT /api/v1/ess/expenses/:id
-router.put('/expenses/:id', requireRole('org_admin', 'hr'), async (req, res, next) => {
+router.put('/expenses/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, rejectionReason } = req.body;

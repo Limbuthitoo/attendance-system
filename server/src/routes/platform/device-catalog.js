@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
 const { getPrisma } = require('../../lib/prisma');
+const { requireSuperAdmin } = require('../../middleware/platformAuth');
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/categories', async (req, res, next) => {
 });
 
 // POST /categories — Create a device category
-router.post('/categories', async (req, res, next) => {
+router.post('/categories', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { key, name, icon } = req.body;
@@ -48,7 +49,7 @@ router.post('/categories', async (req, res, next) => {
 });
 
 // PUT /categories/:id — Update a category
-router.put('/categories/:id', async (req, res, next) => {
+router.put('/categories/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, icon, isActive } = req.body;
@@ -67,7 +68,7 @@ router.put('/categories/:id', async (req, res, next) => {
 });
 
 // DELETE /categories/:id — Delete (only if no models)
-router.delete('/categories/:id', async (req, res, next) => {
+router.delete('/categories/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const count = await prisma.deviceModel.count({ where: { categoryId: req.params.id } });
@@ -100,7 +101,7 @@ router.get('/brands', async (req, res, next) => {
 });
 
 // POST /brands — Create a device brand
-router.post('/brands', async (req, res, next) => {
+router.post('/brands', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, website } = req.body;
@@ -120,7 +121,7 @@ router.post('/brands', async (req, res, next) => {
 });
 
 // PUT /brands/:id — Update a brand
-router.put('/brands/:id', async (req, res, next) => {
+router.put('/brands/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, website, isActive } = req.body;
@@ -139,7 +140,7 @@ router.put('/brands/:id', async (req, res, next) => {
 });
 
 // DELETE /brands/:id — Delete (only if no models)
-router.delete('/brands/:id', async (req, res, next) => {
+router.delete('/brands/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const count = await prisma.deviceModel.count({ where: { brandId: req.params.id } });
@@ -207,7 +208,7 @@ router.get('/models/:id', async (req, res, next) => {
 });
 
 // POST /models — Create a device model
-router.post('/models', async (req, res, next) => {
+router.post('/models', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const {
@@ -249,7 +250,7 @@ router.post('/models', async (req, res, next) => {
 });
 
 // PUT /models/:id — Update a device model
-router.put('/models/:id', async (req, res, next) => {
+router.put('/models/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const {
@@ -279,7 +280,7 @@ router.put('/models/:id', async (req, res, next) => {
 });
 
 // DELETE /models/:id — Delete (only if no devices assigned)
-router.delete('/models/:id', async (req, res, next) => {
+router.delete('/models/:id', requireSuperAdmin, async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const count = await prisma.device.count({ where: { modelId: req.params.id } });
