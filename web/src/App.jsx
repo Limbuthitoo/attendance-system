@@ -332,6 +332,7 @@ export default function App() {
         <Route path="billing" element={<AdminRoute permissions={['billing.view', 'billing.manage']}><LazyPage name="Billing"><OrgBilling /></LazyPage></AdminRoute>} />
         <Route path="statutory" element={<AdminRoute><LazyPage name="Statutory Compliance"><StatutoryCompliance /></LazyPage></AdminRoute>} />
         <Route path="recruitment" element={<AdminRoute permissions={['recruitment.view', 'recruitment.manage']}><LazyPage name="Recruitment"><Recruitment /></LazyPage></AdminRoute>} />
+        <Route path="recruitment/jobs/:jobId" element={<AdminRoute permissions={['recruitment.view', 'recruitment.manage']}><LazyPage name="Job Posting"><Recruitment /></LazyPage></AdminRoute>} />
         <Route path="onboarding" element={<AdminRoute permissions={['onboarding.view', 'onboarding.manage']}><LazyPage name="Onboarding"><Onboarding /></LazyPage></AdminRoute>} />
         <Route path="separation" element={<AdminRoute permissions={['separation.view', 'separation.manage']}><LazyPage name="Separation"><Separation /></LazyPage></AdminRoute>} />
         <Route path="training" element={<AdminRoute permissions={['training.view', 'training.manage']}><LazyPage name="Training"><Training /></LazyPage></AdminRoute>} />

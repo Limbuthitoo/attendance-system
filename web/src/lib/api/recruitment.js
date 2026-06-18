@@ -2,6 +2,7 @@ import { request } from './client';
 
 export const recruitment = {
   getJobs: (params) => request('/recruitment/jobs', { params }),
+  getJob: (id) => request(`/recruitment/jobs/${id}`),
   createJob: (data) => request('/recruitment/jobs', { method: 'POST', body: JSON.stringify(data) }),
   updateJob: (id, data) => request(`/recruitment/jobs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteJob: (id) => request(`/recruitment/jobs/${id}`, { method: 'DELETE' }),

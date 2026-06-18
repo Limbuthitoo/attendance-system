@@ -26,6 +26,30 @@ router.get('/jobs', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/recruitment/jobs/:id
+router.get('/jobs/:id', async (req, res, next) => {
+  try {
+    const prisma = getPrisma();
+    const job = await prisma.jobPosting.findUnique({
+      where: { id: req.params.id, orgId: req.orgId },
+      include: {
+        _count: { select: { applicants: true } },
+        applicants: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            interviews: {
+              orderBy: { scheduledAt: 'desc' },
+              include: { interviewer: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!job) return res.status(404).json({ error: 'Job posting not found' });
+    res.json({ job });
+  } catch (err) { next(err); }
+});
+
 // POST /api/v1/recruitment/jobs
 router.post('/jobs', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
@@ -106,11 +130,23 @@ router.get('/applicants', async (req, res, next) => {
 router.post('/applicants', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { jobPostingId, name, email, phone, resumeUrl, coverLetter, source } = req.body;
+    const { jobPostingId, name, email, phone, resumeUrl, coverLetter, source, status, rating, notes } = req.body;
     if (!name || !email || !jobPostingId) return res.status(400).json({ error: 'Name, email and jobPostingId are required' });
 
     const applicant = await prisma.applicant.create({
-      data: { orgId: req.orgId, jobPostingId, name, email, phone, resumeUrl, coverLetter, source },
+      data: {
+        orgId: req.orgId,
+        jobPostingId,
+        name,
+        email,
+        phone: phone || null,
+        resumeUrl: resumeUrl || null,
+        coverLetter: coverLetter || null,
+        source: source || null,
+        status: status || 'NEW',
+        rating: rating !== undefined && rating !== '' ? Number(rating) : undefined,
+        notes: notes || null,
+      },
     });
     res.status(201).json({ applicant });
   } catch (err) { next(err); }
@@ -120,10 +156,21 @@ router.post('/applicants', requirePermission('recruitment.manage'), async (req, 
 router.put('/applicants/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { status, rating, notes } = req.body;
+    const { jobPostingId, name, email, phone, resumeUrl, coverLetter, source, status, rating, notes } = req.body;
     const applicant = await prisma.applicant.update({
       where: { id: req.params.id, orgId: req.orgId },
-      data: { ...(status && { status }), ...(rating !== undefined && { rating }), ...(notes !== undefined && { notes }) },
+      data: {
+        ...(jobPostingId && { jobPostingId }),
+        ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(resumeUrl !== undefined && { resumeUrl }),
+        ...(coverLetter !== undefined && { coverLetter }),
+        ...(source !== undefined && { source }),
+        ...(status && { status }),
+        ...(rating !== undefined && { rating: rating === '' || rating === null ? null : Number(rating) }),
+        ...(notes !== undefined && { notes }),
+      },
     });
     res.json({ applicant });
   } catch (err) {
@@ -160,11 +207,23 @@ router.get('/interviews', async (req, res, next) => {
 router.post('/interviews', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { applicantId, interviewerId, scheduledAt, type, location, notes, duration } = req.body;
+    const { applicantId, interviewerId, scheduledAt, type, location, notes, duration, status, rating, feedback } = req.body;
     if (!applicantId || !interviewerId || !scheduledAt) return res.status(400).json({ error: 'applicantId, interviewerId and scheduledAt required' });
 
     const interview = await prisma.interview.create({
-      data: { orgId: req.orgId, applicantId, interviewerId, scheduledAt: new Date(scheduledAt), duration: duration || 60, type: type || 'IN_PERSON', location, notes },
+      data: {
+        orgId: req.orgId,
+        applicantId,
+        interviewerId,
+        scheduledAt: new Date(scheduledAt),
+        duration: duration || 60,
+        type: type || 'IN_PERSON',
+        location: location || null,
+        notes: notes || null,
+        status: status || 'SCHEDULED',
+        rating: rating !== undefined && rating !== '' ? Number(rating) : undefined,
+        feedback: feedback || null,
+      },
     });
     res.status(201).json({ interview });
   } catch (err) { next(err); }
@@ -174,10 +233,21 @@ router.post('/interviews', requirePermission('recruitment.manage'), async (req, 
 router.put('/interviews/:id', requirePermission('recruitment.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const { status, rating, feedback, scheduledAt } = req.body;
+    const { applicantId, interviewerId, scheduledAt, duration, type, location, notes, status, rating, feedback } = req.body;
     const interview = await prisma.interview.update({
       where: { id: req.params.id, orgId: req.orgId },
-      data: { ...(status && { status }), ...(rating !== undefined && { rating }), ...(feedback && { feedback }), ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }) },
+      data: {
+        ...(applicantId && { applicantId }),
+        ...(interviewerId && { interviewerId }),
+        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
+        ...(duration !== undefined && { duration }),
+        ...(type && { type }),
+        ...(location !== undefined && { location }),
+        ...(notes !== undefined && { notes }),
+        ...(status && { status }),
+        ...(rating !== undefined && { rating: rating === '' || rating === null ? null : Number(rating) }),
+        ...(feedback !== undefined && { feedback }),
+      },
     });
     res.json({ interview });
   } catch (err) {
