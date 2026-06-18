@@ -39,6 +39,7 @@ services:
   # ── API Server ────────────────────────────────────────────────────────────
   api:
     build: ./server
+    command: ["node", "src/index.js"]
     ports:
       - "127.0.0.1:3001:3001"
     environment:

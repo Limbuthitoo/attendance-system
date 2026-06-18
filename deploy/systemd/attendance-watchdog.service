@@ -1,0 +1,10 @@
+[Unit]
+Description=Attendance System watchdog
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/attendance/attendance-system
+ExecStart=/home/ubuntu/attendance/attendance-system/scripts/attendance-watchdog.sh
