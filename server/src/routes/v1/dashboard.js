@@ -2,11 +2,15 @@
 // Dashboard Routes (v1) — Aggregated data for admin dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission, requireRole } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 const { responseCache, orgKey, userOrgKey, userKey } = require('../../middleware/cache');
 
 const router = Router();
+
+function canViewOrganizationDashboard(user) {
+  return user.role === 'admin' || user.permissions?.includes('attendance.view_all');
+}
 
 // Helper: today's date as YYYY-MM-DD in Asia/Kathmandu
 function todayDate() {
@@ -20,7 +24,7 @@ router.get('/stats', responseCache({ ttl: 30, keyFn: userOrgKey }), async (req, 
     const orgId = req.orgId;
     const today = todayDate();
     const currentMonth = today.slice(0, 7);
-    const isAdmin = req.user.role === 'admin' || req.user.roles?.some(r => ['org_admin', 'hr_manager'].includes(r));
+    const isAdmin = canViewOrganizationDashboard(req.user);
 
     if (isAdmin) {
       const todayFilter = new Date(today + 'T00:00:00.000Z');
@@ -106,7 +110,7 @@ router.get('/weekly-trend', responseCache({ ttl: 60, keyFn: userOrgKey }), async
     const prisma = getPrisma();
     const orgId = req.orgId;
     const days = parseInt(req.query.days) || 7;
-    const isAdmin = req.user.role === 'admin' || req.user.roles?.some(r => ['org_admin', 'hr_manager'].includes(r));
+    const isAdmin = canViewOrganizationDashboard(req.user);
     const since = new Date();
     since.setDate(since.getDate() - days);
 
@@ -153,7 +157,7 @@ router.get('/weekly-trend', responseCache({ ttl: 60, keyFn: userOrgKey }), async
 });
 
 // GET /api/v1/dashboard/department-stats (admin only)
-router.get('/department-stats', responseCache({ ttl: 30, keyFn: orgKey }), async (req, res, next) => {
+router.get('/department-stats', requirePermission('attendance.view_all'), responseCache({ ttl: 30, keyFn: orgKey }), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;
@@ -197,7 +201,7 @@ router.get('/leave-stats', responseCache({ ttl: 60, keyFn: userOrgKey }), async 
     const year = new Date().getFullYear();
     const yearStart = new Date(`${year}-01-01`);
     const yearEnd = new Date(`${year + 1}-01-01`);
-    const isAdmin = req.user.role === 'admin' || req.user.roles?.some(r => ['org_admin', 'hr_manager'].includes(r));
+    const isAdmin = canViewOrganizationDashboard(req.user);
 
     const where = {
       orgId,
@@ -246,7 +250,7 @@ router.get('/activity-log', async (req, res, next) => {
     const orgId = req.orgId;
     const { date, start_date, end_date, employee_id } = req.query;
     const rowLimit = Math.min(parseInt(req.query.limit) || 200, 500);
-    const isAdmin = req.user.role === 'admin' || req.user.roles?.some(r => ['org_admin', 'hr_manager'].includes(r));
+    const isAdmin = canViewOrganizationDashboard(req.user);
 
     const today = todayDate();
     const hasRange = start_date && end_date;

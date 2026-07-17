@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [deptStats, setDeptStats] = useState(null);
   const [leaveStats, setLeaveStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const showOrganizationDashboard = user.role === 'admin' || user.permissions?.includes('attendance.view_all');
 
   useEffect(() => {
     const safe = (p) => p.catch(() => null);
@@ -32,12 +33,12 @@ export default function Dashboard() {
       safe(api.getWeeklyTrend(14)).then(setTrend),
       safe(api.getLeaveStats()).then(setLeaveStats),
     ];
-    if (user.role === 'admin') {
+    if (showOrganizationDashboard) {
       loads.push(safe(api.getDepartmentStats()).then(setDeptStats));
     }
     Promise.all(loads)
       .finally(() => setLoading(false));
-  }, [user.role]);
+  }, [showOrganizationDashboard]);
 
   if (loading) {
     return (
@@ -47,7 +48,7 @@ export default function Dashboard() {
     );
   }
 
-  if (user.role === 'admin') {
+  if (showOrganizationDashboard) {
     return <AdminDashboard stats={stats} trend={trend} deptStats={deptStats} leaveStats={leaveStats} />;
   }
 

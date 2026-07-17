@@ -62,10 +62,10 @@ export default function EditEmployeeModal({
               <select
                 value={editForm.designation}
                 onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                disabled={departments.length > 0 && !editForm.department}
+                disabled={!editForm.department}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">{departments.length > 0 && !editForm.department ? 'Select Department First' : 'Select Designation'}</option>
+                <option value="">{!editForm.department ? 'Select Department First' : 'Select Designation'}</option>
                 {editForm.designation && !designations.includes(editForm.designation) && (
                   <option value={editForm.designation}>{editForm.designation}</option>
                 )}

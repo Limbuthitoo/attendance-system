@@ -304,7 +304,7 @@ export default function App() {
         <Route index element={<LazyPage name="Dashboard"><Dashboard /></LazyPage>} />
         <Route path="attendance" element={<LazyPage name="Attendance"><Attendance /></LazyPage>} />
         <Route path="leaves" element={<LazyPage name="Leaves"><Leaves /></LazyPage>} />
-        <Route path="leave-management" element={<AdminRoute><LazyPage name="Leave Management"><LeaveManagement /></LazyPage></AdminRoute>} />
+        <Route path="leave-management" element={<AdminRoute permissions={['leave.view_all', 'leave.approve']}><LazyPage name="Leave Management"><LeaveManagement /></LazyPage></AdminRoute>} />
         <Route path="leave-calendar" element={<LazyPage name="Leave Calendar"><LeaveCalendar /></LazyPage>} />
         <Route path="notices" element={<LazyPage name="Notices"><Notices /></LazyPage>} />
         <Route path="employees" element={<AdminRoute permissions={['employee.view']}><LazyPage name="Employees"><Employees /></LazyPage></AdminRoute>} />
@@ -312,14 +312,14 @@ export default function App() {
         <Route path="employee-attendance" element={<AdminRoute permissions={['attendance.view_all']}><LazyPage name="Employee Attendance"><EmployeeAttendance /></LazyPage></AdminRoute>} />
         <Route path="activity-log" element={<LazyPage name="Activity Log"><ActivityLog /></LazyPage>} />
         <Route path="profile" element={<LazyPage name="Profile"><Profile /></LazyPage>} />
-        <Route path="settings" element={<AdminRoute><LazyPage name="Settings"><Settings /></LazyPage></AdminRoute>} />
-        <Route path="holidays" element={<AdminRoute><LazyPage name="Holidays"><HolidayManager /></LazyPage></AdminRoute>} />
-        <Route path="branches" element={<AdminRoute><LazyPage name="Branches"><BranchManagement /></LazyPage></AdminRoute>} />
-        <Route path="roles" element={<AdminRoute><LazyPage name="Roles"><RoleManagement /></LazyPage></AdminRoute>} />
-        <Route path="shifts" element={<AdminRoute><LazyPage name="Shifts"><ShiftManagement /></LazyPage></AdminRoute>} />
-        <Route path="schedules" element={<AdminRoute><LazyPage name="Schedules"><ScheduleManagement /></LazyPage></AdminRoute>} />
-        <Route path="assignments" element={<AdminRoute><LazyPage name="Assignments"><EmployeeAssignments /></LazyPage></AdminRoute>} />
-        <Route path="reports" element={<AdminRoute><LazyPage name="Reports"><Reports /></LazyPage></AdminRoute>} />
+        <Route path="settings" element={<AdminRoute permissions={['settings.view', 'settings.update']}><LazyPage name="Settings"><Settings /></LazyPage></AdminRoute>} />
+        <Route path="holidays" element={<AdminRoute permissions={['holiday.manage']}><LazyPage name="Holidays"><HolidayManager /></LazyPage></AdminRoute>} />
+        <Route path="branches" element={<AdminRoute permissions={['branch.manage']}><LazyPage name="Branches"><BranchManagement /></LazyPage></AdminRoute>} />
+        <Route path="roles" element={<AdminRoute permissions={['role.manage']}><LazyPage name="Roles"><RoleManagement /></LazyPage></AdminRoute>} />
+        <Route path="shifts" element={<AdminRoute permissions={['shift.manage']}><LazyPage name="Shifts"><ShiftManagement /></LazyPage></AdminRoute>} />
+        <Route path="schedules" element={<AdminRoute permissions={['schedule.manage']}><LazyPage name="Schedules"><ScheduleManagement /></LazyPage></AdminRoute>} />
+        <Route path="assignments" element={<AdminRoute permissions={['employee.update', 'shift.manage', 'schedule.manage']}><LazyPage name="Assignments"><EmployeeAssignments /></LazyPage></AdminRoute>} />
+        <Route path="reports" element={<AdminRoute permissions={['report.view']}><LazyPage name="Reports"><Reports /></LazyPage></AdminRoute>} />
         <Route path="payroll" element={<AdminRoute permissions={['payroll.view', 'payroll.manage']}><LazyPage name="Payroll"><PayrollOvertime /></LazyPage></AdminRoute>} />
         <Route path="incentives" element={<AdminRoute permissions={['incentive.view', 'incentive.manage']}><LazyPage name="Incentives"><Incentives /></LazyPage></AdminRoute>} />
         <Route path="crm" element={<AdminRoute permissions={['crm.view', 'crm.manage']}><LazyPage name="CRM"><CRM /></LazyPage></AdminRoute>} />
@@ -330,7 +330,7 @@ export default function App() {
         <Route path="bonuses" element={<AdminRoute permissions={['bonus.view', 'bonus.manage']}><LazyPage name="Bonuses"><Bonuses /></LazyPage></AdminRoute>} />
         <Route path="accounting" element={<AdminRoute permissions={['accounting.view', 'accounting.manage']}><LazyPage name="Accounting"><Accounting /></LazyPage></AdminRoute>} />
         <Route path="billing" element={<AdminRoute permissions={['billing.view', 'billing.manage']}><LazyPage name="Billing"><OrgBilling /></LazyPage></AdminRoute>} />
-        <Route path="statutory" element={<AdminRoute><LazyPage name="Statutory Compliance"><StatutoryCompliance /></LazyPage></AdminRoute>} />
+        <Route path="statutory" element={<AdminRoute permissions={['payroll.manage']}><LazyPage name="Statutory Compliance"><StatutoryCompliance /></LazyPage></AdminRoute>} />
         <Route path="recruitment" element={<AdminRoute permissions={['recruitment.view', 'recruitment.manage']}><LazyPage name="Recruitment"><Recruitment /></LazyPage></AdminRoute>} />
         <Route path="recruitment/jobs/:jobId" element={<AdminRoute permissions={['recruitment.view', 'recruitment.manage']}><LazyPage name="Job Posting"><Recruitment /></LazyPage></AdminRoute>} />
         <Route path="onboarding" element={<AdminRoute permissions={['onboarding.view', 'onboarding.manage']}><LazyPage name="Onboarding"><Onboarding /></LazyPage></AdminRoute>} />
@@ -339,9 +339,9 @@ export default function App() {
         <Route path="self-service" element={<LazyPage name="Self Service"><SelfService /></LazyPage>} />
         <Route path="compensation" element={<AdminRoute permissions={['compensation.view', 'compensation.manage']}><LazyPage name="Compensation"><CompensationPage /></LazyPage></AdminRoute>} />
         <Route path="org-chart" element={<LazyPage name="Org Chart"><OrgChart /></LazyPage>} />
-        <Route path="geofence" element={<AdminRoute><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
-        <Route path="nfc" element={<AdminRoute><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />
-        <Route path="devices" element={<AdminRoute><LazyPage name="Devices"><DeviceManagement /></LazyPage></AdminRoute>} />
+        <Route path="geofence" element={<AdminRoute permissions={['settings.update']}><LazyPage name="Geofence"><GeofenceManagement /></LazyPage></AdminRoute>} />
+        <Route path="nfc" element={<AdminRoute permissions={['device.manage', 'credential.manage']}><LazyPage name="NFC Management"><NfcManagement /></LazyPage></AdminRoute>} />
+        <Route path="devices" element={<AdminRoute permissions={['device.view', 'device.manage']}><LazyPage name="Devices"><DeviceManagement /></LazyPage></AdminRoute>} />
         <Route path="policies" element={<LazyPage name="Policies"><Policies /></LazyPage>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

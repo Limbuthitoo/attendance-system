@@ -47,14 +47,21 @@ else
   log "WARNING: Backend may not have started correctly"
 fi
 
-# Build and deploy frontend
-log "Building frontend..."
-cd "$PROJECT_DIR/web"
-npm install --legacy-peer-deps 2>&1 | tee -a "$LOG_FILE"
-npm run build 2>&1 | tee -a "$LOG_FILE"
+# Build and restart the frontend container. The public nginx virtual host
+# proxies application traffic to this container on 127.0.0.1:8080.
+log "Rebuilding frontend image..."
+cd "$PROJECT_DIR"
+sudo docker compose build web --quiet 2>&1 | tee -a "$LOG_FILE"
 
-log "Deploying frontend to nginx..."
-sudo cp -r dist/* /var/www/html/
+log "Restarting frontend container..."
+sudo docker compose up -d web 2>&1 | tee -a "$LOG_FILE"
+
+if curl -s http://127.0.0.1:8080/ | grep -q '<div id="root"></div>'; then
+  log "Frontend restarted successfully"
+else
+  log "WARNING: Frontend may not have started correctly"
+fi
+
 sudo systemctl reload nginx
 
 log "=== Deployment completed ==="

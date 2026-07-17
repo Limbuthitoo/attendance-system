@@ -187,6 +187,9 @@ async function login({ email, password, orgSlug, userAgent, ipAddress }) {
   // Strip password from response
   const { password: _, ...safeEmployee } = employee;
   const roles = employee.employeeRoles.map((er) => er.role.name);
+  const permissions = [...new Set(employee.employeeRoles.flatMap((er) => (
+    Array.isArray(er.role.permissions) ? er.role.permissions : []
+  )))];
 
   // Backward compat: derive legacy 'role' string for old web/mobile clients
   const role = roles.some((r) => ['org_admin', 'hr_manager', 'branch_manager'].includes(r))
@@ -194,7 +197,7 @@ async function login({ email, password, orgSlug, userAgent, ipAddress }) {
     : 'employee';
 
   return {
-    employee: { ...safeEmployee, role, roles },
+    employee: { ...safeEmployee, employeeRoles: undefined, role, roles, permissions },
     accessToken,
     refreshToken,
   };

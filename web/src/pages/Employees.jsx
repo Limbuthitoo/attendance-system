@@ -38,6 +38,24 @@ const DEFAULT_DESIGNATIONS = [
   'Office Administrator', 'Intern', 'Trainee',
 ];
 
+const DEFAULT_DESIGNATIONS_BY_DEPARTMENT = {
+  Engineering: ['CTO', 'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer', 'Team Lead', 'Intern', 'Trainee'],
+  Design: ['Design Director', 'Senior Designer', 'UI/UX Designer', 'Graphic Designer', 'Motion Designer', 'Intern', 'Trainee'],
+  'Digital Marketing': ['Digital Marketing Manager', 'Digital Marketing Executive', 'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist', 'Social Media Manager', 'Social Media Executive', 'Intern', 'Trainee'],
+  'Content & Media': ['Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter', 'Social Media Manager', 'Social Media Executive', 'Intern', 'Trainee'],
+  SEO: ['SEO Manager', 'SEO Specialist', 'SEO Analyst', 'Intern', 'Trainee'],
+  Sales: ['Sales Manager', 'Sales Executive', 'Business Development Manager', 'Business Development Executive', 'Account Manager', 'Intern', 'Trainee'],
+  'Human Resources': ['HR Manager', 'HR Executive', 'Recruiter', 'Intern', 'Trainee'],
+  Finance: ['CFO', 'Finance Manager', 'Accountant', 'Intern', 'Trainee'],
+  Operations: ['COO', 'Director', 'Senior Manager', 'Manager', 'Assistant Manager', 'Project Manager', 'Office Administrator', 'Intern', 'Trainee'],
+  'Quality Assurance': ['QA Lead', 'Senior QA Engineer', 'QA Engineer', 'Intern', 'Trainee'],
+  DevOps: ['DevOps Engineer', 'System Administrator', 'Cloud Engineer', 'Team Lead', 'Intern', 'Trainee'],
+  Product: ['Product Manager', 'Project Manager', 'Scrum Master', 'Director', 'Intern', 'Trainee'],
+  'Customer Support': ['Customer Support Manager', 'Customer Support Executive', 'Team Lead', 'Intern', 'Trainee'],
+  Administration: ['CEO', 'COO', 'Director', 'Vice President', 'Senior Manager', 'Manager', 'Assistant Manager', 'Office Administrator', 'Intern', 'Trainee'],
+  'Data & Analytics': ['Data Analyst', 'Data Scientist', 'Data Engineer', 'Team Lead', 'Intern', 'Trainee'],
+};
+
 const formatRoleName = (name = '') => name
   .split('_')
   .filter(Boolean)
@@ -108,10 +126,10 @@ export default function Employees() {
     if (!selectedDepartment) return !d.departmentId;
     return d.departmentId === selectedDepartment.id;
   });
-  const designationNames = [...new Set([
-    ...DEFAULT_DESIGNATIONS,
+  const designationNames = form.department ? [...new Set([
+    ...(DEFAULT_DESIGNATIONS_BY_DEPARTMENT[form.department] || []),
     ...filteredDesignationRecords.map(d => d.name),
-  ])].sort((a, b) => a.localeCompare(b));
+  ])].sort((a, b) => a.localeCompare(b)) : [];
 
   const getDesignationsForDepartment = useCallback((departmentName) => {
     const department = activeDepartments.find(d => d.name === departmentName);
@@ -120,8 +138,9 @@ export default function Employees() {
       if (!department) return !d.departmentId;
       return d.departmentId === department.id;
     });
+    if (!departmentName) return [];
     return [...new Set([
-      ...DEFAULT_DESIGNATIONS,
+      ...(DEFAULT_DESIGNATIONS_BY_DEPARTMENT[departmentName] || []),
       ...records.map(d => d.name),
     ])].sort((a, b) => a.localeCompare(b));
   }, [activeDepartments, desigList]);
@@ -576,9 +595,9 @@ export default function Employees() {
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Designation</label>
                 <div className="flex gap-2">
                   <select value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                    disabled={activeDepartments.length > 0 && !form.department}
+                    disabled={!form.department}
                     className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">{activeDepartments.length > 0 && !form.department ? 'Select Department First' : 'Select Designation'}</option>
+                    <option value="">{!form.department ? 'Select Department First' : 'Select Designation'}</option>
                   {designationNames.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
@@ -587,7 +606,7 @@ export default function Employees() {
                 )}
                 <div className="flex gap-1.5 mt-1.5">
                   <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)}
-                    disabled={activeDepartments.length > 0 && !form.department}
+                    disabled={!form.department}
                     placeholder="+ New designation" className="flex-1 px-2 py-1 rounded border border-dashed border-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDesignation())} />
                   {newDesigName && (
@@ -730,9 +749,13 @@ export default function Employees() {
                     <td className="px-4 py-3 text-slate-600">{emp.department}</td>
                     <td className="px-4 py-3 text-slate-600">{emp.designation}</td>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize bg-slate-100 text-slate-700">
-                        {emp.role}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {(emp.roles?.length ? emp.roles : [emp.role]).map(role => (
+                          <span key={role} className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {formatRoleName(role)}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${emp.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
