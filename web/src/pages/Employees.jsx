@@ -38,6 +38,12 @@ const DEFAULT_DESIGNATIONS = [
   'Office Administrator', 'Intern', 'Trainee',
 ];
 
+const formatRoleName = (name = '') => name
+  .split('_')
+  .filter(Boolean)
+  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+  .join(' ');
+
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,18 +93,25 @@ export default function Employees() {
 
   // Computed department & designation lists (DB records or fallback defaults)
   const activeDepartments = deptList.filter(d => d.isActive !== false);
-  const departmentNames = activeDepartments.length > 0
-    ? activeDepartments.map(d => d.name)
-    : DEFAULT_DEPARTMENTS;
+  const departmentNames = [...new Set([
+    ...DEFAULT_DEPARTMENTS,
+    ...activeDepartments.map(d => d.name),
+  ])].sort((a, b) => a.localeCompare(b));
+  const roleOptions = roles.map(role => ({
+    value: role.id,
+    label: formatRoleName(role.name),
+    name: role.name,
+  }));
   const selectedDepartment = activeDepartments.find(d => d.name === form.department);
   const filteredDesignationRecords = desigList.filter(d => {
     if (d.isActive === false) return false;
     if (!selectedDepartment) return !d.departmentId;
     return d.departmentId === selectedDepartment.id;
   });
-  const designationNames = filteredDesignationRecords.length > 0
-    ? filteredDesignationRecords.map(d => d.name)
-    : (selectedDepartment ? [] : DEFAULT_DESIGNATIONS);
+  const designationNames = [...new Set([
+    ...DEFAULT_DESIGNATIONS,
+    ...filteredDesignationRecords.map(d => d.name),
+  ])].sort((a, b) => a.localeCompare(b));
 
   const getDesignationsForDepartment = useCallback((departmentName) => {
     const department = activeDepartments.find(d => d.name === departmentName);
@@ -107,8 +120,10 @@ export default function Employees() {
       if (!department) return !d.departmentId;
       return d.departmentId === department.id;
     });
-    if (records.length > 0) return records.map(d => d.name);
-    return department ? [] : DEFAULT_DESIGNATIONS;
+    return [...new Set([
+      ...DEFAULT_DESIGNATIONS,
+      ...records.map(d => d.name),
+    ])].sort((a, b) => a.localeCompare(b));
   }, [activeDepartments, desigList]);
 
   const loadMasterData = useCallback(async () => {
@@ -126,7 +141,12 @@ export default function Employees() {
       setBranches(brRes.branches || brRes.data || []);
       setShifts(shRes.shifts || shRes.data || []);
       setSchedules(scRes.workSchedules || scRes.schedules || scRes.data || []);
-      setRoles(roleRes.roles || roleRes.data || []);
+      const loadedRoles = roleRes.roles || roleRes.data || [];
+      setRoles(loadedRoles);
+      const employeeRole = loadedRoles.find(role => role.name === 'employee');
+      if (employeeRole) {
+        setForm(current => current.role === 'employee' ? { ...current, role: employeeRole.id } : current);
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -152,7 +172,7 @@ export default function Employees() {
     setSubmitting(true);
     try {
       const payload = { ...form };
-      // Map custom role UUIDs to roleId field
+      // Role dropdown uses database role IDs. Keep legacy values as a fallback.
       if (payload.role && !['admin', 'employee'].includes(payload.role)) {
         payload.roleId = payload.role;
         delete payload.role;
@@ -168,7 +188,7 @@ export default function Employees() {
       setShowForm(false);
       setForm({
         employee_id: '', name: '', email: '', password: '',
-        department: '', designation: '', role: 'employee', phone: '',
+        department: '', designation: '', role: roles.find(role => role.name === 'employee')?.id || 'employee', phone: '',
         branchId: '', shiftId: '', workScheduleId: '',
         gender: '', joinDate: '', contractType: '',
       });
@@ -431,13 +451,16 @@ export default function Employees() {
   };
 
   const openEditModal = (emp) => {
+    const assignedRole = roles.find(role => emp.roles?.includes(role.name));
     setEditModal(emp);
     setEditForm({
       name: emp.name,
       email: emp.email,
       department: emp.department || '',
       designation: emp.designation || '',
-      role: emp.role,
+      role: assignedRole?.id || (emp.role === 'admin'
+        ? roles.find(role => role.name === 'org_admin')?.id || 'admin'
+        : roles.find(role => role.name === 'employee')?.id || 'employee'),
       phone: emp.phone || ''
     });
   };
@@ -446,7 +469,12 @@ export default function Employees() {
     e.preventDefault();
     setEditSubmitting(true);
     try {
-      await api.updateEmployee(editModal.id, editForm);
+      const payload = { ...editForm };
+      if (payload.role && !['admin', 'employee'].includes(payload.role)) {
+        payload.roleId = payload.role;
+        delete payload.role;
+      }
+      await api.updateEmployee(editModal.id, payload);
       setEditModal(null);
       loadEmployees();
     } catch (err) {
@@ -574,10 +602,9 @@ export default function Employees() {
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                  <option value="employee">Employee</option>
-                  <option value="admin">Admin</option>
-                  {roles.filter(r => !['org_admin', 'employee'].includes(r.name)).map(r => (
-                    <option key={r.id} value={r.id}>{r.displayName || r.name}</option>
+                  {roleOptions.length === 0 && <option value="employee">Employee</option>}
+                  {roleOptions.map(role => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
                   ))}
                 </select>
               </div>
@@ -792,6 +819,7 @@ export default function Employees() {
         editForm={editForm} setEditForm={setEditForm}
         editSubmitting={editSubmitting} handleEditSubmit={handleEditSubmit}
         departments={departmentNames} getDesignationsForDepartment={getDesignationsForDepartment}
+        roles={roleOptions}
       />
 
       {/* Delete Confirmation Modal */}

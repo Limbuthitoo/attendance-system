@@ -6,6 +6,7 @@ const { getPrisma } = require('../lib/prisma');
 const { auditLog } = require('../lib/audit');
 const { validatePassword, validateEmail } = require('../lib/validation');
 const { requireActiveSubscription } = require('../lib/subscription');
+const { invalidateUserCache } = require('../middleware/cache');
 const { SALT_ROUNDS } = require('./auth.service');
 
 /**
@@ -221,6 +222,26 @@ async function createEmployee({ orgId, data, adminId, req }) {
     throw Object.assign(new Error(`Employee limit reached (${org.maxEmployees}). Upgrade your plan.`), { status: 403 });
   }
 
+  // Resolve and validate the selected role before creating the employee.
+  let roleId = data.roleId;
+  if (!roleId && data.role) {
+    const roleName = data.role === 'admin' ? 'org_admin' : 'employee';
+    const roleRecord = await prisma.role.findFirst({
+      where: { name: roleName, OR: [{ orgId: null }, { orgId }] },
+      select: { id: true },
+    });
+    if (roleRecord) roleId = roleRecord.id;
+  }
+  if (roleId) {
+    const availableRole = await prisma.role.findFirst({
+      where: { id: roleId, OR: [{ orgId: null }, { orgId }] },
+      select: { id: true },
+    });
+    if (!availableRole) {
+      throw Object.assign(new Error('Selected role is not available for this organization'), { status: 400 });
+    }
+  }
+
   const hash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
   const employee = await prisma.employee.create({
@@ -241,13 +262,6 @@ async function createEmployee({ orgId, data, adminId, req }) {
   });
 
   // Assign role — accept roleId (UUID) or role name (e.g. "admin", "employee")
-  let roleId = data.roleId;
-  if (!roleId && data.role) {
-    // Map legacy role names to actual role records
-    const roleName = data.role === 'admin' ? 'org_admin' : 'employee';
-    const roleRecord = await prisma.role.findFirst({ where: { name: roleName } });
-    if (roleRecord) roleId = roleRecord.id;
-  }
   if (roleId) {
     await prisma.employeeRole.create({
       data: {
@@ -299,6 +313,20 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
     throw Object.assign(new Error('Employee not found'), { status: 404 });
   }
 
+  let requestedRole = null;
+  if (data.roleId || data.role) {
+    const requestedRoleName = data.role === 'admin' ? 'org_admin' : data.role === 'employee' ? 'employee' : null;
+    requestedRole = await prisma.role.findFirst({
+      where: {
+        ...(data.roleId ? { id: data.roleId } : { name: requestedRoleName }),
+        OR: [{ orgId: null }, { orgId }],
+      },
+    });
+    if (!requestedRole) {
+      throw Object.assign(new Error('Selected role is not available for this organization'), { status: 400 });
+    }
+  }
+
   const updateData = {};
   if (data.name) updateData.name = data.name;
   if (data.email) {
@@ -341,6 +369,16 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
     where: { id: employeeId },
     data: updateData,
   });
+
+  if (requestedRole) {
+    await prisma.$transaction([
+      prisma.employeeRole.deleteMany({ where: { employeeId } }),
+      prisma.employeeRole.create({
+        data: { employeeId, roleId: requestedRole.id, grantedBy: adminId },
+      }),
+    ]);
+    invalidateUserCache(employeeId).catch(() => {});
+  }
 
   await auditLog({
     orgId,

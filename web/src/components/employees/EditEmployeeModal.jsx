@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 export default function EditEmployeeModal({
   editModal, setEditModal, editForm, setEditForm,
   editSubmitting, handleEditSubmit, departments, getDesignationsForDepartment,
+  roles = [],
 }) {
   if (!editModal) return null;
 
@@ -50,6 +51,9 @@ export default function EditEmployeeModal({
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Select Department</option>
+                {editForm.department && !departments.includes(editForm.department) && (
+                  <option value={editForm.department}>{editForm.department}</option>
+                )}
                 {departments.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
@@ -62,6 +66,9 @@ export default function EditEmployeeModal({
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">{departments.length > 0 && !editForm.department ? 'Select Department First' : 'Select Designation'}</option>
+                {editForm.designation && !designations.includes(editForm.designation) && (
+                  <option value={editForm.designation}>{editForm.designation}</option>
+                )}
                 {designations.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               {editForm.department && designations.length === 0 && (
@@ -75,8 +82,10 @@ export default function EditEmployeeModal({
                 onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="employee">Employee</option>
-                <option value="admin">Admin</option>
+                {roles.length === 0 && <option value="employee">Employee</option>}
+                {roles.map(role => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
+                ))}
               </select>
             </div>
             <div>
