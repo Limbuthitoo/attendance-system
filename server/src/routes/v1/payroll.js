@@ -2,7 +2,7 @@
 // Payroll Routes (v1) — Payslips, salary structures, config, attendance summary
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const payrollService = require('../../services/payroll.service');
 const payrollEngine = require('../../services/payroll-engine.service');
 
@@ -13,7 +13,7 @@ const router = Router();
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // POST /api/v1/payroll/generate — Generate attendance summary for a month
-router.post('/generate', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/generate', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -30,7 +30,7 @@ router.post('/generate', requireRole('org_admin', 'hr_manager'), async (req, res
 });
 
 // GET /api/v1/payroll/summaries — Get attendance summaries for a month
-router.get('/summaries', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/summaries', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { year, month, department } = req.query;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -46,7 +46,7 @@ router.get('/summaries', requireRole('org_admin', 'hr_manager'), async (req, res
 });
 
 // GET /api/v1/payroll/export — Export attendance as CSV
-router.get('/export', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/export', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { year, month } = req.query;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -73,7 +73,7 @@ router.get('/export', requireRole('org_admin', 'hr_manager'), async (req, res, n
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // GET /api/v1/payroll/config — Get payroll configuration
-router.get('/config', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/config', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const config = await payrollEngine.getPayrollConfig(req.orgId);
     res.json(config);
@@ -81,7 +81,7 @@ router.get('/config', requireRole('org_admin', 'hr_manager'), async (req, res, n
 });
 
 // PUT /api/v1/payroll/config — Update payroll configuration
-router.put('/config', requireRole('org_admin'), async (req, res, next) => {
+router.put('/config', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const config = await payrollEngine.updatePayrollConfig({
       orgId: req.orgId,
@@ -98,7 +98,7 @@ router.put('/config', requireRole('org_admin'), async (req, res, next) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // GET /api/v1/payroll/salary-structures — Get all salary structures
-router.get('/salary-structures', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/salary-structures', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const structures = await payrollEngine.getAllSalaryStructures(req.orgId);
     res.json({ structures });
@@ -106,7 +106,7 @@ router.get('/salary-structures', requireRole('org_admin', 'hr_manager'), async (
 });
 
 // GET /api/v1/payroll/salary-structures/:employeeId — Get employee salary structure
-router.get('/salary-structures/:employeeId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/salary-structures/:employeeId', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const structure = await payrollEngine.getSalaryStructure(req.orgId, req.params.employeeId);
     res.json(structure || null);
@@ -114,7 +114,7 @@ router.get('/salary-structures/:employeeId', requireRole('org_admin', 'hr_manage
 });
 
 // POST /api/v1/payroll/salary-structures — Create/update salary structure
-router.post('/salary-structures', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/salary-structures', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { employeeId, grossSalary, basicSalary, allowances, effectiveFrom } = req.body;
     if (!employeeId || !grossSalary || !basicSalary || !effectiveFrom) {
@@ -140,7 +140,7 @@ router.post('/salary-structures', requireRole('org_admin', 'hr_manager'), async 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // GET /api/v1/payroll/advance-salaries — Get all active advance salaries
-router.get('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/advance-salaries', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { employeeId } = req.query;
     if (employeeId) {
@@ -153,7 +153,7 @@ router.get('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (r
 });
 
 // POST /api/v1/payroll/advance-salaries — Create an advance salary
-router.post('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/advance-salaries', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { employeeId, description, totalAmount, monthlyDeduction, startMonth, startYear } = req.body;
     if (!employeeId || !totalAmount || !monthlyDeduction) {
@@ -180,7 +180,7 @@ router.post('/advance-salaries', requireRole('org_admin', 'hr_manager'), async (
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // POST /api/v1/payroll/payslips/generate — Generate payslips for a month
-router.post('/payslips/generate', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/payslips/generate', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -197,7 +197,7 @@ router.post('/payslips/generate', requireRole('org_admin', 'hr_manager'), async 
 });
 
 // GET /api/v1/payroll/payslips — Get payslips for a month
-router.get('/payslips', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/payslips', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { year, month, department, status } = req.query;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -227,7 +227,7 @@ router.get('/payslips/my', async (req, res, next) => {
 });
 
 // GET /api/v1/payroll/payslips/:employeeId/:year/:month — Get specific payslip
-router.get('/payslips/:employeeId/:year/:month', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/payslips/:employeeId/:year/:month', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const payslip = await payrollEngine.getEmployeePayslip({
       orgId: req.orgId,
@@ -241,7 +241,7 @@ router.get('/payslips/:employeeId/:year/:month', requireRole('org_admin', 'hr_ma
 });
 
 // POST /api/v1/payroll/payslips/lock — Lock payroll for a month
-router.post('/payslips/lock', requireRole('org_admin'), async (req, res, next) => {
+router.post('/payslips/lock', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -258,7 +258,7 @@ router.post('/payslips/lock', requireRole('org_admin'), async (req, res, next) =
 });
 
 // POST /api/v1/payroll/payslips/unlock — Unlock payroll for a month
-router.post('/payslips/unlock', requireRole('org_admin'), async (req, res, next) => {
+router.post('/payslips/unlock', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -275,7 +275,7 @@ router.post('/payslips/unlock', requireRole('org_admin'), async (req, res, next)
 });
 
 // POST /api/v1/payroll/payslips/mark-paid — Mark payroll as paid
-router.post('/payslips/mark-paid', requireRole('org_admin'), async (req, res, next) => {
+router.post('/payslips/mark-paid', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
@@ -292,7 +292,7 @@ router.post('/payslips/mark-paid', requireRole('org_admin'), async (req, res, ne
 });
 
 // GET /api/v1/payroll/payslips/export — Export payslips as CSV
-router.get('/payslips/export', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/payslips/export', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { year, month } = req.query;
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });

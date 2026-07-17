@@ -335,6 +335,16 @@ async function deactivateWorkSchedule({ scheduleId, orgId, adminId, req }) {
 async function assignEmployee({ employeeId, branchId, shiftId, workScheduleId, adminId, orgId, req }) {
   const prisma = getPrisma();
 
+  const [employee, branch, shift, schedule] = await Promise.all([
+    prisma.employee.findFirst({ where: { id: employeeId, orgId }, select: { id: true } }),
+    prisma.branch.findFirst({ where: { id: branchId, orgId }, select: { id: true } }),
+    prisma.shift.findFirst({ where: { id: shiftId, orgId }, select: { id: true } }),
+    prisma.workSchedule.findFirst({ where: { id: workScheduleId, orgId }, select: { id: true } }),
+  ]);
+  if (!employee || !branch || !shift || !schedule) {
+    throw Object.assign(new Error('Employee, branch, shift, or schedule is not available in this organization'), { status: 400 });
+  }
+
   // Mark old assignment as non-current
   await prisma.employeeAssignment.updateMany({
     where: { employeeId, isCurrent: true },
@@ -371,8 +381,19 @@ async function assignEmployee({ employeeId, branchId, shiftId, workScheduleId, a
 async function bulkAssignEmployees({ employeeIds, branchId, shiftId, workScheduleId, adminId, orgId, req }) {
   const prisma = getPrisma();
   const results = [];
+  const uniqueEmployeeIds = [...new Set(employeeIds)];
 
-  for (const employeeId of employeeIds) {
+  const [employeeCount, branch, shift, schedule] = await Promise.all([
+    prisma.employee.count({ where: { id: { in: uniqueEmployeeIds }, orgId } }),
+    prisma.branch.findFirst({ where: { id: branchId, orgId }, select: { id: true } }),
+    prisma.shift.findFirst({ where: { id: shiftId, orgId }, select: { id: true } }),
+    prisma.workSchedule.findFirst({ where: { id: workScheduleId, orgId }, select: { id: true } }),
+  ]);
+  if (employeeCount !== uniqueEmployeeIds.length || !branch || !shift || !schedule) {
+    throw Object.assign(new Error('One or more employees or assignment resources are not available in this organization'), { status: 400 });
+  }
+
+  for (const employeeId of uniqueEmployeeIds) {
     // End current assignment
     await prisma.employeeAssignment.updateMany({
       where: { employeeId, isCurrent: true },
@@ -390,7 +411,7 @@ async function bulkAssignEmployees({ employeeIds, branchId, shiftId, workSchedul
     actorId: adminId,
     action: 'employee.bulk_assign',
     resource: 'employee_assignment',
-    newData: { employeeCount: employeeIds.length, branchId, shiftId, workScheduleId },
+    newData: { employeeCount: uniqueEmployeeIds.length, branchId, shiftId, workScheduleId },
     req,
   });
 
@@ -400,10 +421,10 @@ async function bulkAssignEmployees({ employeeIds, branchId, shiftId, workSchedul
 /**
  * Get current assignment for an employee
  */
-async function getEmployeeAssignment(employeeId) {
+async function getEmployeeAssignment(employeeId, orgId) {
   const prisma = getPrisma();
   return prisma.employeeAssignment.findFirst({
-    where: { employeeId, isCurrent: true },
+    where: { employeeId, employee: { orgId }, isCurrent: true },
     include: {
       branch: { select: { id: true, name: true, code: true, timezone: true } },
       shift: true,
@@ -415,10 +436,10 @@ async function getEmployeeAssignment(employeeId) {
 /**
  * Get assignment history for an employee
  */
-async function getAssignmentHistory(employeeId) {
+async function getAssignmentHistory(employeeId, orgId) {
   const prisma = getPrisma();
   return prisma.employeeAssignment.findMany({
-    where: { employeeId },
+    where: { employeeId, employee: { orgId } },
     include: {
       branch: { select: { id: true, name: true, code: true } },
       shift: { select: { id: true, name: true, startTime: true, endTime: true } },

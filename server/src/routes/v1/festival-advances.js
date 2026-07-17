@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -25,7 +25,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/festival-advances
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+router.post('/', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { employeeId, amount, fiscalYear, festivalName, deductionMonths } = req.body;
@@ -52,7 +52,7 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/festival-advances/:id
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', requirePermission('compensation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, deductedAmount } = req.body;

@@ -2,7 +2,7 @@
 // Leave Routes (v1) — Apply, review, cancel, history
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission, requireAnyPermission, auditAccessDenied } = require('../../middleware/auth');
 const leaveService = require('../../services/leave.service');
 const { addSnakeCase, lowercaseEnum } = require('../../lib/compat');
 
@@ -89,7 +89,7 @@ router.get('/my', async (req, res, next) => {
 });
 
 // GET /api/v1/leaves/all — Admin: all leaves (with optional status filter)
-router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/all', requirePermission('leave.view_all'), async (req, res, next) => {
   try {
     const { status } = req.query;
     const leaves = await leaveService.getAllLeaves({
@@ -103,7 +103,7 @@ router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next
 });
 
 // GET /api/v1/leaves/pending — Admin: pending leaves
-router.get('/pending', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/pending', requirePermission('leave.view_all'), async (req, res, next) => {
   try {
     const leaves = await leaveService.getPendingLeaves(req.orgId);
     res.json({ leaves: leaves.map(transformLeave) });
@@ -113,7 +113,7 @@ router.get('/pending', requireRole('org_admin', 'hr_manager'), async (req, res, 
 });
 
 // PUT /api/v1/leaves/:id/review — Admin: approve/reject
-router.put('/:id/review', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/:id/review', requireAnyPermission('leave.approve', 'leave.reject'), async (req, res, next) => {
   try {
     // Accept both camelCase and snake_case, both upper and lowercase status
     const rawStatus = req.body.status || '';
@@ -122,6 +122,11 @@ router.put('/:id/review', requireRole('org_admin', 'hr_manager'), async (req, re
 
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       return res.status(400).json({ error: 'status must be APPROVED or REJECTED' });
+    }
+    const requiredPermission = status === 'APPROVED' ? 'leave.approve' : 'leave.reject';
+    if (!req.user.permissions.includes(requiredPermission)) {
+      auditAccessDenied(req, { permissions: [requiredPermission] });
+      return res.status(403).json({ error: 'Insufficient permissions for this review decision' });
     }
 
     const leave = await leaveService.reviewLeave({
@@ -172,7 +177,7 @@ router.get('/balance', async (req, res, next) => {
 });
 
 // GET /api/v1/leaves/balance/:employeeId — Admin: get employee's leave balances
-router.get('/balance/:employeeId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/balance/:employeeId', requirePermission('leave.view_all'), async (req, res, next) => {
   try {
     const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
     const balances = await leaveService.getLeaveBalances({

@@ -24,7 +24,7 @@ export default function HomeScreen({ navigation }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('attendance.view_all');
 
   // Live clock
   useEffect(() => {

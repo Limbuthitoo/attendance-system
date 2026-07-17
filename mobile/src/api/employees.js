@@ -8,6 +8,8 @@ export const employees = {
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
   resetPassword: (id, password) =>
     request(`/employees/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword: password }) }),
+  getDepartments: () => request('/departments'),
+  getDesignations: () => request('/designations'),
 };
 
 export const profile = {

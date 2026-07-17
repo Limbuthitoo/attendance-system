@@ -5,7 +5,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const settingsService = require('../../services/settings.service');
 const prisma = require('../../lib/prisma').getPrisma();
 
@@ -46,7 +46,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // PUT /api/v1/settings — Update org settings (admin)
-router.put('/', requireRole('org_admin'), async (req, res, next) => {
+router.put('/', requirePermission('settings.update'), async (req, res, next) => {
   try {
     const settings = await settingsService.updateOrgSettings({
       orgId: req.orgId,
@@ -86,7 +86,7 @@ router.get('/shifts/:id', async (req, res, next) => {
 });
 
 // POST /api/v1/settings/shifts — Create a shift (admin)
-router.post('/shifts', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/shifts', requirePermission('shift.manage'), async (req, res, next) => {
   try {
     const shift = await settingsService.createShift({
       orgId: req.orgId,
@@ -101,7 +101,7 @@ router.post('/shifts', requireRole('org_admin', 'hr_manager'), async (req, res, 
 });
 
 // PUT /api/v1/settings/shifts/:id — Update shift (admin)
-router.put('/shifts/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/shifts/:id', requirePermission('shift.manage'), async (req, res, next) => {
   try {
     const shift = await settingsService.updateShift({
       shiftId: req.params.id,
@@ -118,7 +118,7 @@ router.put('/shifts/:id', requireRole('org_admin', 'hr_manager'), async (req, re
 });
 
 // DELETE /api/v1/settings/shifts/:id — Deactivate shift (admin)
-router.delete('/shifts/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/shifts/:id', requirePermission('shift.manage'), async (req, res, next) => {
   try {
     await settingsService.deactivateShift({
       shiftId: req.params.id,
@@ -157,7 +157,7 @@ router.get('/work-schedules/:id', async (req, res, next) => {
 });
 
 // POST /api/v1/settings/work-schedules — Create a work schedule (admin)
-router.post('/work-schedules', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/work-schedules', requirePermission('schedule.manage'), async (req, res, next) => {
   try {
     const schedule = await settingsService.createWorkSchedule({
       orgId: req.orgId,
@@ -172,7 +172,7 @@ router.post('/work-schedules', requireRole('org_admin', 'hr_manager'), async (re
 });
 
 // PUT /api/v1/settings/work-schedules/:id — Update work schedule (admin)
-router.put('/work-schedules/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/work-schedules/:id', requirePermission('schedule.manage'), async (req, res, next) => {
   try {
     const schedule = await settingsService.updateWorkSchedule({
       scheduleId: req.params.id,
@@ -189,7 +189,7 @@ router.put('/work-schedules/:id', requireRole('org_admin', 'hr_manager'), async 
 });
 
 // DELETE /api/v1/settings/work-schedules/:id — Deactivate work schedule (admin)
-router.delete('/work-schedules/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/work-schedules/:id', requirePermission('schedule.manage'), async (req, res, next) => {
   try {
     await settingsService.deactivateWorkSchedule({
       scheduleId: req.params.id,
@@ -207,7 +207,7 @@ router.delete('/work-schedules/:id', requireRole('org_admin'), async (req, res, 
 // ── Employee Assignment (branch + shift + schedule) ─────────────────────────
 
 // GET /api/v1/settings/assignments — List all current assignments
-router.get('/assignments', requireRole('org_admin', 'hr_manager', 'branch_manager'), async (req, res, next) => {
+router.get('/assignments', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const { branchId, shiftId, workScheduleId } = req.query;
     const assignments = await settingsService.listAssignments(req.orgId, {
@@ -222,7 +222,7 @@ router.get('/assignments', requireRole('org_admin', 'hr_manager', 'branch_manage
 // GET /api/v1/settings/assignments/employee/me — Current user's own assignment
 router.get('/assignments/employee/me', async (req, res, next) => {
   try {
-    const assignment = await settingsService.getEmployeeAssignment(req.user.id);
+    const assignment = await settingsService.getEmployeeAssignment(req.user.id, req.orgId);
     res.json({ assignment });
   } catch (err) {
     next(err);
@@ -230,9 +230,9 @@ router.get('/assignments/employee/me', async (req, res, next) => {
 });
 
 // GET /api/v1/settings/assignments/employee/:id — Current assignment for an employee
-router.get('/assignments/employee/:id', async (req, res, next) => {
+router.get('/assignments/employee/:id', requirePermission('employee.view'), async (req, res, next) => {
   try {
-    const assignment = await settingsService.getEmployeeAssignment(req.params.id);
+    const assignment = await settingsService.getEmployeeAssignment(req.params.id, req.orgId);
     res.json({ assignment });
   } catch (err) {
     next(err);
@@ -240,9 +240,9 @@ router.get('/assignments/employee/:id', async (req, res, next) => {
 });
 
 // GET /api/v1/settings/assignments/employee/:id/history — Assignment history
-router.get('/assignments/employee/:id/history', async (req, res, next) => {
+router.get('/assignments/employee/:id/history', requirePermission('employee.view'), async (req, res, next) => {
   try {
-    const history = await settingsService.getAssignmentHistory(req.params.id);
+    const history = await settingsService.getAssignmentHistory(req.params.id, req.orgId);
     res.json({ history });
   } catch (err) {
     next(err);
@@ -250,7 +250,7 @@ router.get('/assignments/employee/:id/history', async (req, res, next) => {
 });
 
 // POST /api/v1/settings/assign-employee — Assign employee to branch/shift/schedule
-router.post('/assign-employee', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/assign-employee', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const { employeeId, branchId, shiftId, workScheduleId } = req.body;
 
@@ -275,7 +275,7 @@ router.post('/assign-employee', requireRole('org_admin', 'hr_manager'), async (r
 });
 
 // POST /api/v1/settings/bulk-assign — Bulk assign employees
-router.post('/bulk-assign', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/bulk-assign', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const { employeeIds, branchId, shiftId, workScheduleId } = req.body;
 
@@ -348,7 +348,7 @@ router.get('/branding/:type', async (req, res) => {
 });
 
 // Upload branding — admin
-router.post('/branding/:type', requireRole('org_admin'), (req, res) => {
+router.post('/branding/:type', requirePermission('settings.update'), (req, res) => {
   const { type } = req.params;
   if (!['logo', 'favicon'].includes(type)) {
     return res.status(400).json({ error: 'Type must be logo or favicon' });
@@ -392,7 +392,7 @@ router.post('/branding/:type', requireRole('org_admin'), (req, res) => {
 });
 
 // Delete branding — admin
-router.delete('/branding/:type', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/branding/:type', requirePermission('settings.update'), async (req, res, next) => {
   const { type } = req.params;
   if (!['logo', 'favicon'].includes(type)) {
     return res.status(400).json({ error: 'Type must be logo or favicon' });
@@ -419,7 +419,7 @@ router.delete('/branding/:type', requireRole('org_admin'), async (req, res, next
 const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_notify_email'];
 
 // GET /api/v1/settings/smtp — Get SMTP config (password masked)
-router.get('/smtp', requireRole('org_admin'), async (req, res, next) => {
+router.get('/smtp', requirePermission('settings.view'), async (req, res, next) => {
   try {
     const rows = await prisma.orgSetting.findMany({
       where: { orgId: req.orgId, key: { in: SMTP_KEYS } },
@@ -435,7 +435,7 @@ router.get('/smtp', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/settings/smtp — Update SMTP config (admin)
-router.put('/smtp', requireRole('org_admin'), async (req, res, next) => {
+router.put('/smtp', requirePermission('settings.update'), async (req, res, next) => {
   try {
     const body = req.body;
     const updates = {};
@@ -469,7 +469,7 @@ router.put('/smtp', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // POST /api/v1/settings/smtp/test — Send a test email
-router.post('/smtp/test', requireRole('org_admin'), async (req, res, next) => {
+router.post('/smtp/test', requirePermission('settings.update'), async (req, res, next) => {
   try {
     const { to } = req.body;
     if (!to) return res.status(400).json({ error: 'Recipient email (to) is required' });
@@ -506,7 +506,7 @@ router.post('/smtp/test', requireRole('org_admin'), async (req, res, next) => {
 // ─── Attendance Penalty Policy ──────────────────────────────────────────────
 
 // GET /api/v1/settings/penalty-policy
-router.get('/penalty-policy', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/penalty-policy', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { getPrisma } = require('../../lib/prisma');
     const prisma = getPrisma();
@@ -516,7 +516,7 @@ router.get('/penalty-policy', requireRole('org_admin', 'hr_manager'), async (req
 });
 
 // PUT /api/v1/settings/penalty-policy
-router.put('/penalty-policy', requireRole('org_admin'), async (req, res, next) => {
+router.put('/penalty-policy', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { getPrisma } = require('../../lib/prisma');
     const prisma = getPrisma();

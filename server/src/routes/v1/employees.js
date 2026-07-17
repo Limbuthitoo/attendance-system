@@ -155,7 +155,7 @@ router.post('/:id/unlock', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // POST /api/v1/employees/:id/deactivate — Deactivate employee (soft disable)
-router.post('/:id/deactivate', requireRole('org_admin'), async (req, res, next) => {
+router.post('/:id/deactivate', requirePermission('employee.delete'), async (req, res, next) => {
   try {
     const employee = await employeeService.deactivateEmployee({
       employeeId: req.params.id,
@@ -171,7 +171,7 @@ router.post('/:id/deactivate', requireRole('org_admin'), async (req, res, next) 
 });
 
 // POST /api/v1/employees/:id/activate — Reactivate employee
-router.post('/:id/activate', requireRole('org_admin'), async (req, res, next) => {
+router.post('/:id/activate', requirePermission('employee.delete'), async (req, res, next) => {
   try {
     const employee = await employeeService.updateEmployee({
       employeeId: req.params.id,
@@ -188,7 +188,7 @@ router.post('/:id/activate', requireRole('org_admin'), async (req, res, next) =>
 });
 
 // DELETE /api/v1/employees/:id — Permanently delete employee (admin)
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requirePermission('employee.delete'), async (req, res, next) => {
   try {
     await employeeService.deleteEmployee({
       employeeId: req.params.id,
@@ -206,7 +206,7 @@ router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
 // ── Emergency Contacts ──────────────────────────────────────────────────────
 
 // GET /api/v1/employees/:id/emergency-contacts
-router.get('/:id/emergency-contacts', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/:id/emergency-contacts', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const contacts = await prisma.emergencyContact.findMany({
       where: { employeeId: req.params.id, orgId: req.orgId },
@@ -217,7 +217,7 @@ router.get('/:id/emergency-contacts', requireRole('org_admin', 'hr_manager'), as
 });
 
 // POST /api/v1/employees/:id/emergency-contacts
-router.post('/:id/emergency-contacts', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/:id/emergency-contacts', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const { name, relationship, phone, email, isPrimary } = req.body;
     if (!name || !relationship || !phone) {
@@ -239,7 +239,7 @@ router.post('/:id/emergency-contacts', requireRole('org_admin', 'hr_manager'), a
 });
 
 // PUT /api/v1/employees/:id/emergency-contacts/:contactId
-router.put('/:id/emergency-contacts/:contactId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/:id/emergency-contacts/:contactId', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const { name, relationship, phone, email, isPrimary } = req.body;
     const contact = await prisma.emergencyContact.updateMany({
@@ -258,7 +258,7 @@ router.put('/:id/emergency-contacts/:contactId', requireRole('org_admin', 'hr_ma
 });
 
 // DELETE /api/v1/employees/:id/emergency-contacts/:contactId
-router.delete('/:id/emergency-contacts/:contactId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.delete('/:id/emergency-contacts/:contactId', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const result = await prisma.emergencyContact.deleteMany({
       where: { id: req.params.contactId, employeeId: req.params.id, orgId: req.orgId },
@@ -271,7 +271,7 @@ router.delete('/:id/emergency-contacts/:contactId', requireRole('org_admin', 'hr
 // ── Employee Documents ──────────────────────────────────────────────────────
 
 // GET /api/v1/employees/:id/documents
-router.get('/:id/documents', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/:id/documents', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const documents = await prisma.employeeDocument.findMany({
       where: { employeeId: req.params.id, orgId: req.orgId },
@@ -283,7 +283,7 @@ router.get('/:id/documents', requireRole('org_admin', 'hr_manager'), async (req,
 });
 
 // POST /api/v1/employees/:id/documents — Upload document
-router.post('/:id/documents', requireRole('org_admin', 'hr_manager'), docUpload.single('file'), async (req, res, next) => {
+router.post('/:id/documents', requirePermission('employee.update'), docUpload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'File is required' });
     const { name, type } = req.body;
@@ -305,7 +305,7 @@ router.post('/:id/documents', requireRole('org_admin', 'hr_manager'), docUpload.
 });
 
 // GET /api/v1/employees/:id/documents/:docId/download — Download document
-router.get('/:id/documents/:docId/download', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/:id/documents/:docId/download', requirePermission('employee.view'), async (req, res, next) => {
   try {
     const doc = await prisma.employeeDocument.findFirst({
       where: { id: req.params.docId, employeeId: req.params.id, orgId: req.orgId },
@@ -318,7 +318,7 @@ router.get('/:id/documents/:docId/download', requireRole('org_admin', 'hr_manage
 });
 
 // DELETE /api/v1/employees/:id/documents/:docId
-router.delete('/:id/documents/:docId', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.delete('/:id/documents/:docId', requirePermission('employee.update'), async (req, res, next) => {
   try {
     const doc = await prisma.employeeDocument.findFirst({
       where: { id: req.params.docId, employeeId: req.params.id, orgId: req.orgId },

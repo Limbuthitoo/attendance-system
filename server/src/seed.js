@@ -6,6 +6,7 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { seedDefaultOrgStructure } = require('./config/default-org-structure');
+const { ALL_PERMISSIONS } = require('./config/permissions');
 
 const prisma = new PrismaClient();
 
@@ -72,22 +73,7 @@ async function seed() {
     {
       name: 'org_admin',
       description: 'Organization administrator with full access',
-      permissions: [
-        'employee.view', 'employee.create', 'employee.update', 'employee.delete',
-        'attendance.view_all', 'attendance.manage',
-        'leave.view_all', 'leave.approve', 'leave.reject',
-        'device.view', 'device.manage', 'credential.manage',
-        'settings.view', 'settings.update',
-        'holiday.manage', 'notice.manage', 'report.view',
-        ...hrStructurePermissions,
-        'branch.manage', 'shift.manage', 'schedule.manage',
-        'role.manage', 'audit.view',
-        'crm.view', 'crm.manage',
-        ...workManagementPermissions,
-        ...rewardPermissions,
-        ...financePermissions,
-        ...hrLifecyclePermissions,
-      ],
+      permissions: [...ALL_PERMISSIONS],
       isSystem: true,
     },
     {

@@ -4,74 +4,7 @@
 const { getPrisma } = require('../lib/prisma');
 const { auditLog } = require('../lib/audit');
 const { invalidateUserCache } = require('../middleware/cache');
-
-// All available permissions in the system
-const ALL_PERMISSIONS = [
-  // Employee
-  'employee.view', 'employee.create', 'employee.update', 'employee.delete',
-  // Attendance
-  'attendance.view_own', 'attendance.check_in', 'attendance.check_out',
-  'attendance.view_all', 'attendance.manage',
-  // Leave
-  'leave.view_own', 'leave.apply', 'leave.view_all', 'leave.approve', 'leave.reject',
-  // Device
-  'device.view', 'device.manage', 'credential.manage',
-  // Settings
-  'settings.view', 'settings.update',
-  // Holiday
-  'holiday.manage',
-  // Notice
-  'notice.manage',
-  // Report
-  'report.view',
-  // Branch
-  'branch.manage',
-  // Shift & Schedule
-  'shift.manage', 'schedule.manage',
-  // Role
-  'role.manage',
-  // Audit
-  'audit.view',
-  // Profile
-  'profile.view', 'profile.update',
-  // Notification
-  'notification.view',
-  // Incentive
-  'incentive.view', 'incentive.manage', 'incentive.approve',
-  // CRM
-  'crm.view', 'crm.manage',
-  // Performance
-  'performance.view', 'performance.manage',
-  // Tasks
-  'task.view', 'task.manage',
-  // Projects
-  'project.view', 'project.manage',
-  // Referral
-  'referral.view', 'referral.manage',
-  // Bonus
-  'bonus.view', 'bonus.manage', 'bonus.approve',
-  // Accounting
-  'accounting.view', 'accounting.manage',
-  // Billing
-  'billing.view', 'billing.manage',
-  // Departments & Designations
-  'department.view', 'department.manage',
-  'designation.view', 'designation.manage',
-  // Compensation
-  'compensation.view', 'compensation.manage',
-  // Payroll
-  'payroll.view', 'payroll.manage',
-  // Recruitment
-  'recruitment.view', 'recruitment.manage',
-  // Onboarding
-  'onboarding.view', 'onboarding.manage',
-  // Training
-  'training.view', 'training.manage',
-  // Separation
-  'separation.view', 'separation.manage',
-  // ESS (Employee Self Service)
-  'ess.view', 'ess.manage',
-];
+const { ALL_PERMISSIONS } = require('../config/permissions');
 
 /**
  * List all roles (system + org-specific)
@@ -103,13 +36,21 @@ async function listRoles(orgId) {
 /**
  * Create a custom role for an organization
  */
-async function createRole({ orgId, name, description, permissions, adminId, req }) {
+async function createRole({ orgId, name, description, permissions, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
 
   // Validate permissions
   const invalid = permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
   if (invalid.length > 0) {
     throw Object.assign(new Error(`Invalid permissions: ${invalid.join(', ')}`), { status: 400 });
+  }
+  const excessivePermissions = permissions.filter((permission) => !actorPermissions.includes(permission));
+  if (excessivePermissions.length > 0) {
+    await auditLog({
+      orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role',
+      newData: { operation: 'role.create', roleName: name, excessivePermissions }, req,
+    });
+    throw Object.assign(new Error('A role cannot contain permissions above your own access level'), { status: 403 });
   }
 
   const role = await prisma.role.create({
@@ -138,15 +79,15 @@ async function createRole({ orgId, name, description, permissions, adminId, req 
 /**
  * Update a custom role (system roles cannot be modified)
  */
-async function updateRole({ roleId, orgId, data, adminId, req }) {
+async function updateRole({ roleId, orgId, data, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
 
   const existing = await prisma.role.findFirst({ where: { id: roleId } });
   if (!existing) {
     throw Object.assign(new Error('Role not found'), { status: 404 });
   }
-  if (existing.isSystem && (data.name || data.description !== undefined)) {
-    throw Object.assign(new Error('System role name and description cannot be changed'), { status: 403 });
+  if (existing.isSystem) {
+    throw Object.assign(new Error('System roles are managed by the platform and cannot be modified by an organization'), { status: 403 });
   }
   if (!existing.isSystem && existing.orgId !== orgId) {
     throw Object.assign(new Error('Cannot modify roles from another organization'), { status: 403 });
@@ -159,6 +100,14 @@ async function updateRole({ roleId, orgId, data, adminId, req }) {
     const invalid = data.permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
     if (invalid.length > 0) {
       throw Object.assign(new Error(`Invalid permissions: ${invalid.join(', ')}`), { status: 400 });
+    }
+    const excessivePermissions = data.permissions.filter((permission) => !actorPermissions.includes(permission));
+    if (excessivePermissions.length > 0) {
+      await auditLog({
+        orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role', resourceId: roleId,
+        newData: { operation: 'role.update', roleName: existing.name, excessivePermissions }, req,
+      });
+      throw Object.assign(new Error('A role cannot contain permissions above your own access level'), { status: 403 });
     }
     updateData.permissions = data.permissions;
   }
@@ -239,6 +188,10 @@ async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, admin
   });
   if (!role) {
     throw Object.assign(new Error('Role not found'), { status: 404 });
+  }
+  if (branchId) {
+    const branch = await prisma.branch.findFirst({ where: { id: branchId, orgId }, select: { id: true } });
+    if (!branch) throw Object.assign(new Error('Branch not found in this organization'), { status: 404 });
   }
   const unauthorizedPermissions = (role.permissions || []).filter((permission) => !actorPermissions.includes(permission));
   if (unauthorizedPermissions.length > 0) {

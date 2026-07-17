@@ -2,7 +2,7 @@
 // Notification Routes (v1) — In-app notifications + notification preferences
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const notificationService = require('../../services/notification.service');
 const { CHANNELS, getAllChannels } = require('../../config/notification-channels');
 
@@ -150,7 +150,7 @@ router.put('/preferences', async (req, res, next) => {
 // ─── Org Notification Settings (admin only) ─────────────────────────────────
 
 // GET /api/v1/notifications/org-settings — Get org notification settings
-router.get('/org-settings', requireRole('org_admin'), async (req, res, next) => {
+router.get('/org-settings', requirePermission('settings.view'), async (req, res, next) => {
   try {
     const settings = await notificationService.getOrgNotificationSettingsFull(req.orgId);
     res.json({ settings });
@@ -160,7 +160,7 @@ router.get('/org-settings', requireRole('org_admin'), async (req, res, next) => 
 });
 
 // PUT /api/v1/notifications/org-settings — Update org notification settings
-router.put('/org-settings', requireRole('org_admin'), async (req, res, next) => {
+router.put('/org-settings', requirePermission('settings.update'), async (req, res, next) => {
   try {
     const { settings } = req.body;
     if (!Array.isArray(settings)) {

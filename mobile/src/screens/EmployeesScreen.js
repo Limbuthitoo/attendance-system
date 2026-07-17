@@ -6,39 +6,17 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { colors, spacing } from '../theme';
 
-const DEPARTMENTS = [
-  'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
-  'Sales', 'Human Resources', 'Finance', 'Operations', 'Quality Assurance',
-  'DevOps', 'Product', 'Customer Support', 'Administration', 'Data & Analytics',
-];
-
-const DESIGNATIONS = [
-  'CEO', 'CTO', 'COO', 'CFO', 'Director', 'Vice President',
-  'Senior Manager', 'Manager', 'Assistant Manager', 'Team Lead',
-  'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer',
-  'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer',
-  'UI/UX Designer', 'Senior Designer', 'Graphic Designer', 'Motion Designer',
-  'Digital Marketing Manager', 'Digital Marketing Executive',
-  'SEO Manager', 'SEO Specialist', 'SEO Analyst',
-  'Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter',
-  'Social Media Manager', 'Social Media Executive',
-  'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist',
-  'Business Development Manager', 'Business Development Executive',
-  'Sales Manager', 'Sales Executive', 'Account Manager',
-  'HR Manager', 'HR Executive', 'Recruiter',
-  'Finance Manager', 'Accountant',
-  'QA Lead', 'Senior QA Engineer', 'QA Engineer',
-  'DevOps Engineer', 'System Administrator', 'Cloud Engineer',
-  'Product Manager', 'Project Manager', 'Scrum Master',
-  'Data Analyst', 'Data Scientist', 'Data Engineer',
-  'Customer Support Manager', 'Customer Support Executive',
-  'Office Administrator', 'Intern', 'Trainee',
-];
-
 export default function EmployeesScreen({ navigation }) {
+  const { user } = useAuth();
+  const canCreateEmployees = user?.permissions?.includes('employee.create');
+  const canResetPasswords = user?.roles?.includes('org_admin');
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [defaultOrgStructure, setDefaultOrgStructure] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -59,8 +37,13 @@ export default function EmployeesScreen({ navigation }) {
 
   const loadEmployees = async () => {
     try {
-      const data = await api.getEmployees();
-      setEmployees(data.employees);
+      const [employeeData, departmentData, designationData] = await Promise.all([
+        api.getEmployees(), api.getDepartments(), api.getDesignations(),
+      ]);
+      setEmployees(employeeData.employees || []);
+      setDepartments(departmentData.departments || []);
+      setDefaultOrgStructure(departmentData.defaultStructure || []);
+      setDesignations(designationData.designations || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,6 +51,15 @@ export default function EmployeesScreen({ navigation }) {
       setRefreshing(false);
     }
   };
+  const departmentOptions = [...new Set([
+    ...defaultOrgStructure.map(item => item.name),
+    ...departments.filter(item => item.isActive !== false).map(item => item.name),
+  ])].sort();
+  const selectedDepartment = departments.find(item => item.name === form.department);
+  const designationOptions = form.department ? [...new Set([
+    ...(defaultOrgStructure.find(item => item.name === form.department)?.designations || []),
+    ...designations.filter(item => item.isActive !== false && item.departmentId === selectedDepartment?.id).map(item => item.name),
+  ])].sort() : [];
 
   useFocusEffect(
     useCallback(() => {
@@ -131,6 +123,7 @@ export default function EmployeesScreen({ navigation }) {
       activeOpacity={0.7}
       onPress={() => navigation.navigate('EmployeeDetailPage', { employeeId: item.id, employeeName: item.name })}
       onLongPress={() => {
+        if (!canResetPasswords) return;
         setResetModalVisible(item);
         setNewPassword('');
       }}
@@ -143,9 +136,9 @@ export default function EmployeesScreen({ navigation }) {
         <Text style={styles.empMeta}>{item.employee_id} · {item.department}</Text>
         <Text style={styles.empMeta}>{item.designation}</Text>
       </View>
-      <View style={[styles.roleBadge, item.role === 'admin' ? styles.adminBadge : styles.employeeBadge]}>
-        <Text style={[styles.roleText, item.role === 'admin' ? styles.adminText : styles.employeeText]}>
-          {item.role}
+      <View style={[styles.roleBadge, item.roles?.includes('org_admin') ? styles.adminBadge : styles.employeeBadge]}>
+        <Text style={[styles.roleText, item.roles?.includes('org_admin') ? styles.adminText : styles.employeeText]}>
+          {(item.roles?.[0] || item.role || 'employee').replace(/_/g, ' ')}
         </Text>
       </View>
     </TouchableOpacity>
@@ -161,10 +154,10 @@ export default function EmployeesScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+      {canCreateEmployees && <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
         <Ionicons name="person-add" size={18} color="#fff" />
         <Text style={styles.addBtnText}>Add Employee</Text>
-      </TouchableOpacity>
+      </TouchableOpacity>}
 
       <FlatList
         data={employees}
@@ -198,34 +191,21 @@ export default function EmployeesScreen({ navigation }) {
             <PickerField
               label="Department"
               value={form.department}
-              options={DEPARTMENTS}
+              options={departmentOptions}
               placeholder="Select Department"
-              onSelect={(v) => setForm({ ...form, department: v })}
+              onSelect={(v) => setForm({ ...form, department: v, designation: '' })}
             />
             <PickerField
               label="Designation"
               value={form.designation}
-              options={DESIGNATIONS}
-              placeholder="Select Designation"
+              options={designationOptions}
+              placeholder={form.department ? 'Select Designation' : 'Select Department First'}
               onSelect={(v) => setForm({ ...form, designation: v })}
             />
             <FormField label="Phone" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} placeholder="Phone number" keyboardType="phone-pad" />
 
-            <Text style={styles.fieldLabel}>Role</Text>
-            <View style={styles.roleSelector}>
-              <TouchableOpacity
-                style={[styles.roleOption, form.role === 'employee' && styles.roleActive]}
-                onPress={() => setForm({ ...form, role: 'employee' })}
-              >
-                <Text style={[styles.roleOptionText, form.role === 'employee' && styles.roleActiveText]}>Employee</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleOption, form.role === 'admin' && styles.roleActive]}
-                onPress={() => setForm({ ...form, role: 'admin' })}
-              >
-                <Text style={[styles.roleOptionText, form.role === 'admin' && styles.roleActiveText]}>Admin</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.fieldLabel}>Access Role</Text>
+            <Text style={styles.resetHint}>Employee — elevated roles are assigned from the secured web Role Management page.</Text>
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleAdd} disabled={saving} activeOpacity={0.8}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Add Employee</Text>}

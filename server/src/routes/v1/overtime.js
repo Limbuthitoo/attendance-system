@@ -2,7 +2,7 @@
 // Overtime Routes (v1) — Policies, records, approvals
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const overtimeService = require('../../services/overtime.service');
 
 const router = Router();
@@ -10,7 +10,7 @@ const router = Router();
 // ── Policies ────────────────────────────────────────────────────────────────
 
 // GET /api/v1/overtime/policies
-router.get('/policies', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/policies', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const policies = await overtimeService.listPolicies({ orgId: req.orgId });
     res.json({ policies });
@@ -18,7 +18,7 @@ router.get('/policies', requireRole('org_admin', 'hr_manager'), async (req, res,
 });
 
 // POST /api/v1/overtime/policies
-router.post('/policies', requireRole('org_admin'), async (req, res, next) => {
+router.post('/policies', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const policy = await overtimeService.createPolicy({
       orgId: req.orgId,
@@ -31,7 +31,7 @@ router.post('/policies', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/overtime/policies/:id
-router.put('/policies/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/policies/:id', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const policy = await overtimeService.updatePolicy({
       orgId: req.orgId,
@@ -50,7 +50,7 @@ router.put('/policies/:id', requireRole('org_admin'), async (req, res, next) => 
 // ── Records ─────────────────────────────────────────────────────────────────
 
 // GET /api/v1/overtime/records
-router.get('/records', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/records', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { employeeId, status, startDate, endDate, page, limit } = req.query;
     const data = await overtimeService.listOvertimeRecords({
@@ -83,7 +83,7 @@ router.get('/my', async (req, res, next) => {
 });
 
 // PUT /api/v1/overtime/records/:id/review
-router.put('/records/:id/review', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/records/:id/review', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
@@ -104,7 +104,7 @@ router.put('/records/:id/review', requireRole('org_admin', 'hr_manager'), async 
 });
 
 // GET /api/v1/overtime/summary
-router.get('/summary', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/summary', requirePermission('payroll.view'), async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });

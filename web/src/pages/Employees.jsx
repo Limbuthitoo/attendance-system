@@ -9,54 +9,6 @@ import ResetPasswordModal from '../components/employees/ResetPasswordModal';
 import EditEmployeeModal from '../components/employees/EditEmployeeModal';
 import DeleteConfirmModal from '../components/employees/DeleteConfirmModal';
 
-// Fallback lists used when org has no custom departments/designations yet
-const DEFAULT_DEPARTMENTS = [
-  'Engineering', 'Design', 'Digital Marketing', 'Content & Media', 'SEO',
-  'Sales', 'Human Resources', 'Finance', 'Operations', 'Quality Assurance',
-  'DevOps', 'Product', 'Customer Support', 'Administration', 'Data & Analytics',
-];
-
-const DEFAULT_DESIGNATIONS = [
-  'CEO', 'CTO', 'COO', 'CFO', 'Director', 'Vice President',
-  'Senior Manager', 'Manager', 'Assistant Manager', 'Team Lead',
-  'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer',
-  'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer',
-  'UI/UX Designer', 'Senior Designer', 'Graphic Designer', 'Motion Designer',
-  'Digital Marketing Manager', 'Digital Marketing Executive',
-  'SEO Manager', 'SEO Specialist', 'SEO Analyst',
-  'Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter',
-  'Social Media Manager', 'Social Media Executive',
-  'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist',
-  'Business Development Manager', 'Business Development Executive',
-  'Sales Manager', 'Sales Executive', 'Account Manager',
-  'HR Manager', 'HR Executive', 'Recruiter',
-  'Finance Manager', 'Accountant',
-  'QA Lead', 'Senior QA Engineer', 'QA Engineer',
-  'DevOps Engineer', 'System Administrator', 'Cloud Engineer',
-  'Product Manager', 'Project Manager', 'Scrum Master',
-  'Data Analyst', 'Data Scientist', 'Data Engineer',
-  'Customer Support Manager', 'Customer Support Executive',
-  'Office Administrator', 'Intern', 'Trainee',
-];
-
-const DEFAULT_DESIGNATIONS_BY_DEPARTMENT = {
-  Engineering: ['CTO', 'Principal Engineer', 'Senior Software Engineer', 'Software Engineer', 'Junior Software Engineer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Mobile App Developer', 'Team Lead', 'Intern', 'Trainee'],
-  Design: ['Design Director', 'Senior Designer', 'UI/UX Designer', 'Graphic Designer', 'Motion Designer', 'Intern', 'Trainee'],
-  'Digital Marketing': ['Digital Marketing Manager', 'Digital Marketing Executive', 'PPC Specialist', 'Performance Marketing Manager', 'Email Marketing Specialist', 'Social Media Manager', 'Social Media Executive', 'Intern', 'Trainee'],
-  'Content & Media': ['Content Strategist', 'Senior Content Writer', 'Content Writer', 'Copywriter', 'Social Media Manager', 'Social Media Executive', 'Intern', 'Trainee'],
-  SEO: ['SEO Manager', 'SEO Specialist', 'SEO Analyst', 'Intern', 'Trainee'],
-  Sales: ['Sales Manager', 'Sales Executive', 'Business Development Manager', 'Business Development Executive', 'Account Manager', 'Intern', 'Trainee'],
-  'Human Resources': ['HR Manager', 'HR Executive', 'Recruiter', 'Intern', 'Trainee'],
-  Finance: ['CFO', 'Finance Manager', 'Accountant', 'Intern', 'Trainee'],
-  Operations: ['COO', 'Director', 'Senior Manager', 'Manager', 'Assistant Manager', 'Project Manager', 'Office Administrator', 'Intern', 'Trainee'],
-  'Quality Assurance': ['QA Lead', 'Senior QA Engineer', 'QA Engineer', 'Intern', 'Trainee'],
-  DevOps: ['DevOps Engineer', 'System Administrator', 'Cloud Engineer', 'Team Lead', 'Intern', 'Trainee'],
-  Product: ['Product Manager', 'Project Manager', 'Scrum Master', 'Director', 'Intern', 'Trainee'],
-  'Customer Support': ['Customer Support Manager', 'Customer Support Executive', 'Team Lead', 'Intern', 'Trainee'],
-  Administration: ['CEO', 'COO', 'Director', 'Vice President', 'Senior Manager', 'Manager', 'Assistant Manager', 'Office Administrator', 'Intern', 'Trainee'],
-  'Data & Analytics': ['Data Analyst', 'Data Scientist', 'Data Engineer', 'Team Lead', 'Intern', 'Trainee'],
-};
-
 const formatRoleName = (name = '') => name
   .split('_')
   .filter(Boolean)
@@ -66,6 +18,11 @@ const formatRoleName = (name = '') => name
 export default function Employees() {
   const { user } = useAuth();
   const canManageRoles = user?.role === 'admin' || user?.permissions?.includes('role.manage');
+  const canCreateEmployees = user?.permissions?.includes('employee.create');
+  const canUpdateEmployees = user?.permissions?.includes('employee.update');
+  const canDeleteEmployees = user?.permissions?.includes('employee.delete');
+  const canManageCredentials = user?.permissions?.includes('credential.manage');
+  const isOrgAdmin = user?.roles?.includes('org_admin');
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -91,6 +48,7 @@ export default function Employees() {
 
   // Master data
   const [deptList, setDeptList] = useState([]);
+  const [defaultOrgStructure, setDefaultOrgStructure] = useState([]);
   const [desigList, setDesigList] = useState([]);
   const [branches, setBranches] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -115,7 +73,7 @@ export default function Employees() {
   // Computed department & designation lists (DB records or fallback defaults)
   const activeDepartments = deptList.filter(d => d.isActive !== false);
   const departmentNames = [...new Set([
-    ...DEFAULT_DEPARTMENTS,
+    ...defaultOrgStructure.map(department => department.name),
     ...activeDepartments.map(d => d.name),
   ])].sort((a, b) => a.localeCompare(b));
   const roleOptions = roles.map(role => ({
@@ -130,7 +88,7 @@ export default function Employees() {
     return d.departmentId === selectedDepartment.id;
   });
   const designationNames = form.department ? [...new Set([
-    ...(DEFAULT_DESIGNATIONS_BY_DEPARTMENT[form.department] || []),
+    ...(defaultOrgStructure.find(department => department.name === form.department)?.designations || []),
     ...filteredDesignationRecords.map(d => d.name),
   ])].sort((a, b) => a.localeCompare(b)) : [];
 
@@ -143,10 +101,10 @@ export default function Employees() {
     });
     if (!departmentName) return [];
     return [...new Set([
-      ...(DEFAULT_DESIGNATIONS_BY_DEPARTMENT[departmentName] || []),
+      ...(defaultOrgStructure.find(item => item.name === departmentName)?.designations || []),
       ...records.map(d => d.name),
     ])].sort((a, b) => a.localeCompare(b));
-  }, [activeDepartments, desigList]);
+  }, [activeDepartments, defaultOrgStructure, desigList]);
 
   const loadMasterData = useCallback(async () => {
     try {
@@ -159,6 +117,7 @@ export default function Employees() {
         api._request('/roles').catch(() => ({ roles: [] })),
       ]);
       setDeptList(deptRes.departments || []);
+      setDefaultOrgStructure(deptRes.defaultStructure || []);
       setDesigList(desigRes.designations || []);
       setBranches(brRes.branches || brRes.data || []);
       setShifts(shRes.shifts || shRes.data || []);
@@ -231,6 +190,7 @@ export default function Employees() {
       setForm(f => ({ ...f, department: newDeptName.trim(), designation: '' }));
       const res = await api.getDepartments();
       setDeptList(res.departments || []);
+      setDefaultOrgStructure(res.defaultStructure || []);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -513,16 +473,16 @@ export default function Employees() {
           <h2 className="text-xl font-semibold text-slate-900">Employees</h2>
           <p className="text-sm text-slate-500 mt-1">Manage company employees</p>
         </div>
-        <button
+        {canCreateEmployees && <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
           {showForm ? <X size={16} /> : <Plus size={16} />}
           {showForm ? 'Cancel' : 'Add Employee'}
-        </button>
+        </button>}
       </div>
 
-      {showForm && (
+      {showForm && canCreateEmployees && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">New Employee</h3>
 
@@ -767,27 +727,27 @@ export default function Employees() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <button
+                        {canUpdateEmployees && <button
                           onClick={() => openEditModal(emp)}
                           className="text-xs text-slate-600 hover:text-slate-800 font-medium flex items-center gap-1"
                           title="Edit Employee"
                         >
                           <Edit size={12} /> Edit
-                        </button>
-                        <button
+                        </button>}
+                        {canDeleteEmployees && <button
                           onClick={() => toggleActive(emp)}
                           className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                         >
                           {emp.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
+                        </button>}
+                        {isOrgAdmin && <button
                           onClick={() => { setResetModal(emp); setResetPassword(''); }}
                           className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
                           title="Reset Password"
                         >
                           <KeyRound size={12} /> Reset
-                        </button>
-                        {emp.lockedUntil && new Date(emp.lockedUntil) > new Date() && (
+                        </button>}
+                        {isOrgAdmin && emp.lockedUntil && new Date(emp.lockedUntil) > new Date() && (
                           <button
                             onClick={() => handleUnlock(emp)}
                             className="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
@@ -796,22 +756,22 @@ export default function Employees() {
                             <LockOpen size={12} /> Unlock
                           </button>
                         )}
-                        <span className="w-px h-4 bg-slate-200" />
+                        {canManageCredentials && <><span className="w-px h-4 bg-slate-200" />
                         <button
                           onClick={() => openNfcModal(emp)}
                           className="text-xs font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
                           title="Manage NFC Cards"
                         >
                           <CreditCard size={12} /> NFC
-                        </button>
-                        <span className="w-px h-4 bg-slate-200" />
+                        </button></>}
+                        {canDeleteEmployees && <><span className="w-px h-4 bg-slate-200" />
                         <button
                           onClick={() => setDeleteModal(emp)}
                           className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                           title="Delete Employee"
                         >
                           <UserX size={12} /> Delete
-                        </button>
+                        </button></>}
                       </div>
                     </td>
                   </tr>

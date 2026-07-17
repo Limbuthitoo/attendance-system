@@ -30,7 +30,7 @@ function timeAgo(dateStr) {
 export default function Notices() {
   const { user } = useAuth();
   const { dateFormat } = useSettings();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('notice.manage');
   const [notices, setNotices] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

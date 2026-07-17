@@ -2,7 +2,7 @@
 // V1 Branch Routes — Org-admin branch management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const branchService = require('../../services/branch.service');
 
 const router = Router();
@@ -29,7 +29,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/v1/branches — Create branch (admin only)
-router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/', requirePermission('branch.manage'), async (req, res, next) => {
   try {
     const branch = await branchService.createBranch({
       orgId: req.orgId,
@@ -45,7 +45,7 @@ router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) 
 });
 
 // PUT /api/v1/branches/:id — Update branch (admin only)
-router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/:id', requirePermission('branch.manage'), async (req, res, next) => {
   try {
     const branch = await branchService.updateBranch({
       branchId: req.params.id,
@@ -62,7 +62,7 @@ router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next
 });
 
 // DELETE /api/v1/branches/:id — Deactivate branch (admin only)
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requirePermission('branch.manage'), async (req, res, next) => {
   try {
     await branchService.deactivateBranch({
       branchId: req.params.id,

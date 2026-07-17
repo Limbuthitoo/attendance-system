@@ -88,7 +88,10 @@ function MenuItem({ icon, label, description, onPress, color = '#1e40af' }) {
 
 function MenuScreen({ navigation }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const canReviewLeaves = user?.permissions?.some(permission => ['leave.view_all', 'leave.approve', 'leave.reject'].includes(permission));
+  const canViewEmployees = user?.permissions?.includes('employee.view');
+  const canViewTeamAttendance = user?.permissions?.includes('attendance.view_all');
+  const hasAdminAccess = canReviewLeaves || canViewEmployees || canViewTeamAttendance;
 
   return (
     <ScrollView style={styles.menuContainer} contentContainerStyle={styles.menuContent}>
@@ -135,33 +138,13 @@ function MenuScreen({ navigation }) {
         />
       </View>
 
-      {isAdmin && (
+      {hasAdminAccess && (
         <>
           <Text style={styles.menuSection}>Administration</Text>
           <View style={styles.menuCard}>
-            <MenuItem
-              icon="mail-outline"
-              label="Leave Requests"
-              description="Approve or reject requests"
-              onPress={() => navigation.navigate('RequestsPage')}
-              color="#f59e0b"
-            />
-            <View style={styles.menuDivider} />
-            <MenuItem
-              icon="people-outline"
-              label="Employees"
-              description="Manage staff & accounts"
-              onPress={() => navigation.navigate('EmployeesPage')}
-              color="#10b981"
-            />
-            <View style={styles.menuDivider} />
-            <MenuItem
-              icon="clipboard-outline"
-              label="Employee Attendance"
-              description="Daily attendance overview"
-              onPress={() => navigation.navigate('EmployeeAttendancePage')}
-              color="#6366f1"
-            />
+            {canReviewLeaves && <MenuItem icon="mail-outline" label="Leave Requests" description="Approve or reject requests" onPress={() => navigation.navigate('RequestsPage')} color="#f59e0b" />}
+            {canViewEmployees && <MenuItem icon="people-outline" label="Employees" description="Manage staff & accounts" onPress={() => navigation.navigate('EmployeesPage')} color="#10b981" />}
+            {canViewTeamAttendance && <MenuItem icon="clipboard-outline" label="Employee Attendance" description="Daily attendance overview" onPress={() => navigation.navigate('EmployeeAttendancePage')} color="#6366f1" />}
           </View>
         </>
       )}
@@ -176,6 +159,9 @@ function MenuScreen({ navigation }) {
 
 function MenuStackScreen() {
   const { user } = useAuth();
+  const canReviewLeaves = user?.permissions?.some(permission => ['leave.view_all', 'leave.approve', 'leave.reject'].includes(permission));
+  const canViewEmployees = user?.permissions?.includes('employee.view');
+  const canViewTeamAttendance = user?.permissions?.includes('attendance.view_all');
   return (
     <MenuStack.Navigator
       screenOptions={{
@@ -194,16 +180,16 @@ function MenuStackScreen() {
       <MenuStack.Screen name="QrCheckInPage" component={LazyQrCheckIn} options={{ headerTitle: 'QR Check-in' }} />
       <MenuStack.Screen name="ProfilePage" component={LazyProfile} options={{ headerTitle: 'My Profile' }} />
       <MenuStack.Screen name="ChangePasswordPage" component={LazyChangePassword} options={{ headerTitle: 'Change Password' }} />
-      {user?.role === 'admin' && (
+      {canReviewLeaves && (
         <MenuStack.Screen name="RequestsPage" component={LazyLeaveRequests} options={{ headerTitle: 'Leave Requests' }} />
       )}
-      {user?.role === 'admin' && (
+      {canViewEmployees && (
         <MenuStack.Screen name="EmployeesPage" component={LazyEmployees} options={{ headerTitle: 'Employees' }} />
       )}
-      {user?.role === 'admin' && (
+      {canViewTeamAttendance && (
         <MenuStack.Screen name="EmployeeAttendancePage" component={LazyEmployeeAttendance} options={{ headerTitle: 'Employee Attendance' }} />
       )}
-      {user?.role === 'admin' && (
+      {canViewEmployees && (
         <MenuStack.Screen name="EmployeeDetailPage" component={LazyEmployeeDetail} options={({ route }) => ({ headerTitle: route.params?.employeeName || 'Employee' })} />
       )}
     </MenuStack.Navigator>

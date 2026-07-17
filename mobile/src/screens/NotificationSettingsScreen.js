@@ -28,7 +28,7 @@ export default function NotificationSettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('my'); // 'my' | 'org'
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('settings.view');
 
   const loadData = async () => {
     try {

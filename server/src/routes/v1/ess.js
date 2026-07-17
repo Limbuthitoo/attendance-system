@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -47,7 +47,7 @@ router.post('/documents', async (req, res, next) => {
 });
 
 // PUT /api/v1/ess/documents/:id
-router.put('/documents/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/documents/:id', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, documentUrl, remarks } = req.body;
@@ -107,7 +107,7 @@ router.post('/expenses', async (req, res, next) => {
 });
 
 // PUT /api/v1/ess/expenses/:id
-router.put('/expenses/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/expenses/:id', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { status, rejectionReason } = req.body;
@@ -151,7 +151,7 @@ router.get('/assets', async (req, res, next) => {
 });
 
 // POST /api/v1/ess/assets
-router.post('/assets', requireRole('org_admin'), async (req, res, next) => {
+router.post('/assets', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, category, assetTag, serialNumber, purchaseDate, purchaseCost, condition } = req.body;
@@ -165,7 +165,7 @@ router.post('/assets', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/ess/assets/:id
-router.put('/assets/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/assets/:id', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const asset = await prisma.asset.update({
@@ -180,7 +180,7 @@ router.put('/assets/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // POST /api/v1/ess/assets/:id/assign
-router.post('/assets/:id/assign', requireRole('org_admin'), async (req, res, next) => {
+router.post('/assets/:id/assign', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { employeeId, assignedDate, notes } = req.body;
@@ -197,7 +197,7 @@ router.post('/assets/:id/assign', requireRole('org_admin'), async (req, res, nex
 });
 
 // POST /api/v1/ess/assets/:id/return
-router.post('/assets/:id/return', requireRole('org_admin'), async (req, res, next) => {
+router.post('/assets/:id/return', requirePermission('ess.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { condition, notes } = req.body;

@@ -2,7 +2,7 @@
 // Dashboard Routes (v1) — Aggregated data for admin dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requirePermission, requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 const { responseCache, orgKey, userOrgKey, userKey } = require('../../middleware/cache');
 
@@ -373,7 +373,7 @@ router.get('/activity-log', async (req, res, next) => {
 });
 
 // GET /api/v1/dashboard — Org-wide combined dashboard (new)
-router.get('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/', requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const orgId = req.orgId;

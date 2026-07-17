@@ -2,7 +2,7 @@
 // Designation Routes (v1)
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 
 const router = Router();
 
@@ -30,7 +30,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/designations
-router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/', requirePermission('designation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, departmentId, level, sortOrder } = req.body;
@@ -64,10 +64,12 @@ router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) 
 });
 
 // PUT /api/v1/designations/:id
-router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/:id', requirePermission('designation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, departmentId, level, isActive, sortOrder } = req.body;
+    const existing = await prisma.designation.findFirst({ where: { id: req.params.id, orgId: req.orgId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Designation not found' });
     if (departmentId) {
       const department = await prisma.department.findFirst({
         where: { id: departmentId, orgId: req.orgId },
@@ -99,11 +101,11 @@ router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next
 });
 
 // DELETE /api/v1/designations/:id
-router.delete('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.delete('/:id', requirePermission('designation.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
-    const desig = await prisma.designation.findUnique({
-      where: { id: req.params.id },
+    const desig = await prisma.designation.findFirst({
+      where: { id: req.params.id, orgId: req.orgId },
       include: { department: { select: { name: true } } },
     });
     if (!desig) return res.status(404).json({ error: 'Designation not found' });

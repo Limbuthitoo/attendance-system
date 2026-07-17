@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, Calendar, Filter, X, Star, Printer } from 'l
 
 export default function LeaveCalendar() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('leave.view_all');
 
   const todayBs = getTodayBs();
   const [currentYear, setCurrentYear] = useState(2083);

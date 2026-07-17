@@ -1,6 +1,6 @@
 # Project Memory: Archisys Attendance
 
-Last studied: 2026-06-17
+Last studied: 2026-07-17
 
 This file is a working reference for future Codex sessions. Treat source files as the source of truth when code and this memory differ.
 
@@ -27,6 +27,17 @@ Current code posture after the 2026-06-17 audit/fix pass:
 - Selected tenant/platform write routes now have stronger role gates.
 - Docker startup no longer runs `prisma db push --accept-data-loss`; migrations are a deploy step.
 - Compose and backup scripts require explicit DB/Redis secrets instead of known fallback passwords.
+
+Current code posture after the 2026-07-17 employee/RBAC synchronization pass:
+
+- Employee create/edit uses the organization department/designation hierarchy returned by the API; the server catalog is the single source of truth.
+- Employee tables display actual assigned role names rather than only the legacy `admin`/`employee` compatibility label.
+- Web and mobile administrative navigation use permission keys from the authenticated user payload.
+- Tenant API guards for employees, attendance, leave, reports, payroll, settings, devices/NFC, departments/designations, and related modules use canonical permissions instead of fixed role names where a permission exists.
+- Role creation, editing, assignment, removal, and employee role replacement prevent granting permissions above the actor's own authority. System roles are platform-managed and immutable to tenant administrators.
+- Authorization denials and blocked privilege-escalation attempts are audit logged. Users with `audit.view` can see security/admin events in Activity Log.
+- Assignment and NFC write-job paths validate tenant ownership to prevent cross-organization ID use.
+- A small set of highly sensitive features without dedicated permission keys remains explicitly `org_admin` only: password reset/unlock, policy administration, and app-release administration.
 
 ## Repository Shape
 
@@ -82,7 +93,7 @@ Backend config:
 Auth and tenancy:
 
 - `server/src/middleware/auth.js`: employee JWT auth via bearer token, `access_token` cookie, or `?token=` SSE fallback. Rejects refresh tokens used as access tokens. Caches user data briefly via `middleware/cache`.
-- User role is flattened to `admin` if any role is `org_admin`, `hr_manager`, or `branch_manager`; otherwise `employee`.
+- User role is still flattened to `admin`/`employee` for backward compatibility, but `roles` and the unioned `permissions` array are authoritative for access control and are returned immediately at login and `/auth/me`.
 - `tenantContext` sets `req.orgId` from `req.user.orgId` or `req.device.orgId`.
 - `moduleGuard.requireModule(...)` checks active `OrgModule` records, with 60s in-memory cache.
 - Platform auth is separate in `server/src/middleware/platformAuth.js`.
@@ -121,9 +132,10 @@ Prisma/database:
 - The current Prisma setup is a single schema file with tenant isolation through `orgId`. Do not describe it as Prisma multi-schema unless the code is actually migrated to `@@schema` / `multiSchema`.
 - Models cover platform, organization/tenant, employees/RBAC, branches, shifts/schedules, device catalog/devices/NFC, attendance, leave, notifications, app releases, audit logs, payroll/overtime/tax/benefits, incentives/bonuses, performance, recruitment/onboarding/referrals/training/ESS/separation, CRM, accounting, billing, projects/tasks, leave balances.
 - Password recovery model: `PasswordResetToken`, mapped to `password_reset_tokens`.
-- Department/designation model: `Designation` has optional `departmentId`, allowing organization departments to own their own designation lists while employee records still store department/designation names for compatibility. Generic departments/designations live in `server/src/config/default-org-structure.js` and are seeded into every organization.
-- Department/designation role access: system roles are backfilled by `server/src/seed.js` so `org_admin` and `hr_manager` can manage departments/designations, while branch managers and team leads get view permissions. Tenant APIs still allow authenticated reads, and department/designation writes are role-gated to `org_admin` or `hr_manager`.
-- System role templates live in `server/src/seed.js` and are shown in the web Role Management page. Current defaults include `org_admin`, `hr_manager`, `finance_manager`, `accountant`, `payroll_manager`, `recruiter`, `training_manager`, `operations_manager`, `department_head`, `project_manager`, `sales_manager`, `it_admin`, `branch_manager`, `team_lead`, and `employee`. The app still has some role-name gates and admin-shell UI gates, so a future RBAC hardening pass should move more routes/pages to permission checks.
+- Department/designation model: `Designation` has optional `departmentId`, allowing organization departments to own their own designation lists while employee records still store department/designation names for compatibility. The canonical defaults live only in `server/src/config/default-org-structure.js`, are seeded into every organization, and are also returned by the department API for web/mobile fallback rendering.
+- Department/designation access is permission based: writes require `department.manage` or `designation.manage`; update/delete operations verify tenant ownership before mutation.
+- The canonical permission catalog lives in `server/src/config/permissions.js`. System role templates live in `server/src/seed.js`; `org_admin` is seeded with the complete catalog. Defaults include `org_admin`, `hr_manager`, `finance_manager`, `accountant`, `payroll_manager`, `recruiter`, `training_manager`, `operations_manager`, `department_head`, `project_manager`, `sales_manager`, `it_admin`, `branch_manager`, `team_lead`, and `employee`.
+- Permissions from multiple assigned roles are unioned. Role management requires `role.manage`; a manager may grant only permissions already present in their own effective permission set. Tenant users cannot modify globally shared system roles.
 - HR lifecycle and compensation writes are permission-gated as of the form audit: recruitment uses `recruitment.manage`, onboarding uses `onboarding.manage`, training uses `training.manage`, separation uses `separation.manage`, compensation uses `compensation.manage`, and employee list/detail uses `employee.view`. The web app route guard/sidebar also honors permissions so specialist roles such as `recruiter`, `training_manager`, and `finance_manager` can reach their pages without needing the `hr_manager` role name.
 - Recruitment form fixes: applicants must select a job posting, interviews have a real scheduling form with applicant/interviewer/time/type fields, and job cards read `vacancies` from the API. Training course duration is numeric hours. Compensation benefit and salary revision fields now match API/schema names. Separation and compensation salary revision forms use employee dropdowns instead of raw employee UUID inputs.
 - Every tenant-scoped model should be queried with `orgId` isolation.
@@ -148,7 +160,7 @@ Web package:
 Entrypoints:
 
 - `web/src/main.jsx`: React app bootstrap.
-- `web/src/App.jsx`: route tree, lazy page loading, protected routes, platform portal routing.
+- `web/src/App.jsx`: route tree, lazy page loading, permission-aware protected routes, platform portal routing.
 - `web/src/components/Layout.jsx`: main org dashboard shell.
 - `web/src/platform/PlatformLayout.jsx`: platform shell.
 
@@ -167,8 +179,8 @@ Routing:
 - `/login` is org login.
 - `/platform/login` and `/platform/*` are wrapped in `PlatformAuthProvider`.
 - Org routes under `/` are wrapped in `ProtectedRoute` and `Layout`.
-- `AdminRoute` only checks `user.role === 'admin'`.
-- Many pages are admin-only at route level, including employees, settings, payroll, CRM, accounting, billing, recruitment, etc.
+- `AdminRoute` accepts permission alternatives and allows either the legacy organization-admin compatibility role or a matching effective permission.
+- Sidebar visibility, route guards, and backend APIs are aligned for specialist roles such as HR, finance, recruitment, training, operations, CRM, payroll, and device management.
 
 Vite/proxy:
 
@@ -237,7 +249,29 @@ Navigation:
 - Logged-out users see `LoginScreen`.
 - Logged-in users with `must_change_password` see `ChangePasswordScreen`.
 - Main tabs: Home, My Attendance, Leaves, Calendar, More.
-- More stack contains notifications, notices, policies, notification settings, QR check-in, profile/change password; admins also get leave requests, employees, employee attendance, employee detail.
+- More stack contains notifications, notices, policies, notification settings, QR check-in, profile/change password. Leave requests, employees, and team attendance are exposed according to `leave.*`, `employee.view`, and `attendance.view_all` permissions rather than the legacy admin label.
+- Mobile employee creation loads departments/designations from the same server-owned structure as web, applies department-to-designation filtering, and creates standard Employee access only; elevated role assignment remains in secured web Role Management.
+
+## RBAC and Audit Invariants
+
+- Designation is a job title and never grants application access. Role assignments grant permissions.
+- Backend permission middleware is the security boundary; hiding a web/mobile control is only a usability layer.
+- `requirePermission` requires all supplied permissions; `requireAnyPermission` accepts any supplied permission. Both audit authenticated denials.
+- Successful role changes invalidate the affected user's auth cache. Existing sessions should re-login after role-template changes to refresh client-visible permissions immediately.
+- `security.access_denied` and `security.privilege_escalation_blocked` events include actor, organization, path/operation, IP, user agent, and required/excessive access where applicable.
+- Activity Log includes audit/security events only for users with `audit.view`; ordinary employees remain scoped to their own operational activity.
+- System-role permission changes are made through the platform seed/code path, not tenant Role Management. Run the idempotent seed after changing system role templates so existing databases are backfilled.
+
+## Verified Checks (2026-07-17)
+
+- All `server/src/**/*.js` files pass `node --check`.
+- The v1 route tree loads successfully with validation environment variables.
+- Every permission used by `requirePermission`/`requireAnyPermission` exists in the canonical permission catalog.
+- Prisma schema validation passes.
+- Web production build passes.
+- Changed mobile files parse successfully with Babel's parser; mobile dependencies are not installed in this workspace, so a full Expo native build was not run.
+- `docker compose config --quiet` and `git diff --check` pass.
+- The repository has no automated backend/web test scripts; syntax, schema, route-load, bundle, and configuration validation are the available checks.
 
 ## NFC Reader
 

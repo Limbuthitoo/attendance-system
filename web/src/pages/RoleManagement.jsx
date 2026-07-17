@@ -192,15 +192,7 @@ export default function RoleManagement() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(role)}
-                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
-                    title="Edit Permissions"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <span className="text-xs text-slate-400">Platform managed</span>
               )}
             </div>
           </div>

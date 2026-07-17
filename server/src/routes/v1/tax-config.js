@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const router = Router();
 
 function getPrisma() {
@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/tax-config
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+router.post('/', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { fiscalYear, ssfEmployeeRate, ssfEmployerRate, citEmployeeRate, citEmployerRate, pfEmployeeRate, pfEmployerRate, taxSlabs, marriedTaxSlabs, gratuityEnabled, gratuityRate } = req.body;
@@ -49,7 +49,7 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/tax-config/:id
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { ssfEmployeeRate, ssfEmployerRate, citEmployeeRate, citEmployerRate, pfEmployeeRate, pfEmployerRate, taxSlabs, marriedTaxSlabs, gratuityEnabled, gratuityRate } = req.body;
@@ -76,7 +76,7 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // DELETE /api/v1/tax-config/:id
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requirePermission('payroll.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     await prisma.taxConfig.delete({ where: { id: req.params.id, orgId: req.orgId } });

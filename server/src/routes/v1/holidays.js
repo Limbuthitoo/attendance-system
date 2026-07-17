@@ -2,7 +2,7 @@
 // Holiday Routes (v1)
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const { getPrisma } = require('../../lib/prisma');
 const { auditLog } = require('../../lib/audit');
 
@@ -40,7 +40,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/holidays
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+router.post('/', requirePermission('holiday.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const b = req.body;
@@ -88,7 +88,7 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/holidays/:id
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', requirePermission('holiday.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const b = req.body;
@@ -127,7 +127,7 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // DELETE /api/v1/holidays/:id
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requirePermission('holiday.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const existing = await prisma.holiday.findFirst({ where: { id: req.params.id, orgId: req.orgId } });

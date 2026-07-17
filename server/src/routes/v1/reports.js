@@ -2,13 +2,13 @@
 // Report Routes (v1) — Analytics, attendance reports, exports
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const reportService = require('../../services/report.service');
 
 const router = Router();
 
 // GET /api/v1/reports/attendance-summary
-router.get('/attendance-summary', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/attendance-summary', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { startDate, endDate, branchId, department } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -25,7 +25,7 @@ router.get('/attendance-summary', requireRole('org_admin', 'hr_manager'), async 
 });
 
 // GET /api/v1/reports/department
-router.get('/department', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/department', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -36,7 +36,7 @@ router.get('/department', requireRole('org_admin', 'hr_manager'), async (req, re
 });
 
 // GET /api/v1/reports/daily-trend
-router.get('/daily-trend', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/daily-trend', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { startDate, endDate, branchId } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -47,7 +47,7 @@ router.get('/daily-trend', requireRole('org_admin', 'hr_manager'), async (req, r
 });
 
 // GET /api/v1/reports/late-arrivals
-router.get('/late-arrivals', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/late-arrivals', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { startDate, endDate, minLateCount } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -63,7 +63,7 @@ router.get('/late-arrivals', requireRole('org_admin', 'hr_manager'), async (req,
 });
 
 // GET /api/v1/reports/leaves
-router.get('/leaves', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/leaves', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { year } = req.query;
     const data = await reportService.getLeaveReport({ orgId: req.orgId, year: parseInt(year, 10) || new Date().getFullYear() });
@@ -72,7 +72,7 @@ router.get('/leaves', requireRole('org_admin', 'hr_manager'), async (req, res, n
 });
 
 // GET /api/v1/reports/export/attendance
-router.get('/export/attendance', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/export/attendance', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { startDate, endDate, branchId } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -92,7 +92,7 @@ router.get('/export/attendance', requireRole('org_admin', 'hr_manager'), async (
 });
 
 // POST /api/v1/reports/generate — Async report generation (queued)
-router.post('/generate', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/generate', requirePermission('report.view'), async (req, res, next) => {
   try {
     const { type, params } = req.body;
     const validTypes = ['attendance-summary', 'attendance-export', 'payroll-export', 'leave-report', 'late-arrivals', 'department-summary'];
@@ -106,7 +106,7 @@ router.post('/generate', requireRole('org_admin', 'hr_manager'), async (req, res
 });
 
 // GET /api/v1/reports/download/:filename — Download generated report file
-router.get('/download/:filename', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/download/:filename', requirePermission('report.view'), async (req, res, next) => {
   try {
     const path = require('path');
     const fs = require('fs');

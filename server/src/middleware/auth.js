@@ -170,6 +170,19 @@ function requirePermission(...requiredPerms) {
   };
 }
 
+/** Require at least one permission from the supplied list. */
+function requireAnyPermission(...allowedPerms) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const hasAny = allowedPerms.some((permission) => req.user.permissions.includes(permission));
+    if (!hasAny) {
+      auditAccessDenied(req, { anyPermission: allowedPerms });
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
+}
+
 /**
  * Legacy compatibility: requireAdmin checks for org_admin role
  */
@@ -236,9 +249,11 @@ module.exports = {
   authenticate,
   requireRole,
   requirePermission,
+  requireAnyPermission,
   requireAdmin,
   generateAccessToken,
   generateRefreshToken,
   setAuthCookies,
   clearAuthCookies,
+  auditAccessDenied,
 };

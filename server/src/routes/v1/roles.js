@@ -2,7 +2,7 @@
 // V1 Role Routes — Org-admin RBAC management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole, requirePermission } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const roleService = require('../../services/role.service');
 
 const router = Router();
@@ -23,7 +23,7 @@ router.get('/permissions', (req, res) => {
 });
 
 // POST /api/v1/roles — Create a custom role (admin only)
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+router.post('/', requirePermission('role.manage'), async (req, res, next) => {
   try {
     const { name, description, permissions } = req.body;
     if (!name || !permissions || !Array.isArray(permissions)) {
@@ -36,6 +36,7 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
       description,
       permissions,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.status(201).json({ role, message: 'Role created' });
@@ -46,13 +47,14 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // PUT /api/v1/roles/:id — Update a custom role
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', requirePermission('role.manage'), async (req, res, next) => {
   try {
     const role = await roleService.updateRole({
       roleId: req.params.id,
       orgId: req.orgId,
       data: req.body,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.json({ role, message: 'Role updated' });
@@ -63,7 +65,7 @@ router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // DELETE /api/v1/roles/:id — Delete a custom role
-router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
+router.delete('/:id', requirePermission('role.manage'), async (req, res, next) => {
   try {
     await roleService.deleteRole({
       roleId: req.params.id,

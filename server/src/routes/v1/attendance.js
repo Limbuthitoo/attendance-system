@@ -2,7 +2,7 @@
 // Attendance Routes (v1) — Check-in, check-out, history
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
 const attendanceService = require('../../services/attendance.service');
 const { addSnakeCase, lowercaseEnum } = require('../../lib/compat');
 const { getPrisma } = require('../../lib/prisma');
@@ -109,7 +109,7 @@ router.get('/history', async (req, res, next) => {
 });
 
 // GET /api/v1/attendance/all?date=YYYY-MM-DD — Admin: all employees for a date
-router.get('/all', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/all', requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const date = req.query.date || attendanceService.getTodayDate();
     const prisma = getPrisma();
@@ -205,7 +205,7 @@ router.get('/my', async (req, res, next) => {
 });
 
 // GET /api/v1/attendance/employee/:id — Admin: specific employee attendance
-router.get('/employee/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/employee/:id', requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const startDate = req.query.startDate || req.query.start_date || attendanceService.getTodayDate();
     const endDate = req.query.endDate || req.query.end_date || startDate;
@@ -224,7 +224,7 @@ router.get('/employee/:id', requireRole('org_admin', 'hr_manager'), async (req, 
 });
 
 // GET /api/v1/attendance/summary — Admin: org-wide attendance summary
-router.get('/summary', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/summary', requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const summary = await attendanceService.getOrgAttendanceSummary(req.orgId);
     res.json(summary);
@@ -234,7 +234,7 @@ router.get('/summary', requireRole('org_admin', 'hr_manager'), async (req, res, 
 });
 
 // POST /api/v1/attendance/finalize — Admin: manually finalize attendance for a date
-router.post('/finalize', requireRole('org_admin'), async (req, res, next) => {
+router.post('/finalize', requirePermission('attendance.manage'), async (req, res, next) => {
   try {
     const { date } = req.body; // optional YYYY-MM-DD, defaults to yesterday
     const targetDate = date || (() => {
@@ -287,7 +287,7 @@ router.get('/corrections/my', async (req, res, next) => {
 });
 
 // GET /api/v1/attendance/corrections — Admin/Manager: list all correction requests
-router.get('/corrections', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/corrections', requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const { status, page, limit } = req.query;
     const result = await correctionService.getOrgCorrections({
@@ -303,7 +303,7 @@ router.get('/corrections', requireRole('org_admin', 'hr_manager'), async (req, r
 });
 
 // PUT /api/v1/attendance/corrections/:id/review — Admin/Manager approves/rejects
-router.put('/corrections/:id/review', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/corrections/:id/review', requirePermission('attendance.manage'), async (req, res, next) => {
   try {
     const { status, reviewNote } = req.body;
     if (!['APPROVED', 'REJECTED'].includes(status)) {
@@ -324,7 +324,7 @@ router.put('/corrections/:id/review', requireRole('org_admin', 'hr_manager'), as
 });
 
 // POST /api/v1/attendance/lock — Admin: lock attendance for a month (after payroll)
-router.post('/lock', requireRole('org_admin'), async (req, res, next) => {
+router.post('/lock', requirePermission('attendance.manage'), async (req, res, next) => {
   try {
     const { year, month } = req.body;
     if (!year || !month) {

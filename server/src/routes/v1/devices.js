@@ -2,7 +2,7 @@
 // Device Routes (v1) — Unified device management + event ingestion
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticate, requirePermission } = require('../../middleware/auth');
 const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const deviceService = require('../../services/device.service');
@@ -70,7 +70,7 @@ router.post('/heartbeat', authenticateDevice, async (req, res, next) => {
 // ── Admin-authenticated routes (web dashboard) ─────────────────────────────
 
 // GET /api/v1/devices — List devices for the org
-router.get('/', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const { branchId, deviceType } = req.query;
     const devices = await deviceService.listDevices({
@@ -85,12 +85,12 @@ router.get('/', authenticate, tenantContext, requireRole('org_admin'), async (re
 });
 
 // POST /api/v1/devices — Disabled: only platform admin can register devices
-router.post('/', authenticate, tenantContext, requireRole('org_admin'), async (req, res) => {
+router.post('/', authenticate, tenantContext, requirePermission('device.manage'), async (req, res) => {
   return res.status(403).json({ error: 'Device registration is managed by the platform administrator. Please contact support.' });
 });
 
 // PUT /api/v1/devices/:id/deactivate
-router.put('/:id/deactivate', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id/deactivate', authenticate, tenantContext, requirePermission('device.manage'), async (req, res, next) => {
   try {
     await deviceService.deactivateDevice({
       deviceId: req.params.id,
@@ -105,7 +105,7 @@ router.put('/:id/deactivate', authenticate, tenantContext, requireRole('org_admi
 });
 
 // POST /api/v1/devices/:id/rotate-key
-router.post('/:id/rotate-key', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.post('/:id/rotate-key', authenticate, tenantContext, requirePermission('device.manage'), async (req, res, next) => {
   try {
     const result = await deviceService.rotateDeviceKey({
       deviceId: req.params.id,
@@ -126,7 +126,7 @@ router.post('/:id/rotate-key', authenticate, tenantContext, requireRole('org_adm
 // ── Credential management ────────────────────────────────────────────────────
 
 // POST /api/v1/devices/credentials — Assign credential to employee
-router.post('/credentials', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/credentials', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const { employeeId, credentialType, credentialData, label } = req.body;
 
@@ -163,7 +163,7 @@ router.post('/credentials', authenticate, tenantContext, requireRole('org_admin'
 });
 
 // GET /api/v1/devices/credentials — List credentials (optionally filtered by employee)
-router.get('/credentials', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/credentials', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const { employeeId, credentialType } = req.query;
     const credentials = await deviceService.listCredentials({
@@ -178,7 +178,7 @@ router.get('/credentials', authenticate, tenantContext, requireRole('org_admin',
 });
 
 // DELETE /api/v1/devices/credentials/:id — Deactivate a credential
-router.delete('/credentials/:id', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.delete('/credentials/:id', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     await deviceService.deactivateCredential({
       credentialId: req.params.id,
@@ -195,7 +195,7 @@ router.delete('/credentials/:id', authenticate, tenantContext, requireRole('org_
 // ── Device detail & update ──────────────────────────────────────────────────
 
 // GET /api/v1/devices/:id — Get single device details
-router.get('/:id', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/:id', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const device = await deviceService.getDevice({ deviceId: req.params.id, orgId: req.orgId });
     res.json({ device });
@@ -206,7 +206,7 @@ router.get('/:id', authenticate, tenantContext, requireRole('org_admin', 'hr_man
 });
 
 // PUT /api/v1/devices/:id — Update device info (name, location, branch)
-router.put('/:id', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id', authenticate, tenantContext, requirePermission('device.manage'), async (req, res, next) => {
   try {
     const { name, location, branchId } = req.body;
     const device = await deviceService.updateDevice({
@@ -226,7 +226,7 @@ router.put('/:id', authenticate, tenantContext, requireRole('org_admin'), async 
 });
 
 // PUT /api/v1/devices/:id/reactivate
-router.put('/:id/reactivate', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/:id/reactivate', authenticate, tenantContext, requirePermission('device.manage'), async (req, res, next) => {
   try {
     const device = await deviceService.reactivateDevice({
       deviceId: req.params.id,
@@ -244,7 +244,7 @@ router.put('/:id/reactivate', authenticate, tenantContext, requireRole('org_admi
 // ── Device events (audit) ──────────────────────────────────────────────────
 
 // GET /api/v1/devices/events/list — Device event log
-router.get('/events/list', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/events/list', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const { deviceId, employeeId, eventType, startDate, endDate, page = 1, limit = 50 } = req.query;
     const events = await deviceService.listDeviceEvents({

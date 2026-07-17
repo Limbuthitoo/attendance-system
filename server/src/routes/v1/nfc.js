@@ -3,7 +3,7 @@
 // Bridges the old nfc-reader protocol to the new multi-tenant device service.
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticate, requirePermission } = require('../../middleware/auth');
 const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const deviceService = require('../../services/device.service');
@@ -30,7 +30,7 @@ router.post('/heartbeat', authenticateDevice, async (req, res, next) => {
 
 // ─── Reader Status (admin) ──────────────────────────────────────────────────
 
-router.get('/reader-status', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/reader-status', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const devices = await prisma.device.findMany({
       where: { orgId: req.orgId, deviceType: 'NFC_READER', isActive: true },
@@ -62,7 +62,7 @@ router.get('/reader-status', authenticate, tenantContext, requireRole('org_admin
 
 // ─── SSE: Real-time tap events (admin) ──────────────────────────────────────
 
-router.get('/events', authenticate, tenantContext, requireRole('org_admin'), (req, res) => {
+router.get('/events', authenticate, tenantContext, requirePermission('device.view'), (req, res) => {
   res.removeHeader('Content-Security-Policy');
   res.removeHeader('X-Content-Type-Options');
 
@@ -102,7 +102,7 @@ router.get('/events', authenticate, tenantContext, requireRole('org_admin'), (re
 
 // ─── Recent Tap (polling fallback) ──────────────────────────────────────────
 
-router.get('/recent-tap', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/recent-tap', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const since = req.query.since || new Date(Date.now() - 10000).toISOString();
     const tap = await prisma.deviceEvent.findFirst({
@@ -208,7 +208,7 @@ router.post('/tap', authenticateDevice, async (req, res, next) => {
 
 // ─── NFC Card Management (uses device credential system) ────────────────────
 
-router.get('/cards', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/cards', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const cards = await prisma.employeeCredential.findMany({
       where: { orgId: req.orgId, credentialType: 'NFC_CARD' },
@@ -235,7 +235,7 @@ router.get('/cards', authenticate, tenantContext, requireRole('org_admin'), asyn
   } catch (err) { next(err); }
 });
 
-router.get('/cards/employee/:employeeId', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/cards/employee/:employeeId', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const cards = await prisma.employeeCredential.findMany({
       where: {
@@ -249,7 +249,7 @@ router.get('/cards/employee/:employeeId', authenticate, tenantContext, requireRo
   } catch (err) { next(err); }
 });
 
-router.post('/cards', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.post('/cards', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const { card_uid, employee_id, label } = req.body;
     if (!card_uid || !employee_id) {
@@ -275,7 +275,7 @@ router.post('/cards', authenticate, tenantContext, requireRole('org_admin'), asy
   }
 });
 
-router.put('/cards/:id/deactivate', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/cards/:id/deactivate', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     await deviceService.deactivateCredential({
       credentialId: req.params.id,
@@ -287,7 +287,7 @@ router.put('/cards/:id/deactivate', authenticate, tenantContext, requireRole('or
   } catch (err) { next(err); }
 });
 
-router.put('/cards/:id/activate', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/cards/:id/activate', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const card = await prisma.employeeCredential.findFirst({
       where: { id: req.params.id },
@@ -302,7 +302,7 @@ router.put('/cards/:id/activate', authenticate, tenantContext, requireRole('org_
   } catch (err) { next(err); }
 });
 
-router.delete('/cards/:id', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.delete('/cards/:id', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const card = await prisma.employeeCredential.findFirst({
       where: { id: req.params.id },
@@ -316,7 +316,7 @@ router.delete('/cards/:id', authenticate, tenantContext, requireRole('org_admin'
 
 // ─── NFC Reader Devices (admin — uses device service) ───────────────────────
 
-router.get('/readers', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/readers', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const readers = await prisma.device.findMany({
       where: { orgId: req.orgId, deviceType: 'NFC_READER' },
@@ -328,7 +328,7 @@ router.get('/readers', authenticate, tenantContext, requireRole('org_admin'), as
 
 // ─── Tap Log (admin) ───────────────────────────────────────────────────────
 
-router.get('/tap-log', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/tap-log', authenticate, tenantContext, requirePermission('device.view'), async (req, res, next) => {
   try {
     const { date, limit: queryLimit } = req.query;
     const targetDate = date || new Date().toISOString().split('T')[0];
@@ -368,7 +368,7 @@ router.get('/tap-log', authenticate, tenantContext, requireRole('org_admin'), as
 
 // ─── Write Jobs (provisioning) ─────────────────────────────────────────────
 
-router.post('/write-jobs', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.post('/write-jobs', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const { employee_id, device_id } = req.body;
     if (!employee_id) {
@@ -405,7 +405,7 @@ router.post('/write-jobs', authenticate, tenantContext, requireRole('org_admin')
   } catch (err) { next(err); }
 });
 
-router.get('/write-jobs', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.get('/write-jobs', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const where = { employee: { orgId: req.orgId } };
     if (req.query.status) where.status = req.query.status.toUpperCase();
@@ -424,7 +424,7 @@ router.get('/write-jobs', authenticate, tenantContext, requireRole('org_admin'),
   } catch (err) { next(err); }
 });
 
-router.put('/write-jobs/:id/cancel', authenticate, tenantContext, requireRole('org_admin'), async (req, res, next) => {
+router.put('/write-jobs/:id/cancel', authenticate, tenantContext, requirePermission('credential.manage'), async (req, res, next) => {
   try {
     const job = await prisma.deviceWriteJob.findFirst({
       where: { id: req.params.id, status: 'PENDING', employee: { orgId: req.orgId } },
@@ -467,10 +467,10 @@ router.get('/check-card/:uid', authenticateDevice, async (req, res, next) => {
 router.get('/write-jobs/pending', authenticateDevice, async (req, res, next) => {
   try {
     const deviceId = req.query.device_id;
-    const where = { status: 'PENDING' };
+    const where = { status: 'PENDING', employee: { orgId: req.device.orgId } };
     if (deviceId) {
       // Match by device serial or accept jobs with no device assigned
-      const device = await prisma.device.findFirst({ where: { deviceSerial: deviceId } });
+      const device = await prisma.device.findFirst({ where: { deviceSerial: deviceId, orgId: req.device.orgId } });
       if (device) {
         where.OR = [{ deviceId: device.id }, { deviceId: null }];
       }
@@ -490,7 +490,9 @@ router.put('/write-jobs/:id/complete', authenticateDevice, async (req, res, next
   try {
     const { card_uid, success, error_message } = req.body;
 
-    const job = await prisma.deviceWriteJob.findUnique({ where: { id: req.params.id } });
+    const job = await prisma.deviceWriteJob.findFirst({
+      where: { id: req.params.id, employee: { orgId: req.device.orgId } },
+    });
     if (!job) return res.status(404).json({ error: 'Write job not found' });
 
     if (success && card_uid) {

@@ -2,7 +2,8 @@
 // Department & Designation Routes (v1)
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/auth');
+const { DEFAULT_ORG_STRUCTURE } = require('../../config/default-org-structure');
 
 const router = Router();
 
@@ -20,14 +21,14 @@ router.get('/', async (req, res, next) => {
       where: { orgId: req.orgId },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
-    res.json({ departments });
+    res.json({ departments, defaultStructure: DEFAULT_ORG_STRUCTURE });
   } catch (err) {
     next(err);
   }
 });
 
 // POST /api/v1/departments
-router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/', requirePermission('department.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, code, parentId, headId, sortOrder } = req.body;
@@ -54,10 +55,12 @@ router.post('/', requireRole('org_admin', 'hr_manager'), async (req, res, next) 
 });
 
 // PUT /api/v1/departments/:id
-router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.put('/:id', requirePermission('department.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     const { name, code, parentId, headId, isActive, sortOrder } = req.body;
+    const existing = await prisma.department.findFirst({ where: { id: req.params.id, orgId: req.orgId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Department not found' });
     const department = await prisma.department.update({
       where: { id: req.params.id },
       data: {
@@ -82,11 +85,11 @@ router.put('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next
 });
 
 // DELETE /api/v1/departments/:id
-router.delete('/:id', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.delete('/:id', requirePermission('department.manage'), async (req, res, next) => {
   try {
     const prisma = getPrisma();
     // Check if any employees use this department
-    const dept = await prisma.department.findUnique({ where: { id: req.params.id } });
+    const dept = await prisma.department.findFirst({ where: { id: req.params.id, orgId: req.orgId } });
     if (!dept) return res.status(404).json({ error: 'Department not found' });
 
     const empCount = await prisma.employee.count({

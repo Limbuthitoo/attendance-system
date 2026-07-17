@@ -2,7 +2,7 @@
 // QR Attendance Routes (v1) — QR code generation, verification & mobile check-in
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { authenticate, requireRole } = require('../../middleware/auth');
+const { authenticate, requirePermission } = require('../../middleware/auth');
 const { authenticateDevice } = require('../../middleware/deviceAuth');
 const { tenantContext } = require('../../middleware/tenantContext');
 const qrService = require('../../services/qr.service');
@@ -142,7 +142,7 @@ router.post('/scan', authenticate, tenantContext, async (req, res, next) => {
  * GET /api/v1/qr/stats
  * QR attendance stats for today.
  */
-router.get('/stats', authenticate, tenantContext, requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.get('/stats', authenticate, tenantContext, requirePermission('attendance.view_all'), async (req, res, next) => {
   try {
     const { branchId } = req.query;
     const stats = await qrService.getQrStats({ orgId: req.orgId, branchId });
