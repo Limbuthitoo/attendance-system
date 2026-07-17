@@ -2,7 +2,7 @@
 // V1 Role Routes — Org-admin RBAC management
 // ─────────────────────────────────────────────────────────────────────────────
 const { Router } = require('express');
-const { requireRole } = require('../../middleware/auth');
+const { requireRole, requirePermission } = require('../../middleware/auth');
 const roleService = require('../../services/role.service');
 
 const router = Router();
@@ -79,7 +79,7 @@ router.delete('/:id', requireRole('org_admin'), async (req, res, next) => {
 });
 
 // POST /api/v1/roles/assign — Assign role to employee
-router.post('/assign', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/assign', requirePermission('role.manage'), async (req, res, next) => {
   try {
     const { employeeId, roleId, branchId } = req.body;
     if (!employeeId || !roleId) {
@@ -92,6 +92,7 @@ router.post('/assign', requireRole('org_admin', 'hr_manager'), async (req, res, 
       branchId,
       orgId: req.orgId,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.json({ assignment, message: 'Role assigned' });
@@ -102,7 +103,7 @@ router.post('/assign', requireRole('org_admin', 'hr_manager'), async (req, res, 
 });
 
 // POST /api/v1/roles/remove — Remove role from employee
-router.post('/remove', requireRole('org_admin', 'hr_manager'), async (req, res, next) => {
+router.post('/remove', requirePermission('role.manage'), async (req, res, next) => {
   try {
     const { employeeId, roleId, branchId } = req.body;
     if (!employeeId || !roleId) {
@@ -115,6 +116,7 @@ router.post('/remove', requireRole('org_admin', 'hr_manager'), async (req, res, 
       branchId,
       orgId: req.orgId,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.json({ message: 'Role removed' });
@@ -125,9 +127,9 @@ router.post('/remove', requireRole('org_admin', 'hr_manager'), async (req, res, 
 });
 
 // GET /api/v1/roles/employee/:id — Get roles for an employee
-router.get('/employee/:id', async (req, res, next) => {
+router.get('/employee/:id', requirePermission('employee.view'), async (req, res, next) => {
   try {
-    const roles = await roleService.getEmployeeRoles(req.params.id);
+    const roles = await roleService.getEmployeeRoles(req.params.id, req.orgId);
     res.json({ roles });
   } catch (err) {
     next(err);

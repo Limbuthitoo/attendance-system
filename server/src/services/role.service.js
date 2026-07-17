@@ -224,7 +224,7 @@ async function deleteRole({ roleId, orgId, adminId, req }) {
 /**
  * Assign a role to an employee
  */
-async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, adminId, req }) {
+async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
 
   // Verify employee belongs to org
@@ -239,6 +239,14 @@ async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, admin
   });
   if (!role) {
     throw Object.assign(new Error('Role not found'), { status: 404 });
+  }
+  const unauthorizedPermissions = (role.permissions || []).filter((permission) => !actorPermissions.includes(permission));
+  if (unauthorizedPermissions.length > 0) {
+    await auditLog({
+      orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role', resourceId: role.id,
+      newData: { operation: 'role.assign', employeeId, targetRole: role.name, unauthorizedPermissions }, req,
+    });
+    throw Object.assign(new Error('You cannot assign a role with permissions above your own access level'), { status: 403 });
   }
 
   const assignment = await prisma.employeeRole.upsert({
@@ -279,8 +287,21 @@ async function assignRoleToEmployee({ employeeId, roleId, branchId, orgId, admin
 /**
  * Remove a role from an employee
  */
-async function removeRoleFromEmployee({ employeeId, roleId, branchId, orgId, adminId, req }) {
+async function removeRoleFromEmployee({ employeeId, roleId, branchId, orgId, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
+
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, OR: [{ orgId: null }, { orgId }] },
+  });
+  if (!role) throw Object.assign(new Error('Role not found'), { status: 404 });
+  const unauthorizedPermissions = (role.permissions || []).filter((permission) => !actorPermissions.includes(permission));
+  if (unauthorizedPermissions.length > 0) {
+    await auditLog({
+      orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role', resourceId: role.id,
+      newData: { operation: 'role.remove', employeeId, targetRole: role.name, unauthorizedPermissions }, req,
+    });
+    throw Object.assign(new Error('You cannot remove a role above your own access level'), { status: 403 });
+  }
 
   await prisma.employeeRole.deleteMany({
     where: {
@@ -305,8 +326,11 @@ async function removeRoleFromEmployee({ employeeId, roleId, branchId, orgId, adm
 /**
  * Get roles for a specific employee
  */
-async function getEmployeeRoles(employeeId) {
+async function getEmployeeRoles(employeeId, orgId) {
   const prisma = getPrisma();
+
+  const employee = await prisma.employee.findFirst({ where: { id: employeeId, orgId }, select: { id: true } });
+  if (!employee) throw Object.assign(new Error('Employee not found in this organization'), { status: 404 });
 
   return prisma.employeeRole.findMany({
     where: { employeeId },

@@ -5,7 +5,7 @@ import { formatDate } from '../lib/format-date';
 import { useSettings } from '../context/SettingsContext';
 import {
   LogIn, LogOut, CreditCard, CalendarDays, CheckCircle, XCircle,
-  AlertTriangle, Filter, ChevronLeft, ChevronRight, Search, Clock
+  AlertTriangle, Filter, ChevronLeft, ChevronRight, Search, Clock, Shield
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 
@@ -15,6 +15,8 @@ const TYPE_CONFIG = {
   leave_applied:  { icon: CalendarDays,   label: 'Leave Applied',   color: 'text-purple-600', bg: 'bg-purple-50', dot: 'bg-purple-500' },
   leave_approved: { icon: CheckCircle,    label: 'Leave Approved',  color: 'text-emerald-600',bg: 'bg-emerald-50',dot: 'bg-emerald-500' },
   leave_rejected: { icon: XCircle,        label: 'Leave Rejected',  color: 'text-red-600',    bg: 'bg-red-50',    dot: 'bg-red-500' },
+  security_event: { icon: Shield,         label: 'Security Event',  color: 'text-red-700',    bg: 'bg-red-50',    dot: 'bg-red-600' },
+  audit_event:    { icon: Shield,         label: 'Audit Event',     color: 'text-blue-700',   bg: 'bg-blue-50',   dot: 'bg-blue-600' },
 };
 
 function formatTime(iso) {
@@ -83,6 +85,9 @@ function getDescription(a) {
       return `${a.employee}'s ${a.leaveType} leave approved${a.reviewerName ? ` by ${a.reviewerName}` : ''}`;
     case 'leave_rejected':
       return `${a.employee}'s ${a.leaveType} leave rejected${a.reviewerName ? ` by ${a.reviewerName}` : ''}`;
+    case 'security_event':
+    case 'audit_event':
+      return `${a.action?.replace(/\./g, ' ')}${a.resource ? ` · ${a.resource}` : ''}${a.ipAddress ? ` · IP ${a.ipAddress}` : ''}`;
     default:
       return a.type;
   }
@@ -91,7 +96,7 @@ function getDescription(a) {
 export default function ActivityLog() {
   const { user } = useAuth();
   const { dateFormat } = useSettings();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('attendance.view_all') || user?.permissions?.includes('audit.view');
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [mode, setMode] = useState('single'); // 'single' or 'range'

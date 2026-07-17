@@ -179,7 +179,7 @@ async function getEmployee(employeeId, orgId) {
 /**
  * Create a new employee
  */
-async function createEmployee({ orgId, data, adminId, req }) {
+async function createEmployee({ orgId, data, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
 
   // Block if org subscription is not active
@@ -235,10 +235,20 @@ async function createEmployee({ orgId, data, adminId, req }) {
   if (roleId) {
     const availableRole = await prisma.role.findFirst({
       where: { id: roleId, OR: [{ orgId: null }, { orgId }] },
-      select: { id: true },
+      select: { id: true, permissions: true, name: true },
     });
     if (!availableRole) {
       throw Object.assign(new Error('Selected role is not available for this organization'), { status: 400 });
+    }
+    const excessivePermissions = availableRole.name === 'employee' ? [] :
+      (availableRole.permissions || []).filter(permission => !actorPermissions.includes(permission));
+    if (excessivePermissions.length > 0) {
+      await auditLog({
+        orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role',
+        resourceId: availableRole.id,
+        newData: { operation: 'employee.create', targetRole: availableRole.name, excessivePermissions }, req,
+      });
+      throw Object.assign(new Error('You cannot grant a role with permissions above your own access level'), { status: 403 });
     }
   }
 
@@ -303,7 +313,7 @@ async function createEmployee({ orgId, data, adminId, req }) {
 /**
  * Update an employee
  */
-async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
+async function updateEmployee({ employeeId, orgId, data, adminId, actorPermissions = [], req }) {
   const prisma = getPrisma();
 
   const existing = await prisma.employee.findFirst({
@@ -324,6 +334,15 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
     });
     if (!requestedRole) {
       throw Object.assign(new Error('Selected role is not available for this organization'), { status: 400 });
+    }
+    const excessivePermissions = (requestedRole.permissions || []).filter(permission => !actorPermissions.includes(permission));
+    if (excessivePermissions.length > 0) {
+      await auditLog({
+        orgId, actorId: adminId, action: 'security.privilege_escalation_blocked', resource: 'role',
+        resourceId: requestedRole.id,
+        newData: { operation: 'employee.update', employeeId, targetRole: requestedRole.name, excessivePermissions }, req,
+      });
+      throw Object.assign(new Error('You cannot grant a role with permissions above your own access level'), { status: 403 });
     }
   }
 
@@ -371,6 +390,10 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
   });
 
   if (requestedRole) {
+    const previousRoles = await prisma.employeeRole.findMany({
+      where: { employeeId },
+      include: { role: { select: { id: true, name: true } } },
+    });
     await prisma.$transaction([
       prisma.employeeRole.deleteMany({ where: { employeeId } }),
       prisma.employeeRole.create({
@@ -378,6 +401,11 @@ async function updateEmployee({ employeeId, orgId, data, adminId, req }) {
       }),
     ]);
     invalidateUserCache(employeeId).catch(() => {});
+    await auditLog({
+      orgId, actorId: adminId, action: 'role.replace', resource: 'employee_role', resourceId: employeeId,
+      oldData: { roles: previousRoles.map(assignment => assignment.role.name) },
+      newData: { role: requestedRole.name }, req,
+    });
   }
 
   await auditLog({

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import { Plus, X, UserCog, CreditCard, Trash2, KeyRound, UserX, Edit, Wifi, LockOpen, Building2, Briefcase, Search } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import NfcModal from '../components/employees/NfcModal';
@@ -63,6 +64,8 @@ const formatRoleName = (name = '') => name
   .join(' ');
 
 export default function Employees() {
+  const { user } = useAuth();
+  const canManageRoles = user?.role === 'admin' || user?.permissions?.includes('role.manage');
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -619,7 +622,7 @@ export default function Employees() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
-                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} disabled={!canManageRoles}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                   {roleOptions.length === 0 && <option value="employee">Employee</option>}
                   {roleOptions.map(role => (
@@ -843,6 +846,7 @@ export default function Employees() {
         editSubmitting={editSubmitting} handleEditSubmit={handleEditSubmit}
         departments={departmentNames} getDesignationsForDepartment={getDesignationsForDepartment}
         roles={roleOptions}
+        canManageRoles={canManageRoles}
       />
 
       {/* Delete Confirmation Modal */}

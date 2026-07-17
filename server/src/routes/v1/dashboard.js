@@ -332,6 +332,39 @@ router.get('/activity-log', async (req, res, next) => {
       }
     }
 
+    // Security and administrative audit events are visible only to roles
+    // explicitly granted audit access.
+    if (req.user.permissions?.includes('audit.view')) {
+      const auditEndExclusive = new Date(dateTo);
+      auditEndExclusive.setUTCDate(auditEndExclusive.getUTCDate() + 1);
+      const auditEvents = await prisma.auditLog.findMany({
+        where: { orgId, createdAt: { gte: dateFrom, lt: auditEndExclusive } },
+        orderBy: { createdAt: 'desc' },
+        take: rowLimit,
+      });
+      const actorIds = [...new Set(auditEvents.map(event => event.actorId).filter(Boolean))];
+      const actors = await prisma.employee.findMany({
+        where: { id: { in: actorIds }, orgId },
+        select: { id: true, name: true, employeeCode: true, department: true },
+      });
+      const actorsById = Object.fromEntries(actors.map(actor => [actor.id, actor]));
+      for (const event of auditEvents) {
+        const actor = actorsById[event.actorId];
+        activities.push({
+          type: event.action.startsWith('security.') ? 'security_event' : 'audit_event',
+          time: event.createdAt.toISOString(),
+          employee: actor?.name || event.actorType || 'System',
+          empCode: actor?.employeeCode || null,
+          department: actor?.department || null,
+          employeeId: event.actorId,
+          action: event.action,
+          resource: event.resource,
+          details: event.newData,
+          ipAddress: event.ipAddress,
+        });
+      }
+    }
+
     activities.sort((a, b) => new Date(b.time) - new Date(a.time));
     res.json({ activities: activities.slice(0, rowLimit) });
   } catch (err) {

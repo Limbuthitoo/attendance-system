@@ -65,13 +65,20 @@ router.get('/:id', requirePermission('employee.view'), async (req, res, next) =>
   }
 });
 
-// POST /api/v1/employees — Create employee (admin)
-router.post('/', requireRole('org_admin'), async (req, res, next) => {
+// POST /api/v1/employees — Create employee (permission based)
+router.post('/', requirePermission('employee.create'), async (req, res, next) => {
   try {
+    // Employee creators without role-management access may only create a
+    // standard employee; this prevents privilege escalation via roleId.
+    if (!req.user.permissions?.includes('role.manage')) {
+      req.body = { ...req.body, role: 'employee' };
+      delete req.body.roleId;
+    }
     const employee = await employeeService.createEmployee({
       orgId: req.orgId,
       data: req.body,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.status(201).json({ employee, message: 'Employee created' });
@@ -81,14 +88,21 @@ router.post('/', requireRole('org_admin'), async (req, res, next) => {
   }
 });
 
-// PUT /api/v1/employees/:id — Update employee (admin)
-router.put('/:id', requireRole('org_admin'), async (req, res, next) => {
+// PUT /api/v1/employees/:id — Update employee (permission based)
+router.put('/:id', requirePermission('employee.update'), async (req, res, next) => {
   try {
+    // Updating employee details does not imply permission to change access.
+    if (!req.user.permissions?.includes('role.manage')) {
+      req.body = { ...req.body };
+      delete req.body.role;
+      delete req.body.roleId;
+    }
     const employee = await employeeService.updateEmployee({
       employeeId: req.params.id,
       orgId: req.orgId,
       data: req.body,
       adminId: req.user.id,
+      actorPermissions: req.user.permissions,
       req,
     });
     res.json({ employee, message: 'Employee updated' });

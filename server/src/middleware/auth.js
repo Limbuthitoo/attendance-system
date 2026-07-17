@@ -5,6 +5,24 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { getPrisma } = require('../lib/prisma');
 const { getUserCache, setUserCache } = require('./cache');
+const { auditLog } = require('../lib/audit');
+
+function auditAccessDenied(req, requiredAccess) {
+  if (!req.user) return;
+  auditLog({
+    orgId: req.user.orgId || req.orgId,
+    actorId: req.user.id,
+    action: 'security.access_denied',
+    resource: 'authorization',
+    newData: {
+      method: req.method,
+      path: req.originalUrl,
+      requiredAccess,
+      assignedRoles: req.user.roles || [],
+    },
+    req,
+  });
+}
 
 /**
  * Authenticate a request via:
@@ -127,6 +145,7 @@ function requireRole(...allowedRoles) {
     }
     const hasRole = req.user.roles.some((r) => allowedRoles.includes(r));
     if (!hasRole) {
+      auditAccessDenied(req, { roles: allowedRoles });
       return res.status(403).json({ error: 'Insufficient role privileges' });
     }
     next();
@@ -144,6 +163,7 @@ function requirePermission(...requiredPerms) {
     }
     const hasAll = requiredPerms.every((p) => req.user.permissions.includes(p));
     if (!hasAll) {
+      auditAccessDenied(req, { permissions: requiredPerms });
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
     next();
